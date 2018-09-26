@@ -1,9 +1,9 @@
 \documentclass[m,times]{cgMA}
 
 \usepackage{listings}
-\usepackage[hyphens]{url} 
+\usepackage{xurl}
+\urlstyle{sf}
 \usepackage{hyperref}
-\usepackage{breakurl}
 \usepackage{amsmath}
 \usepackage{bm}
 \usepackage{textcomp}
@@ -11,117 +11,120 @@
 \usepackage{color}
 \usepackage{subfigure}
 \usepackage{wrapfig}
+\usepackage[english,ngerman]{babel}
+\usepackage[backend=biber,style=alphabetic]{biblatex}
+\addbibresource{mscthesis.bib}
 \lstdefinelanguage{GLSL}
 {
-sensitive=true,
-morekeywords=[1]{
-attribute, const, uniform, varying,
-layout, centroid, flat, smooth,
-noperspective, break, continue, do,
-for, while, switch, case, default, if,
-else, in, out, inout, float, int, void,
-bool, true, false, invariant, discard,
-return, mat2, mat3, mat4, mat2x2, mat2x3,
-mat2x4, mat3x2, mat3x3, mat3x4, mat4x2,
-mat4x3, mat4x4, vec2, vec3, vec4, ivec2,
-ivec3, ivec4, bvec2, bvec3, bvec4, uint,
-uvec2, uvec3, uvec4, lowp, mediump, highp,
-precision, sampler1D, sampler2D, sampler3D,
-samplerCube, sampler1DShadow,
-sampler2DShadow, samplerCubeShadow,
-sampler1DArray, sampler2DArray,
-sampler1DArrayShadow, sampler2DArrayShadow,
-isampler1D, isampler2D, isampler3D,
-isamplerCube, isampler1DArray,
-isampler2DArray, usampler1D, usampler2D,
-usampler3D, usamplerCube, usampler1DArray,
-usampler2DArray, sampler2DRect,
-sampler2DRectShadow, isampler2DRect,
-usampler2DRect, samplerBuffer,
-isamplerBuffer, usamplerBuffer, sampler2DMS,
-isampler2DMS, usampler2DMS,
-sampler2DMSArray, isampler2DMSArray,
-usampler2DMSArray, struct},
-morekeywords=[2]{
-radians,degrees,sin,cos,tan,asin,acos,atan,
-atan,sinh,cosh,tanh,asinh,acosh,atanh,pow,
-exp,log,exp2,log2,sqrt,inversesqrt,abs,sign,
-floor,trunc,round,roundEven,ceil,fract,mod,modf,
-min,max,clamp,mix,step,smoothstep,isnan,isinf,
-floatBitsToInt,floatBitsToUint,intBitsToFloat,
-uintBitsToFloat,length,distance,dot,cross,
-normalize,faceforward,reflect,refract,
-matrixCompMult,outerProduct,transpose,
-determinant,inverse,lessThan,lessThanEqual,
-greaterThan,greaterThanEqual,equal,notEqual,
-any,all,not,textureSize,texture,textureProj,
-textureLod,textureOffset,texelFetch,
-texelFetchOffset,textureProjOffset,
-textureLodOffset,textureProjLod,
-textureProjLodOffset,textureGrad,
-textureGradOffset,textureProjGrad,
-textureProjGradOffset,texture1D,texture1DProj,
-texture1DProjLod,texture2D,texture2DProj,
-texture2DLod,texture2DProjLod,texture3D,
-texture3DProj,texture3DLod,texture3DProjLod,
-textureCube,textureCubeLod,shadow1D,shadow2D,
-shadow1DProj,shadow2DProj,shadow1DLod,
-shadow2DLod,shadow1DProjLod,shadow2DProjLod,
-dFdx,dFdy,fwidth,noise1,noise2,noise3,noise4,
-EmitVertex,EndPrimitive},
-morekeywords=[3]{
-gl_VertexID,gl_InstanceID,gl_Position,
-gl_PointSize,gl_ClipDistance,gl_PerVertex,
-gl_Layer,gl_ClipVertex,gl_FragCoord,
-gl_FrontFacing,gl_ClipDistance,gl_FragColor,
-gl_FragData,gl_MaxDrawBuffers,gl_FragDepth,
-gl_PointCoord,gl_PrimitiveID,
-gl_MaxVertexAttribs,gl_MaxVertexUniformComponents,
-gl_MaxVaryingFloats,gl_MaxVaryingComponents,
-gl_MaxVertexOutputComponents,
-gl_MaxGeometryInputComponents,
-gl_MaxGeometryOutputComponents,
-gl_MaxFragmentInputComponents,
-gl_MaxVertexTextureImageUnits,
-gl_MaxCombinedTextureImageUnits,
-gl_MaxTextureImageUnits,
-gl_MaxFragmentUniformComponents,
-gl_MaxDrawBuffers,gl_MaxClipDistances,
-gl_MaxGeometryTextureImageUnits,
-gl_MaxGeometryOutputVertices,
-gl_MaxGeometryOutputVertices,
-gl_MaxGeometryTotalOutputComponents,
-gl_MaxGeometryUniformComponents,
-gl_MaxGeometryVaryingComponents,gl_DepthRange},
-morecomment=[l]{//},
-morecomment=[s]{/*}{*/},
-morecomment=[l][keywordstyle4]{\#},
+  sensitive=true,
+  morekeywords=[1]{
+    attribute, const, uniform, varying,
+    layout, centroid, flat, smooth,
+    noperspective, break, continue, do,
+    for, while, switch, case, default, if,
+    else, in, out, inout, float, int, void,
+    bool, true, false, invariant, discard,
+    return, mat2, mat3, mat4, mat2x2, mat2x3,
+    mat2x4, mat3x2, mat3x3, mat3x4, mat4x2,
+    mat4x3, mat4x4, vec2, vec3, vec4, ivec2,
+    ivec3, ivec4, bvec2, bvec3, bvec4, uint,
+    uvec2, uvec3, uvec4, lowp, mediump, highp,
+    precision, sampler1D, sampler2D, sampler3D,
+    samplerCube, sampler1DShadow,
+    sampler2DShadow, samplerCubeShadow,
+    sampler1DArray, sampler2DArray,
+    sampler1DArrayShadow, sampler2DArrayShadow,
+    isampler1D, isampler2D, isampler3D,
+    isamplerCube, isampler1DArray,
+    isampler2DArray, usampler1D, usampler2D,
+    usampler3D, usamplerCube, usampler1DArray,
+    usampler2DArray, sampler2DRect,
+    sampler2DRectShadow, isampler2DRect,
+    usampler2DRect, samplerBuffer,
+    isamplerBuffer, usamplerBuffer, sampler2DMS,
+    isampler2DMS, usampler2DMS,
+    sampler2DMSArray, isampler2DMSArray,
+  usampler2DMSArray, struct},
+  morekeywords=[2]{
+    radians,degrees,sin,cos,tan,asin,acos,atan,
+    atan,sinh,cosh,tanh,asinh,acosh,atanh,pow,
+    exp,log,exp2,log2,sqrt,inversesqrt,abs,sign,
+    floor,trunc,round,roundEven,ceil,fract,mod,modf,
+    min,max,clamp,mix,step,smoothstep,isnan,isinf,
+    floatBitsToInt,floatBitsToUint,intBitsToFloat,
+    uintBitsToFloat,length,distance,dot,cross,
+    normalize,faceforward,reflect,refract,
+    matrixCompMult,outerProduct,transpose,
+    determinant,inverse,lessThan,lessThanEqual,
+    greaterThan,greaterThanEqual,equal,notEqual,
+    any,all,not,textureSize,texture,textureProj,
+    textureLod,textureOffset,texelFetch,
+    texelFetchOffset,textureProjOffset,
+    textureLodOffset,textureProjLod,
+    textureProjLodOffset,textureGrad,
+    textureGradOffset,textureProjGrad,
+    textureProjGradOffset,texture1D,texture1DProj,
+    texture1DProjLod,texture2D,texture2DProj,
+    texture2DLod,texture2DProjLod,texture3D,
+    texture3DProj,texture3DLod,texture3DProjLod,
+    textureCube,textureCubeLod,shadow1D,shadow2D,
+    shadow1DProj,shadow2DProj,shadow1DLod,
+    shadow2DLod,shadow1DProjLod,shadow2DProjLod,
+    dFdx,dFdy,fwidth,noise1,noise2,noise3,noise4,
+  EmitVertex,EndPrimitive},
+  morekeywords=[3]{
+    gl_VertexID,gl_InstanceID,gl_Position,
+    gl_PointSize,gl_ClipDistance,gl_PerVertex,
+    gl_Layer,gl_ClipVertex,gl_FragCoord,
+    gl_FrontFacing,gl_ClipDistance,gl_FragColor,
+    gl_FragData,gl_MaxDrawBuffers,gl_FragDepth,
+    gl_PointCoord,gl_PrimitiveID,
+    gl_MaxVertexAttribs,gl_MaxVertexUniformComponents,
+    gl_MaxVaryingFloats,gl_MaxVaryingComponents,
+    gl_MaxVertexOutputComponents,
+    gl_MaxGeometryInputComponents,
+    gl_MaxGeometryOutputComponents,
+    gl_MaxFragmentInputComponents,
+    gl_MaxVertexTextureImageUnits,
+    gl_MaxCombinedTextureImageUnits,
+    gl_MaxTextureImageUnits,
+    gl_MaxFragmentUniformComponents,
+    gl_MaxDrawBuffers,gl_MaxClipDistances,
+    gl_MaxGeometryTextureImageUnits,
+    gl_MaxGeometryOutputVertices,
+    gl_MaxGeometryOutputVertices,
+    gl_MaxGeometryTotalOutputComponents,
+    gl_MaxGeometryUniformComponents,
+  gl_MaxGeometryVaryingComponents,gl_DepthRange},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morecomment=[l][keywordstyle4]{\#},
 }
 \lstset{
-tabsize=2,
-rulecolor=,
-basicstyle=\scriptsize,
-upquote=true,
-aboveskip={0.5\baselineskip},
-belowskip={1.5\baselineskip},
-columns=fixed,
-showstringspaces=false,
-extendedchars=true,
-breaklines=true,
-prebreak = \raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
-frame=single,
-showtabs=false,
-showspaces=false,
-showstringspaces=false,
-identifierstyle=\ttfamily,
-keywordstyle=\color[rgb]{1.0,0,0},
-keywordstyle=[1]\color[rgb]{0,0,0.75},
-keywordstyle=[2]\color[rgb]{0.5,0.0,0.0},
-keywordstyle=[3]\color[rgb]{0.127,0.427,0.514},
-keywordstyle=[4]\color[rgb]{0.4,0.4,0.4},
-commentstyle=\color[rgb]{0.133,0.545,0.133},
-stringstyle=\color[rgb]{0.639,0.082,0.082},
-numbers=left,
+  tabsize=2,
+  rulecolor=,
+  basicstyle=\scriptsize,
+  upquote=true,
+  aboveskip={0.5\baselineskip},
+  belowskip={1.5\baselineskip},
+  columns=fixed,
+  showstringspaces=false,
+  extendedchars=true,
+  breaklines=true,
+  prebreak = \raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+  frame=single,
+  showtabs=false,
+  showspaces=false,
+  showstringspaces=false,
+  identifierstyle=\ttfamily,
+  keywordstyle=\color[rgb]{1.0,0,0},
+  keywordstyle=[1]\color[rgb]{0,0,0.75},
+  keywordstyle=[2]\color[rgb]{0.5,0.0,0.0},
+  keywordstyle=[3]\color[rgb]{0.127,0.427,0.514},
+  keywordstyle=[4]\color[rgb]{0.4,0.4,0.4},
+  commentstyle=\color[rgb]{0.133,0.545,0.133},
+  stringstyle=\color[rgb]{0.639,0.082,0.082},
+  numbers=left,
 }
 
 \renewcommand{\lstlistingname}{Source code}
@@ -131,8 +134,7 @@ numbers=left,
 
 
 \begin{document}
-\selectlanguage{english}
-\bibliographystyle{alphadin}
+
 \author{Fabian Meyer}
 \title{GPU-Beschleunigung der Material Point Method}
 \zweitgutachter{Bastian Krayer, M.Sc.}
@@ -144,13 +146,10 @@ numbers=left,
 \maketitle
 
 \clearpage
-
+\selectlanguage{english}
 \subsubsection*{Abstract}
 
-\noindent Physic simulations allow the creation of dynamic scenes on the computer. Computer generated images become lively and find use in movies, games and engineering applications. GPGPU techniques make use of the graphics card to simulate physics. The simulation of dynamic snow is still little researched. The Material Point Method is the first technique which is capable of showing the dynamics and characteristics of snow.\\
-The hybrid use of Lagrangian particles and a regular cartesian grid enables solving of partial differential equations. Therefore particles are transformed to the grid. The grid  velocities can be updated with the calculation of gradients in an FEM-manner (finite element method). Finally grid node velocities are weight back to the particles to move them across the scene. This method is coupled with a constitutive model to cover the dynamic nature of snow. This includes collisions and breaking.\\
-This bachelor thesis connects the recent developments in GPGPU techniques of OpenGL with the Material Point Method to efficiently simulate visually compelling, dynamic snow scenes.
-
+\noindent Physic
 
 %\vfill~
 %ggf. noch'n \vfill~
@@ -165,17 +164,57 @@ This bachelor thesis connects the recent developments in GPGPU techniques of Ope
 \pagenumbering{arabic}
 
 
-\section{Introduction}\label{intro}
-bib-test \cite{Stomakhin:2013:MPM:2461912.2461948}
+\section{Introduction} \label{intro}
+bib-test \cite{MPM:SNOW}
 $$ -  \int_{\pi/2}^{\pi} \frac{1}{\sqrt{u}} \frac{\lvert \cos{x} \rvert}{\cos{x}} du $$
-\section{Problems of a full GPU approach}
-\section{SoA vs AoS}
-\section{Sparse Datastructures}
-\section{Validation of conservation equations}
+\subsection{Motivation}
+\subsection{Related Work}
+\cite{PIC:GPU}
+\cite{MPM:GPU}
+%look again for MPM/PIC gpu impl
+\section{Basics}
+\subsection{Continuum Mechanics}
+\cite{MPM:COURSE}
+\subsection{Constitutive Models}
+\cite{MPM:DRUCKER} %Sand Plasticity
+\cite{MPM:MULTI} %Sand+Water
+\cite{MPM:INVERT} %Neo-Hookean
+\cite{MPM:OLROYDB} %Viscoelastic Foam,Sponge
+\cite{MPM:SHELLS}
+\subsubsection{Fixed Corotated Hyperelasticity}
+\cite{MPM:INVERT}
+\subsection{Singular Value Decomposition}
+\cite{SVD:3x3}
+\subsection{Material Point Method}
+\subsubsection{Conservation Equations}
+\cite{MPM:APIC}
+\subsubsection{CFL Condition}
+\subsection{GPU memory}
+\subsubsection{Optimization opportunities}
+\cite{NVIDIA:BEST:PRACTICE}
+\cite{AMD:GPU_OPEN}
+\begin{itemize}
+  \item Minimize CPU-GPU transfers
+  \item Coalesced memory access
+  \item Bank conflicts
+\end{itemize}
+\subsubsection{SoA vs. AoS}
+\section{Implementation}
+\subsection{Parallel Reduction}
+\cite{NVIDIA:PARALLEL_REDUCTION}
+\subsection{Verifying Simulation}
+\subsubsection{Validation of Conservation Equations}
+\section{Evaluation}
+\cite{NVIDIA:PEAK_PERFORMANCE}
+\cite{KHRONOS:TIMER_QUERY}
+\section{Conclusion}
+\subsection{Review}
+\subsection{Future Work}
 \listoffigures
 \clearpage
 \listoftables
 \lstlistoflistings
 \clearpage
-\bibliography{mscthesis}
+\selectlanguage{english}
+\printbibliography
 \end{document}

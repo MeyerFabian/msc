@@ -1,21 +1,131 @@
-@ARTICLE{Stomakhin:2013:MPM:2461912.2461948,
-  author = {Stomakhin, Alexey and Schroeder, Craig and Chai, Lawrence and Teran,
-	Joseph and Selle, Andrew},
-  title = {A Material Point Method for Snow Simulation},
+@article{MPM:SNOW,
+  title={A material point method for snow simulation},
+  author={Stomakhin, Alexey and Schroeder, Craig and Chai, Lawrence and Teran, Joseph and Selle, Andrew},
+  journal={ACM Transactions on Graphics (TOG)},
+  volume={32},
+  number={4},
+  pages={102},
+  year={2013},
+  publisher={ACM}
+}
+@article{SVD:3x3,
+  title={Computing the singular value decomposition of 3$\times$3 matrices with minimal branching and elementary floating point operations},
+  author={McAdams, Aleka and Selle, Andrew and Tamstorf, Rasmus and Teran, Joseph and Sifakis, Eftychios and Studios, Walt Disney Animation},
+  year={2011},
+  journal = {Tech. Rep. 1690 University of Wisconsin-Madison}
+}
+@misc{NVIDIA:BEST:PRACTICE,
+  author = "{NVIDIA Corporation}",
+  title = "Best Practices Guide - v10.0.130",
+  howpublished = "\url{https://docs.nvidia.com/cuda/cuda-c-best-practices-guide}",
+  note = "[Online; accessed 26-September-2018]"
+}
+@misc{AMD:GPU_OPEN,
+  author = "{Aaltonen, Sebastian}",
+  title = "Optimizing GPU occupancy and resource usage with large thread groups",
+  howpublished = "\url{https://gpuopen.com/optimizing-gpu-occupancy-resource-usage-large-thread-groups/}",
+  note = "[Online; accessed 26-September-2018]"
+}
+@misc{NVIDIA:PEAK_PERFORMANCE,
+  author = "{NVIDIA Corporation}",
+  title = "The Peak-Performance Analysis Method for Optimizing Any GPU Workload",
+  howpublished = "\url{https://devblogs.nvidia.com/the-peak-performance-analysis-method-for-optimizing-any-gpu-workload}",
+  note = "[Online; accessed 15-September-2018]"
+}
+@article{NVIDIA:PARALLEL_REDUCTION,
+  author = {Harris, M},
+  year = {2007},
+  month = {01},
+  pages = {104-110},
+  title = {Optimizing parallel reduction in CUDA},
+  volume = {21},
+  journal = {Proc. ACM SIGMOD}
+}
+@inproceedings{MPM:INVERT,
+  title={Energetically consistent invertible elasticity},
+  author={Stomakhin, Alexey and Howes, Russell and Schroeder, Craig and Teran, Joseph M},
+  booktitle={Proceedings of the 11th ACM SIGGRAPH/Eurographics conference on Computer Animation},
+  pages={25-32},
+  year={2012},
+}
+@misc{KHRONOS:TIMER_QUERY,
+  author ={Piers Daniell},
+  organization = "{The Khronos Group Inc.}",
+  title = "GL\_ARB\_timer\_query",
+  year = "2014",
+  howpublished = "\url{https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_timer_query.txt}",
+  note = "[Online; accessed 15-September-2018]"
+}
+@mastersthesis{PIC:GPU,
+  title={Implementation and performance evaluation of a GPU particle-in-cell code},
+  author={Payne, Joshua Estes},
+  year={2012},
+  school={Massachusetts Institute of Technology},
+  language={english}
+}
+@article{MPM:DRUCKER,
+  title={Drucker-prager elastoplasticity for sand animation},
+  author={Kl{\'a}r, Gergely and Gast, Theodore and Pradhana, Andre and Fu, Chuyuan and Schroeder, Craig and Jiang, Chenfanfu and Teran, Joseph},
+  journal={ACM Transactions on Graphics (TOG)},
+  volume={35},
+  number={4},
+  pages={103},
+  year={2016},
+  publisher={ACM}
+}
+@article{MPM:MULTI,
+  title={Multi-species simulation of porous sand and water mixtures},
+  author={Tampubolon, Andre Pradhana and Gast, Theodore and Kl{\'a}r, Gergely and Fu, Chuyuan and Teran, Joseph and Jiang, Chenfanfu and Museth, Ken},
+  journal={ACM Transactions on Graphics (TOG)},
+  volume={36},
+  number={4},
+  pages={105},
+  year={2017},
+  publisher={ACM}
+}
+@inproceedings{MPM:OLROYDB,
+  title={A material point method for viscoelastic fluids, foams and sponges},
+  author={Ram, Daniel and Gast, Theodore and Jiang, Chenfanfu and Schroeder, Craig and Stomakhin, Alexey and Teran, Joseph and Kavehpour, Pirouz},
+  booktitle={Proceedings of the 14th ACM SIGGRAPH/Eurographics Symposium on Computer Animation},
+  pages={157--163},
+  year={2015},
+  organization={ACM}
+}
+
+@inproceedings{MPM:COURSE,
+  title={The material point method for simulating continuum materials},
+  author={Jiang, Chenfanfu and Schroeder, Craig and Teran, Joseph and Stomakhin, Alexey and Selle, Andrew},
+  booktitle={ACM SIGGRAPH 2016 Courses},
+  pages={24},
+  year={2016},
+  organization={ACM}
+}
+
+@inproceedings{MPM:GPU,
+  title={Production ready MPM simulations},
+  author={Kl{\'a}r, Gergely and Budsberg, Jeff and Titus, Matt and Jones, Stephen and Museth, Ken},
+  booktitle={ACM SIGGRAPH 2017 Talks},
+  pages={42},
+  year={2017},
+  organization={ACM}
+}
+@article{MPM:SHELLS,
+  author = {Guo, Qi and Han, Xuchen and Fu, Chuyuan and Gast, Theodore and Tamstorf, Rasmus and Teran, Joseph},
+  title = {A Material Point Method for Thin Shells with Frictional Contact},
   journal = {ACM Trans. Graph.},
-  year = {2013},
-  volume = {32},
-  pages = {102:1--102:10},
+  volume = {37},
   number = {4},
   month = jul,
-  acmid = {2461948},
-  address = {New York, NY, USA},
-  articleno = {102},
-  doi = {10.1145/2461912.2461948},
-  issn = {0730-0301},
-  issue_date = {July 2013},
-  keywords = {material point, physically-based modeling, snow simulation},
-  numpages = {10},
-  publisher = {ACM},
-  url = {http://doi.acm.org/10.1145/2461912.2461948}
+  year = {2018},
+  pages = {147.1-147.15},
+}
+
+@article{MPM:APIC,
+  title={An angular momentum conserving affine-particle-in-cell method},
+  author={Jiang, Chenfanfu and Schroeder, Craig and Teran, Joseph},
+  journal={Journal of Computational Physics},
+  volume={338},
+  pages={137--164},
+  year={2017},
+  publisher={Elsevier}
 }
