@@ -14,6 +14,7 @@
 \usepackage[english,ngerman]{babel}
 \usepackage[backend=biber,style=alphabetic]{biblatex}
 \addbibresource{mscthesis.bib}
+
 \lstdefinelanguage{GLSL}
 {
   sensitive=true,
@@ -100,7 +101,7 @@
   morecomment=[s]{/*}{*/},
   morecomment=[l][keywordstyle4]{\#},
 }
-\lstset{
+\lstdefinestyle{GL}{
   tabsize=2,
   rulecolor=,
   basicstyle=\scriptsize,
@@ -126,6 +127,43 @@
   stringstyle=\color[rgb]{0.639,0.082,0.082},
   numbers=left,
 }
+
+\lstdefinelanguage{alg}{
+  keywordstyle=[1]{\keywordstyle},
+  keywordstyle=[2]{\operatorstyle},
+  keywordstyle=[3]{\typestyle},
+  keywordstyle=[4]{\functionstyle},
+  identifierstyle={\identifierstyle},
+  keywords=[1]{%
+    struct,
+    begin,end,%
+    program,procedure,function,subroutine,%
+    while,do,for,to,next,repeat,until,loop,continue,endwhile,endfor,endloop,%
+    if,then,else,endif%
+  return},
+  keywords=[2]{mod},
+  keywords=[3]{Particle,int},
+  keywords=[4]{Euclidean},
+  literate={-}{$-$}1 {^}{$^\wedge$}1
+  {>}{{$>$\ }}1 {<}{{$<$\ }}1
+  {>=}{{$\geqslant$\ }}1 {<=}{{$\leqslant$\ }}1
+  {:=}{{$\gets$\ }}1 {!=}{{$\ne$\ }}1 {<>}{{$\ne$\ }}1
+  {->}{{$\;\to\;$}}1
+  {&&}{{\keywordstyle and\ }}4 {{||}}{{\keywordstyle or\ }}3
+  {;}{\hspace{0.2em};}2 {,}{\hspace{0.2em},}2,
+}
+
+\lstdefinestyle{Pseudo}{
+  language={alg},
+  columns=fullflexible,
+  numbers=left,
+  numberstyle=\scriptsize,
+}
+\newcommand\keywordstyle{\rmfamily\bfseries\upshape}
+\newcommand\operatorstyle{\rmfamily\mdseries\upshape}
+\newcommand\typestyle{\rmfamily\mdseries\upshape}
+\newcommand\functionstyle{\rmfamily\mdseries\scshape}
+\newcommand\identifierstyle{\rmfamily\mdseries\itshape}
 
 \renewcommand{\lstlistingname}{Source code}
 
@@ -168,10 +206,11 @@
 bib-test \cite{MPM:SNOW}
 $$ -  \int_{\pi/2}^{\pi} \frac{1}{\sqrt{u}} \frac{\lvert \cos{x} \rvert}{\cos{x}} du $$
 \subsection{Motivation}
-\subsection{Related Work}
+\section{Related Work}
 \cite{PIC:GPU}
 \cite{MPM:GPU}
 %look again for MPM/PIC gpu impl
+%SPH, FEM methods
 \section{Basics}
 \subsection{Continuum Mechanics}
 \cite{MPM:COURSE}
@@ -180,7 +219,9 @@ $$ -  \int_{\pi/2}^{\pi} \frac{1}{\sqrt{u}} \frac{\lvert \cos{x} \rvert}{\cos{x}
 \cite{MPM:MULTI} %Sand+Water
 \cite{MPM:INVERT} %Neo-Hookean
 \cite{MPM:OLROYDB} %Viscoelastic Foam,Sponge
-\cite{MPM:SHELLS}
+\cite{MPM:SHELLS} %Thin Shells
+\cite{MPM:PHASE_CHANGE} %Heat-Model
+\cite{MPM:OPTIMI_INTEGR} %Opimization Methods, BDF-Semi-Impl-Midpoint rule
 \subsubsection{Fixed Corotated Hyperelasticity}
 \cite{MPM:INVERT}
 \subsection{Singular Value Decomposition}
@@ -199,11 +240,37 @@ $$ -  \int_{\pi/2}^{\pi} \frac{1}{\sqrt{u}} \frac{\lvert \cos{x} \rvert}{\cos{x}
   \item Bank conflicts
 \end{itemize}
 \subsubsection{SoA vs. AoS}
+
+\begin{lstlisting}[style = Pseudo]
+struct Particle{
+  int val;
+};
+\end{lstlisting}
 \section{Implementation}
+
+\begin{lstlisting}[style =Pseudo]
+procedure Euclidean(a,b)
+  r := a mod b
+  while r != 0 do
+    a := b
+    b := r
+    r := a mod b
+  end while
+  return b
+end procedure
+\end{lstlisting}
 \subsection{Parallel Reduction}
 \cite{NVIDIA:PARALLEL_REDUCTION}
+\subsection{Affine particle-in-cell}
+\cite{MPM:APIC}
+\subsection{Iterative solvers for linear systems}
+%GMRES, Conjugate Gradients
 \subsection{Verifying Simulation}
-\subsubsection{Validation of Conservation Equations}
+\begin{itemize}
+  \item Conservation equations
+  \item Singular Value Decomposition
+  \item Parallel Reduction
+\end{itemize}
 \section{Evaluation}
 \cite{NVIDIA:PEAK_PERFORMANCE}
 \cite{KHRONOS:TIMER_QUERY}
