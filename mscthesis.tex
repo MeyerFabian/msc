@@ -173,10 +173,13 @@ $$ -  \int_{\pi/2}^{\pi} \frac{1}{\sqrt{u}} \frac{\lvert \cos{x} \rvert}{\cos{x}
 \section{Related Work}
 \cite{PIC:GPU} -> \cite{NVIDIA:NNSEARCH}
 benefits over radix sort /thrust sort-by-key -> counting sort
+\cite{NVIDIA:SHUFFLE}
 
 \cite{MPM:GPU}
 %look again for MPM/PIC gpu impl
 %SPH, FEM methods
+\section{Notation}
+Einstein-Notation
 \section{Basics}
 \subsection{Continuum Mechanics}
 \cite{MPM:COURSE}
@@ -188,8 +191,88 @@ benefits over radix sort /thrust sort-by-key -> counting sort
 \cite{MPM:SHELLS} %Thin Shells
 \cite{MPM:PHASE_CHANGE} %Heat-Model
 \cite{MPM:OPTIMI_INTEGR} %Opimization Methods, BDF-Semi-Impl-Midpoint rule
+
+The first aim will be to find the strain energy density $\psi(\mathbf{\epsilon})$ of the strain $\bm{\epsilon}$.
+For an (hyper-)elastic material the Cauchy stress may be defined in terms of $\psi$ as:
+The most general linear stress-strain relationship is given by Hooke's Law in three dimensions
+\begin{equation}\label{eq:hook}
+  \sigma_{ij} = C_{ijkl} \epsilon_{kl},
+\end{equation}
+where $\mathbf{\sigma}$ and $\bm{\epsilon}$ are second-order tensors with (3x3) = 9 elements. $C_{ijkl}$ is a fourth-order tensor with (3x3)x(3x3) = 81 elements.
+Assuming following symmetries reduces the tensors to 6 and 21 unique elements respectively:
+\begin{enumerate}
+  \item Conservation of angular momentum: $\sigma_{ij} = \sigma_{ji} \Rightarrow C_{ijkl} = C_{jikl} $
+  \item No-net-rotation: $\epsilon_{kl} = \epsilon_{lk} \Rightarrow C_{ijkl} = C_{ijlk}$
+  \item \label{it:mixed_partials}Equivalence of second-order mixed partials of $\psi$:
+    \begin{equation}
+      C _ { i j k l } = \frac { \partial ^ { 2 } { \psi } } { \partial \epsilon _ { k l } \partial \epsilon _ { i j } } = \frac { \partial ^ { 2 } { \psi } } { \partial \epsilon _ { i j } \partial \epsilon _ { k l } } = C _ { k l i j },
+    \end{equation}
+\end{enumerate}
+where item \ref{it:mixed_partials} holds for the strain energy density functional of an (hyper-)elastic material. The stress may then also be calculated by
+\begin{equation}\label{eq:partial_energy}
+  \sigma _ { i j } = \sigma _ { i j } ( \mathbf{\epsilon} ) = \frac { \partial { \psi } } { \partial \epsilon _ { i j } },
+\end{equation}
+if such a $\psi$ is given. An isotropic (direction-independent) linear elastic material further only has three unique elements $C _ {i j k l}$. Using Voigt-Notation, which collapses indices $i=j$ and $k=l$, equation \ref{eq:hook} can be rewritten as:
+\begin{equation} \label{eq:voigt}
+  \left[ \begin{array} {c}
+      {\sigma_{11}}\\
+      {\sigma_{22}}\\
+      {\sigma_{33}}\\
+      {\sigma_{23}}\\
+      {\sigma_{13}}\\
+      {\sigma_{12}}\\
+  \end{array} \right]
+  = \left[ \begin{array} { c c c c c c }
+      { C _ { 11 }   } & { C _ { 12 } } & { C _ { 12 } } & 0                & 0                & 0 \\
+      {}               & { C _ { 11 } } & { C _ { 12 } } & 0                & 0                & 0 \\
+      {}               & {}             & { C _ { 11 } } & 0                & 0                & 0 \\
+      {}               & {}             & {}             & { C _ { 22 } }   & 0                & 0 \\
+      {}               & {}             & {}             & {}               & { C _ { 22 } }   & 0 \\
+      {sym}            & {}             & {}             & {}               & {}               & { C _ { 22 } } \\
+  \end{array} \right]
+  \left[ \begin{array} {c}
+      {\epsilon_{11}}\\
+      {\epsilon_{22}}\\
+      {\epsilon_{33}}\\
+      {\gamma_{23}}\\
+      {\gamma_{13}}\\
+      {\gamma_{12}}\\
+  \end{array} \right]
+\end{equation}
+Experimental results of Hooke's law commonly give
+\begin{equation}
+  \boldsymbol{\epsilon} =
+  \epsilon _ { i j } = \frac { 1 } { E } \left[ ( 1 + \nu ) \sigma _ { i j } - \nu \sigma _ { k k } \delta _ { i j } \right]
+  = \mathbf{C}^{-1} \bm{\sigma}
+\end{equation}
+using engineering constants Young's modulus $E$ and Poisson ratio $\nu$. Inverting $\mathbf{C}^{-1}$ and switching to Lamé parameters $\lambda$ and $\mu$ results in the equation:
+\begin{equation} \label{eq:stress_strain}
+  \sigma_{ij} = 2\mu \epsilon_{ij} + \lambda \text{tr}(\boldsymbol{\epsilon}) \delta_{ij}.
+\end{equation}
+Comparing with equation \ref{eq:voigt} leads to coefficients $\gamma_{ij} = 2\epsilon_{ij} \text{ for } (i \neq j)$, $C_{11} = \lambda +2 \mu$, $C_{12} = \lambda$ and $C_{22} = \mu$. $\gamma$ is also referred to as the engineering strain. Due to the relationship in \ref{eq:partial_energy} the model for linear elasticity in terms of the strain energy density function $\psi_{LE}$ after integration of \ref{eq:stress_strain} concludes to:
+\begin{equation}\label{eq:linear_elas}
+  \psi_{LE} = \mu \Vert \boldsymbol{\epsilon} \Vert^2_F + \frac{\lambda}{2} \text{tr}^2(\boldsymbol{\epsilon}).
+\end{equation}
+\cite{MIT:LINEAR_ELASTICITY}
 \subsubsection{Fixed Corotated Hyperelasticity}
+The simplest tensor assumed by infinitesimal strain theory is the small strain tensor: \begin{equation}
+  \boldsymbol{\epsilon} = \frac { 1 } { 2 } \left( \mathbf { F } + \mathbf { F } ^ { T } \right) - \mathbf { I }
+\end{equation}
+The energy produced by equation \ref{eq:linear_elas} using the small strain tensor is not rotationally invariant, w.r.t. to $\mathbf{F}$: $\psi(\mathbf{R}_{0} \mathbf{F}) \neq \psi(\mathbf{F})$. The deformation caused by stress however does not affect rigid body motions. Given the polar decomposition $\mathbf{F} = \mathbf{RS}$, an alternate strain measure may be defined as:
+\begin{equation}
+  \hat { \boldsymbol { \epsilon } } ( \mathbf { F } ) = \boldsymbol { \epsilon } \left( \mathbf { R } ^ { T } \mathbf { F } \right) = \frac { 1 } { 2 } \left( \mathbf { R } ^ { T } \mathbf { F } + \left( \mathbf { R } ^ { T } \mathbf { F } \right) ^ { T } \right) - \mathbf { I } = \mathbf { S } - \mathbf { I }
+\end{equation}
+Substituting $\hat{\boldsymbol{\epsilon}}$ into equation \ref{eq:linear_elas} leads to the energy definition of corotational hyperelasticity using rotation-invariance of Frobenius norm and trace:
+\begin{equation}
+  \Psi = \mu \| \mathbf { F } - \mathbf { R } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } \left( \mathbf { R } ^ { T } \mathbf { F } - \mathbf { I } \right)
+\end{equation}
+
+\begin{equation}
+  \Psi(\boldsymbol{\Sigma}) = \mu \| \boldsymbol { \Sigma } - \mathbf { I } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } ( \boldsymbol { \Sigma } - \mathbf { I } )
+\end{equation}
+\cite{ADAMS:ELASTICITY}
 \cite{MPM:INVERT}
+
 \subsection{Singular Value Decomposition}
 \cite{SVD:3x3}
 \subsection{Material Point Method}
@@ -212,22 +295,25 @@ benefits over radix sort /thrust sort-by-key -> counting sort
   \caption{Euclid’s algorithm}\label{euclid}
   \begin{algorithmic}[1]
     \Procedure{Euclid}{$a,b$}\Comment{The g.c.d. of a and b}
-    \State $r\gets a\bmod b$ and \var{foobar}\label{foobar}
+    \State $r\gets a\mathbfod b$ and \var{foobar}\label{foobar}
     \While{$r\not=0$}\Comment{We have the answer if r is 0}
     \State $a\gets b$
     \State $b\gets r$
-    \State $r\gets a\bmod b$
+    \State $r\gets a\mathbfod b$
     \EndWhile\label{euclidendwhile}
     \State \textbf{return} $b$\Comment{The gcd is b}
     \EndProcedure
   \end{algorithmic}
 \end{algorithm}
+\subsection{Framework}
+decorator pattern
 \subsection{Parallel Reduction}
 \cite{NVIDIA:PARALLEL_REDUCTION}
 \subsection{Binning}
 \cite{NVIDIA:BINNING}
 \subsection{Scanning}
 \cite{NVIDIA:SCAN}
+\cite{NVIDIA:SCAN_MODERN}
 \subsection{Affine particle-in-cell}
 \cite{MPM:APIC}
 \subsection{Iterative solvers for linear systems}
