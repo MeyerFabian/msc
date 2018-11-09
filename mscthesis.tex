@@ -15,6 +15,8 @@
 \usepackage[backend=biber,style=alphabetic]{biblatex}
 \usepackage{algorithm}% http://ctan.org/pkg/algorithms
 \usepackage{algpseudocode}% http://ctan.org/pkg/algorithmicx
+\usepackage{mathtools}
+\usepackage{subdepth}
 \addbibresource{mscthesis.bib}
 
 \lstdefinelanguage{GLSL}
@@ -183,6 +185,8 @@ Einstein-Notation
 \section{Basics}
 \subsection{Continuum Mechanics}
 \cite{MPM:COURSE}
+\subsection{Singular Value Decomposition}
+\cite{SVD:3x3}
 \subsection{Constitutive Models}
 \cite{MPM:DRUCKER} %Sand Plasticity
 \cite{MPM:MULTI} %Sand+Water
@@ -256,25 +260,35 @@ Comparing with equation \ref{eq:voigt} leads to coefficients $\gamma_{ij} = 2\ep
 \cite{MIT:LINEAR_ELASTICITY}
 \subsubsection{Fixed Corotated Hyperelasticity}
 The simplest tensor assumed by infinitesimal strain theory is the small strain tensor: \begin{equation}
-  \boldsymbol{\epsilon} = \frac { 1 } { 2 } \left( \mathbf { F } + \mathbf { F } ^ { T } \right) - \mathbf { I }
+  \boldsymbol{\epsilon} = \frac { 1 } { 2 } \left( \mathbf { F }_E + \mathbf { F }_E ^ { T } \right) - \mathbf { I }
 \end{equation}
-The energy produced by equation \ref{eq:linear_elas} using the small strain tensor is not rotationally invariant, w.r.t. to $\mathbf{F}$: $\psi(\mathbf{R}_{0} \mathbf{F}) \neq \psi(\mathbf{F})$. The deformation caused by stress however does not affect rigid body motions. Given the polar decomposition $\mathbf{F} = \mathbf{RS}$, an alternate strain measure may be defined as:
+The energy produced by equation \ref{eq:linear_elas} using the small strain tensor is not rotationally invariant, w.r.t. to $\mathbf{F}_E$: $\psi(\mathbf{R}_{0} \mathbf{F}_E) \neq \psi(\mathbf{F}_E)$. The deformation caused by stress however does not affect rigid body motions. Given the polar decomposition $\mathbf{F}_E = \mathbf{R}_E\mathbf{S}_E$, an alternate strain measure may be defined as:
 \begin{equation}
-  \hat { \boldsymbol { \epsilon } } ( \mathbf { F } ) = \boldsymbol { \epsilon } \left( \mathbf { R } ^ { T } \mathbf { F } \right) = \frac { 1 } { 2 } \left( \mathbf { R } ^ { T } \mathbf { F } + \left( \mathbf { R } ^ { T } \mathbf { F } \right) ^ { T } \right) - \mathbf { I } = \mathbf { S } - \mathbf { I }
+  \hat { \boldsymbol { \epsilon } } ( \mathbf { F }_E ) = \boldsymbol { \epsilon } \left( \mathbf { R }_E ^ { T } \mathbf { F }_E \right) = \frac { 1 } { 2 } \left( \mathbf { R }_E ^ { T } \mathbf { F }_E + \left( \mathbf { R }_E ^ { T } \mathbf { F }_E \right) ^ { T } \right) - \mathbf { I } = \mathbf { S }_E - \mathbf { I }
 \end{equation}
-Substituting $\hat{\boldsymbol{\epsilon}}$ into equation \ref{eq:linear_elas} leads to the energy definition of corotational hyperelasticity using rotation-invariance of Frobenius norm and trace:
+Substituting $\hat{\boldsymbol{\epsilon}}$ into equation \ref{eq:linear_elas} leads to the energy definition of corotational hyperelasticity:
+\begin{equation}\label{eq:corot_S}
+  \Psi = \mu \| \mathbf{ S }_E - \mathbf { I } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } ( \mathbf { S }_E - \mathbf { I } )
+\end{equation}
+Using rotation-invariance of the Frobenius norm:
 \begin{equation}
-  \Psi = \mu \| \mathbf { F } - \mathbf { R } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } \left( \mathbf { R } ^ { T } \mathbf { F } - \mathbf { I } \right)
+  \Psi = \mu \| \mathbf {F}_E  - \mathbf {R}_E \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } \left( \mathbf { R }_E ^ { T } \mathbf { F }_E - \mathbf { I } \right)
 \end{equation}
-
-\begin{equation}
-  \Psi(\boldsymbol{\Sigma}) = \mu \| \boldsymbol { \Sigma } - \mathbf { I } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } ( \boldsymbol { \Sigma } - \mathbf { I } )
+Even more insight yields the relationship to their singular values $\sigma _ i$, also called the principal stretches:
+$$\operatorname {tr}\left(\mathbf{S}\right) = \sum _ { i = 1 } \sigma _ { i } = \operatorname{tr}\left(\mathbf{\Sigma}_E\right)$$
+$$\| \mathbf{S}_E \| _ { F }^2 = \sum _ { i = 1 } \sigma _ { i } ^ { 2 } = \| \mathbf{\Sigma}_E\|_{F}^2$$
+$$\Rightarrow \| \mathbf{S}_E\mathbf{-I} \| _ { F }^2 = \|\mathbf{S}_E \| _ { F }^2 - 2 \operatorname{tr}(\mathbf{S}_E)  + \|\mathbf{I}\|_{F}^2 = \| \boldsymbol { \Sigma }_E - \mathbf { I } \| _ { F } ^ { 2 }$$
+\begin{equation} \label{eq:corot_sing}
+  \Psi(\boldsymbol{\Sigma}_E) = \mu \| \boldsymbol { \Sigma }_E - \mathbf { I } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } ( \boldsymbol { \Sigma }_E - \mathbf { I } )
 \end{equation}
+Equation \ref{eq:corot_sing} uses the diagonal matrix $\mathbf{\Sigma}_E$ containing the principal stretches typically acquired by the singular value decomposition $\mathbf{F}_E \mathbf{= U \Sigma}_E\mathbf{ V ^T }.$ Since the energy density in \ref{eq:corot_sing} is a function of only three (singular) values, which describe stretch/compression of the material, isotropy of the material is underlined.
 \cite{ADAMS:ELASTICITY}
+Numerical Stepping algorithms
+-> Newton Raphson scheme
+-> Problem: Bad Primary contour
+Benefit: Easier description in terms of Invariants
 \cite{MPM:INVERT}
 
-\subsection{Singular Value Decomposition}
-\cite{SVD:3x3}
 \subsection{Material Point Method}
 \subsubsection{Conservation Equations}
 \cite{MPM:APIC}
