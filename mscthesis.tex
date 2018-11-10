@@ -181,10 +181,58 @@ benefits over radix sort /thrust sort-by-key -> counting sort
 %look again for MPM/PIC gpu impl
 %SPH, FEM methods
 \section{Notation}
-Einstein-Notation
+Multi-component types are generally printed in bold letters $\mathbf{A}$, $\mathbf{a}$. Vectors furthermore use lower-case letters $\mathbf{v}$, while Matrices use upper-case letters $\mathbf{M}$.
+\subsection{Einstein-Notation}
+Used throughout this thesis is at instances the Einstein-Notation when using tensors and vectors. Let $a$ and $b$ be vectors of dimension $n$. Repeated indices that are also defined on the variable imply component-wise operations.
+$a _ { i } b _ { j }$ is multiplying component $i$ with component $j$ of vectors $a$ and $b$. Vector and tensor/matrix addition thus become:
+\begin{equation} \label{EINSTEIN:ADD}
+  c _ { i } = a _ { i } + b _ { i } \quad \text { and } \quad c _ { i j } = a _ { i j } + b _ { i j }
+\end{equation}
+Repeated indices that are not otherwise defined however imply summation on that index. The vector dot product becomes:
+\begin{equation}
+  a _ { i } b _ { i } \equiv \sum _ { i = 1 } ^ { n } a _ { i } b _ { i }
+\end{equation}
+The Frobenius inner product between two second-order tensors $\mathbf{A,B}$ $\in \mathbb { R } ^ { m \times n }$.
+\begin{equation} \label{EINSTEIN:FROBENIUS1}
+  \mathbf { A } : \mathbf { B } \equiv a _ { i j } b _ { i j } \equiv \sum _ { i = 1 } ^ { n } \sum _ { j = 1 } ^ { m } a _ { ij } b _ { ij }
+\end{equation}
+The Frobenius inner product between a fourth-order tensor $C \in \mathbb { R } ^ {r \times s \times m \times n }$  and second-order tensor creates a second order tensor combining the ideas of \ref{EINSTEIN:ADD} and \ref{EINSTEIN:FROBENIUS1}:
+\begin{equation}
+  \mathbf { A } = a_ {ij} =  \mathbf {C} : \mathbf { B } = c _ {k l} b _ { k l  } = \sum _ { k = 1 } ^ { n } \sum _ { l = 1 } ^ { m } c _ { ijkl } b _ { ijkl }
+\end{equation}
+The definition of the Kronecker Delta is as follows:
+\begin{equation}
+  \delta _ { i j } = \left\{
+    \begin{array} { l l l }
+      { 1 } & {\text{if}} &  {i = j}  \\
+      { 0 } & {\text{if}} &  { i \neq j }
+  \end{array} \right.
+\end{equation}
+The Kronecker Delta as an operator is most efficiently described as a substitution:
+\begin{equation}
+  a _ { i } \delta _ { i j } = a _ { j }
+\end{equation}
+Or i.e. this component is only evaluated if $i = j$.
+\cite{MCGINTY:CONTINUUM}
+\subsection{Lagrange-Euler Notation}
 \section{Basics}
-\subsection{Continuum Mechanics}
+\subsection{Material Point Method}
+\subsubsection{Continuum Mechanics}
+Particles (or material points) in continuum mechanics are not what classically might be thought of as a particle. Rather the continuum assumption holds: each particle represents a continuous piece of material, s.t. a microscopic view does not need to be adopted. A particular body is composed of a set of particles and can adapt different configurations due to changes in shape. These changes are cause by external or internal effects (forces etc.) on it and deform the body over time. \cite{MIT:CONTINUUM_MECHANICS} \cite{MPM:COURSE}
+
+
+When modelling solids changes of quantities from one configuration (reference) $\mathbf{X}$ to another configuration (current) $\mathbf{x}$ need to be measured. In the material point method the reference configuration $\mathbf{X}$ is just the initial configuration of the body (at time $t=0$). This is similiar to the total Lagrangian formulation in finite element methods \cite{bathe2006finite}.
+Let $\Omega ^ { 0 } , \Omega ^ { t } \subset \mathbb { R } ^ { \mathrm { 3 } }$ be the set of (material) points in the initial and current configuration respectively.  Then one may define a function or mapping $\phi ( \cdot , t ) : \Omega ^ { 0 } \rightarrow \Omega ^ { t }$, which relates the current configuration to the initial configuration. If we assume for simplicity that $\mathbf{X}$ and $\mathbf{x}$ describe the position of the particle in their respective configurations, this mapping can be thought of as the deformation of the body from the reference configuration $\mathbf{X}$:
+\begin{equation}
+  \mathbf{x} =  \phi ( \mathbf { X } , \mathbf { t } )
+\end{equation}
+It is helpful to abstract away from the reference configuration and define it to be in a different fixed material space. Physically this has the impact of moving with the particle. Commonly known as the Lagrangian formulation. In contrast
+
+\cite{MIT:CONTINUUM_MECHANICS}
 \cite{MPM:COURSE}
+\subsubsection{Conservation Equations}
+\cite{MPM:APIC}
+\subsubsection{CFL Condition}
 \subsection{Singular Value Decomposition}
 \cite{SVD:3x3}
 \subsection{Constitutive Models}
@@ -289,10 +337,6 @@ Numerical Stepping algorithms
 Benefit: Easier description in terms of Invariants
 \cite{MPM:INVERT}
 
-\subsection{Material Point Method}
-\subsubsection{Conservation Equations}
-\cite{MPM:APIC}
-\subsubsection{CFL Condition}
 \subsection{GPU memory}
 \subsubsection{Optimization opportunities}
 \cite{NVIDIA:BEST:PRACTICE}
