@@ -181,24 +181,24 @@ benefits over radix sort /thrust sort-by-key -> counting sort
 %look again for MPM/PIC gpu impl
 %SPH, FEM methods
 \section{Notation}
-Multi-component types are generally printed in bold letters $\mathbf{A}$, $\mathbf{a}$. Vectors furthermore use lower-case letters $\mathbf{v}$, while Matrices use upper-case letters $\mathbf{M}$.
+Multi-component types are generally printed in bold letters $\boldsymbol{A}$, $\boldsymbol{a}$. Vectors furthermore use lower-case letters $\boldsymbol{v}$, while Matrices use upper-case letters $\boldsymbol{M}$. A variable in the Lagrangian form has a subscript 0 $ _0{\boldsymbol{x}}$, the Eulerian description will be written with an 'overline' $_t\boldsymbol{x}$ if distinction is needed. Occasionally notation may be omitted where it is apparent from context.
 \subsection{Einstein-Notation}
-Used throughout this thesis is at instances the Einstein-Notation when using tensors and vectors. Let $a$ and $b$ be vectors of dimension $n$. Repeated indices that are also defined on the variable imply component-wise operations.
-$a _ { i } b _ { j }$ is multiplying component $i$ with component $j$ of vectors $a$ and $b$. Vector and tensor/matrix addition thus become:
+Used throughout this thesis is at instances the Einstein-Notation when using tensors and vectors. Let $\boldsymbol{a}$ and $\boldsymbol{b}$ be vectors of dimension $n$ and  $\boldsymbol{A,B,D}$ $ { m \times n }$ tensors. Repeated indices that are also defined on the variable imply component-wise operations.
+$a _ { i } b _ { j }$ is multiplying component $i$ with component $j$ of vectors $\boldsymbol{a}$ and $\boldsymbol{b}$. Vector and tensor/matrix addition thus become:
 \begin{equation} \label{EINSTEIN:ADD}
-  c _ { i } = a _ { i } + b _ { i } \quad \text { and } \quad c _ { i j } = a _ { i j } + b _ { i j }
+  c _ { i } = a _ { i } + b _ { i } \quad \text { and } \quad D _ { i j } = A _ { i j } + B _ { i j }
 \end{equation}
 Repeated indices that are not otherwise defined however imply summation on that index. The vector dot product becomes:
 \begin{equation}
   a _ { i } b _ { i } \equiv \sum _ { i = 1 } ^ { n } a _ { i } b _ { i }
 \end{equation}
-The Frobenius inner product between two second-order tensors $\mathbf{A,B}$ $\in \mathbb { R } ^ { m \times n }$.
+Following this notation the Frobenius inner product between two second-order tensors is:
 \begin{equation} \label{EINSTEIN:FROBENIUS1}
-  \mathbf { A } : \mathbf { B } \equiv a _ { i j } b _ { i j } \equiv \sum _ { i = 1 } ^ { n } \sum _ { j = 1 } ^ { m } a _ { ij } b _ { ij }
+  \boldsymbol { A } : \boldsymbol { B } \equiv A _ { i j } B _ { i j } \equiv \sum _ { i = 1 } ^ { n } \sum _ { j = 1 } ^ { m } A _ { ij } B _ { ij }
 \end{equation}
-The Frobenius inner product between a fourth-order tensor $C \in \mathbb { R } ^ {r \times s \times m \times n }$  and second-order tensor creates a second order tensor combining the ideas of \ref{EINSTEIN:ADD} and \ref{EINSTEIN:FROBENIUS1}:
+The Frobenius inner product between a ${r \times s \times m \times n }$ fourth-order tensor $\boldsymbol{C}$  and second-order tensor creates a second order tensor combining the ideas of \ref{EINSTEIN:ADD} and \ref{EINSTEIN:FROBENIUS1}:
 \begin{equation}
-  \mathbf { A } = a_ {ij} =  \mathbf {C} : \mathbf { B } = c _ {k l} b _ { k l  } = \sum _ { k = 1 } ^ { n } \sum _ { l = 1 } ^ { m } c _ { ijkl } b _ { ijkl }
+  \boldsymbol { A } = A_ {ij} =  \boldsymbol {C} : \boldsymbol { B } = C _ {i j k l} B _ { k l  } = \sum _ { k = 1 } ^ { m } \sum _ { l = 1 } ^ { n } C _ { ijkl } B _ { kl }
 \end{equation}
 The definition of the Kronecker Delta is as follows:
 \begin{equation}
@@ -212,22 +212,56 @@ The Kronecker Delta as an operator is most efficiently described as a substituti
 \begin{equation}
   a _ { i } \delta _ { i j } = a _ { j }
 \end{equation}
-Or i.e. this component is only evaluated if $i = j$.
+I.e. this component is only evaluated if $i = j$.
 \cite{MCGINTY:CONTINUUM}
-\subsection{Lagrange-Euler Notation}
 \section{Basics}
 \subsection{Material Point Method}
 \subsubsection{Continuum Mechanics}
 Particles (or material points) in continuum mechanics are not what classically might be thought of as a particle. Rather the continuum assumption holds: each particle represents a continuous piece of material, s.t. a microscopic view does not need to be adopted. A particular body is composed of a set of particles and can adapt different configurations due to changes in shape. These changes are cause by external or internal effects (forces etc.) on it and deform the body over time. \cite{MIT:CONTINUUM_MECHANICS} \cite{MPM:COURSE}
 
 
-When modelling solids changes of quantities from one configuration (reference) $\mathbf{X}$ to another configuration (current) $\mathbf{x}$ need to be measured. In the material point method the reference configuration $\mathbf{X}$ is just the initial configuration of the body (at time $t=0$). This is similiar to the total Lagrangian formulation in finite element methods \cite{bathe2006finite}.
-Let $\Omega ^ { 0 } , \Omega ^ { t } \subset \mathbb { R } ^ { \mathrm { 3 } }$ be the set of (material) points in the initial and current configuration respectively.  Then one may define a function or mapping $\phi ( \cdot , t ) : \Omega ^ { 0 } \rightarrow \Omega ^ { t }$, which relates the current configuration to the initial configuration. If we assume for simplicity that $\mathbf{X}$ and $\mathbf{x}$ describe the position of the particle in their respective configurations, this mapping can be thought of as the deformation of the body from the reference configuration $\mathbf{X}$:
+When modelling solids changes of quantities from one configuration (reference) $_0\boldsymbol{x}$ to another configuration (current) $_t\boldsymbol{x}$ need to be measured. In the material point method the reference configuration $^0\boldsymbol{x}$ is just the initial configuration of the body (at time $t=0$). This is similar to the total Lagrangian formulation in finite element methods \cite{bathe2006finite}.
+Let $\Omega ^ { 0 } , \Omega ^ { t } \subset \mathbb { R } ^ {  { 3 } }$ be the set of (material) points in the initial and current configuration respectively.  Then one may define a function or mapping ${^t_0}\phi ( \cdot , t ) : \Omega ^ { 0 } \rightarrow \Omega ^ { t }$, which relates the initial configuration to the current configuration. If we assume for simplicity that $_0\boldsymbol{x}$ and $_t\boldsymbol{{x}}$ describe the position of the particle in their respective configurations, this mapping becomes the deformation of the body from the reference configuration $_0\boldsymbol{x}$:
 \begin{equation}
-  \mathbf{x} =  \phi ( \mathbf { X } , \mathbf { t } )
+  _t\boldsymbol{x} =  {^t_0}\phi ( _0\boldsymbol{x} , \boldsymbol { t } )
 \end{equation}
-It is helpful to abstract away from the reference configuration and define it to be in a different fixed material space. Physically this has the impact of moving with the particle. Commonly known as the Lagrangian formulation. In contrast
+If for instance the body consisting of each material point $_t\boldsymbol{x}$ moves with velocity $\boldsymbol{v}$ and rotation $\boldsymbol{R}(t)$ , we can defines this mapping to be:
+\begin{equation}
+  _t\boldsymbol{{x}} = {^t_0}\phi ( _0\boldsymbol{x} , \boldsymbol { t } ) = \boldsymbol{R}(t)_0\boldsymbol{x}+\boldsymbol{v}t
+\end{equation}
+The velocity of a material point in $_0\boldsymbol{x}$ can be defined using this mapping
+\begin{equation}\label{eq:velocity}
+  _0\boldsymbol{v}(_0\boldsymbol{x},t) = \frac{\partial {^t_0}\phi}{\partial t}(_0\boldsymbol{x},t)
+\end{equation}
+and similarly the acceleration is defined
+\begin{equation}
+  _0\boldsymbol{a}(_0\boldsymbol{x},t) = \frac{\partial^2 {^t_0}\phi}{\partial t^2}(_0\boldsymbol{x},t) = \frac{\partial _0\boldsymbol{v}}{\partial t}(_0\boldsymbol{x},t).
+\end{equation}
+It is helpful to abstract away from the reference configuration and think of it as being defined in a different fixed material space. Physically this has the impact of moving with the particle in world space. Commonly known as the Lagrangian form. It is often easier in continuum mechanics to start with a Lagrangian description and switch to a Eulerian one if needed. The Eulerian description is static: Variables of particles that are moving by are measured while staying in a fixed position.
+These descriptions are different but they will yield the same measurements when related correctly. These relations for some particle quantity $f$ are called the (Lagrangian) pull back
+\begin{equation}
+  _0f(_0\boldsymbol{x},t)= {_tf}({^t_0}\phi(_0\boldsymbol{x},t),t)
+\end{equation}
+and the (Eulerian) push forward
+\begin{equation}\label{eq:push_forward}
+  _tf(_t\boldsymbol{x},t) =  {_0f}({^t_0}\phi^{-1}(_t\boldsymbol{x},t),t) = {_0f}({_t^0}\phi(_t\boldsymbol{x},t),t)
+\end{equation}
+with definitions over their respective spaces $_tf ( \cdot , t ) : \Omega ^ {  { t } } \rightarrow \mathbb { R }$, $_0f ( \cdot , t ) : \Omega ^ {   { 0 } } \rightarrow \mathbb { R }$.  To enable the operator ${^t_0}\phi$ to be homeomorphic, s.t. an inverse ${^t_0}\phi^{-1} = {_t^0}\phi$ is defined, it is assumed that no two particles will ever occupy the same space at the same time.
 
+The difficulty in the eulerian formulation becomes apparent when differentiating (due to the chain rule):
+\begin{equation}
+  \frac {\partial}{\partial t} {_0f_i } ( {_0\boldsymbol { x }} ,  t  ) =
+  \frac { \partial  {_tv_i} } { \partial t } ( {^t_0}\phi ( {_0\boldsymbol {x }} , t ) , t ) + \frac { \partial  {_tv_i }} { \partial {_tx_j} } ( {^t_0}\phi ( {_0\boldsymbol { x }} , t ) , t ) \frac { \partial {^t_0}\phi_j } { \partial t } ( {_0\boldsymbol { x }} , t )
+\end{equation}
+Combining this with equation \ref{eq:velocity} and applying the push forward \ref{eq:push_forward} to cancel out mappings leads to the definition referred to as the material derivative:
+\begin{equation}
+  \frac {  { D } } {   { D }   { t } }   {  {f} } ( _t\boldsymbol { x } ,   { t } ) = \frac { \partial   {  {f} } } { \partial   { t } } ( _t\boldsymbol {x } ,   { t } ) + \frac { \partial   {  {f} } } { \partial x _ {   { j } } } ( _t{\boldsymbol { x }} ,   { t } )  {v} _ {   { j } } ( _t\boldsymbol { x } ,   { t } )
+\end{equation}
+The Jacobian of the deformation map $\phi$ is the deformation gradient and is one of the key components to measure strain:
+\begin{equation}
+  {^t_0 F_{ij}} ( _0\boldsymbol {x} , \boldsymbol { t } ) = \frac { \partial {^t_0\phi_i} } { \partial _0 x _j } ( _0\boldsymbol { x } , \boldsymbol { t } ) = \frac { \partial _t x _i } { \partial _0 x_j } ( _0\boldsymbol { x } , \boldsymbol { t } )
+\end{equation}
+Intuitively it measures the local changes in length from the reference to the current configuration.
 \cite{MIT:CONTINUUM_MECHANICS}
 \cite{MPM:COURSE}
 \subsubsection{Conservation Equations}
@@ -235,6 +269,10 @@ It is helpful to abstract away from the reference configuration and define it to
 \subsubsection{CFL Condition}
 \subsection{Singular Value Decomposition}
 \cite{SVD:3x3}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                         Constitutive Models                         %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \subsection{Constitutive Models}
 \cite{MPM:DRUCKER} %Sand Plasticity
 \cite{MPM:MULTI} %Sand+Water
@@ -244,13 +282,13 @@ It is helpful to abstract away from the reference configuration and define it to
 \cite{MPM:PHASE_CHANGE} %Heat-Model
 \cite{MPM:OPTIMI_INTEGR} %Opimization Methods, BDF-Semi-Impl-Midpoint rule
 
-The first aim will be to find the strain energy density $\psi(\mathbf{\epsilon})$ of the strain $\bm{\epsilon}$.
+The first aim will be to find the strain energy density $\psi(\boldsymbol{\epsilon})$ of the strain $\bm{\epsilon}$.
 For an (hyper-)elastic material the Cauchy stress may be defined in terms of $\psi$ as:
 The most general linear stress-strain relationship is given by Hooke's Law in three dimensions
 \begin{equation}\label{eq:hook}
   \sigma_{ij} = C_{ijkl} \epsilon_{kl},
 \end{equation}
-where $\mathbf{\sigma}$ and $\bm{\epsilon}$ are second-order tensors with (3x3) = 9 elements. $C_{ijkl}$ is a fourth-order tensor with (3x3)x(3x3) = 81 elements.
+where $\boldsymbol{\sigma}$ and $\bm{\epsilon}$ are second-order tensors with (3x3) = 9 elements. $C_{ijkl}$ is a fourth-order tensor with (3x3)x(3x3) = 81 elements.
 Assuming following symmetries reduces the tensors to 6 and 21 unique elements respectively:
 \begin{enumerate}
   \item Conservation of angular momentum: $\sigma_{ij} = \sigma_{ji} \Rightarrow C_{ijkl} = C_{jikl} $
@@ -262,7 +300,7 @@ Assuming following symmetries reduces the tensors to 6 and 21 unique elements re
 \end{enumerate}
 where item \ref{it:mixed_partials} holds for the strain energy density functional of an (hyper-)elastic material. The stress may then also be calculated by
 \begin{equation}\label{eq:partial_energy}
-  \sigma _ { i j } = \sigma _ { i j } ( \mathbf{\epsilon} ) = \frac { \partial { \psi } } { \partial \epsilon _ { i j } },
+  \sigma _ { i j } = \sigma _ { i j } ( \boldsymbol{\epsilon} ) = \frac { \partial { \psi } } { \partial \epsilon _ { i j } },
 \end{equation}
 if such a $\psi$ is given. An isotropic (direction-independent) linear elastic material further only has three unique elements $C _ {i j k l}$. Using Voigt-Notation, which collapses indices $i=j$ and $k=l$, equation \ref{eq:hook} can be rewritten as:
 \begin{equation} \label{eq:voigt}
@@ -295,9 +333,9 @@ Experimental results of Hooke's law commonly give
 \begin{equation}
   \boldsymbol{\epsilon} =
   \epsilon _ { i j } = \frac { 1 } { E } \left[ ( 1 + \nu ) \sigma _ { i j } - \nu \sigma _ { k k } \delta _ { i j } \right]
-  = \mathbf{C}^{-1} \bm{\sigma}
+  = \boldsymbol{C}^{-1} \bm{\sigma}
 \end{equation}
-using engineering constants Young's modulus $E$ and Poisson ratio $\nu$. Inverting $\mathbf{C}^{-1}$ and switching to Lamé parameters $\lambda$ and $\mu$ results in the equation:
+using engineering constants Young's modulus $E$ and Poisson ratio $\nu$. Inverting $\boldsymbol{C}^{-1}$ and switching to Lamé parameters $\lambda$ and $\mu$ results in the equation:
 \begin{equation} \label{eq:stress_strain}
   \sigma_{ij} = 2\mu \epsilon_{ij} + \lambda \text{tr}(\boldsymbol{\epsilon}) \delta_{ij}.
 \end{equation}
@@ -308,28 +346,28 @@ Comparing with equation \ref{eq:voigt} leads to coefficients $\gamma_{ij} = 2\ep
 \cite{MIT:LINEAR_ELASTICITY}
 \subsubsection{Fixed Corotated Hyperelasticity}
 The simplest tensor assumed by infinitesimal strain theory is the small strain tensor: \begin{equation}
-  \boldsymbol{\epsilon} = \frac { 1 } { 2 } \left( \mathbf { F }_E + \mathbf { F }_E ^ { T } \right) - \mathbf { I }
+  \boldsymbol{\epsilon} = \frac { 1 } { 2 } \left( \boldsymbol { F }_E + \boldsymbol { F }_E ^ { T } \right) - \boldsymbol { I }
 \end{equation}
-The energy produced by equation \ref{eq:linear_elas} using the small strain tensor is not rotationally invariant, w.r.t. to $\mathbf{F}_E$: $\psi(\mathbf{R}_{0} \mathbf{F}_E) \neq \psi(\mathbf{F}_E)$. The deformation caused by stress however does not affect rigid body motions. Given the polar decomposition $\mathbf{F}_E = \mathbf{R}_E\mathbf{S}_E$, an alternate strain measure may be defined as:
+The energy produced by equation \ref{eq:linear_elas} using the small strain tensor is not rotationally invariant, w.r.t. to $\boldsymbol{F}_E$: $\psi(\boldsymbol{R}_{0} \boldsymbol{F}_E) \neq \psi(\boldsymbol{F}_E)$. The deformation caused by stress however does not affect rigid body motions. Given the polar decomposition $\boldsymbol{F}_E = \boldsymbol{R}_E\boldsymbol{S}_E$, an alternate strain measure may be defined as:
 \begin{equation}
-  \hat { \boldsymbol { \epsilon } } ( \mathbf { F }_E ) = \boldsymbol { \epsilon } \left( \mathbf { R }_E ^ { T } \mathbf { F }_E \right) = \frac { 1 } { 2 } \left( \mathbf { R }_E ^ { T } \mathbf { F }_E + \left( \mathbf { R }_E ^ { T } \mathbf { F }_E \right) ^ { T } \right) - \mathbf { I } = \mathbf { S }_E - \mathbf { I }
+  { \boldsymbol { \epsilon } } ( \boldsymbol { F }_E ) = \boldsymbol { \epsilon } \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E \right) = \frac { 1 } { 2 } \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E + \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E \right) ^ { T } \right) - \boldsymbol { I } = \boldsymbol { S }_E - \boldsymbol { I }
 \end{equation}
-Substituting $\hat{\boldsymbol{\epsilon}}$ into equation \ref{eq:linear_elas} leads to the energy definition of corotational hyperelasticity:
+Substituting $ {\boldsymbol{\epsilon}}$ into equation \ref{eq:linear_elas} leads to the energy definition of corotational hyperelasticity:
 \begin{equation}\label{eq:corot_S}
-  \Psi = \mu \| \mathbf{ S }_E - \mathbf { I } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } ( \mathbf { S }_E - \mathbf { I } )
+  \Psi = \mu \| \boldsymbol{ S }_E - \boldsymbol { I } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } ( \boldsymbol { S }_E - \boldsymbol { I } )
 \end{equation}
 Using rotation-invariance of the Frobenius norm:
 \begin{equation}
-  \Psi = \mu \| \mathbf {F}_E  - \mathbf {R}_E \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } \left( \mathbf { R }_E ^ { T } \mathbf { F }_E - \mathbf { I } \right)
+  \Psi = \mu \| \boldsymbol {F}_E  - \boldsymbol {R}_E \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E - \boldsymbol { I } \right)
 \end{equation}
 Even more insight yields the relationship to their singular values $\sigma _ i$, also called the principal stretches:
-$$\operatorname {tr}\left(\mathbf{S}\right) = \sum _ { i = 1 } \sigma _ { i } = \operatorname{tr}\left(\mathbf{\Sigma}_E\right)$$
-$$\| \mathbf{S}_E \| _ { F }^2 = \sum _ { i = 1 } \sigma _ { i } ^ { 2 } = \| \mathbf{\Sigma}_E\|_{F}^2$$
-$$\Rightarrow \| \mathbf{S}_E\mathbf{-I} \| _ { F }^2 = \|\mathbf{S}_E \| _ { F }^2 - 2 \operatorname{tr}(\mathbf{S}_E)  + \|\mathbf{I}\|_{F}^2 = \| \boldsymbol { \Sigma }_E - \mathbf { I } \| _ { F } ^ { 2 }$$
+$$\operatorname {tr}\left(\boldsymbol{S}\right) = \sum _ { i = 1 } \sigma _ { i } = \operatorname{tr}\left(\boldsymbol{\Sigma}_E\right)$$
+$$\| \boldsymbol{S}_E \| _ { F }^2 = \sum _ { i = 1 } \sigma _ { i } ^ { 2 } = \| \boldsymbol{\Sigma}_E\|_{F}^2$$
+$$\Rightarrow \| \boldsymbol{S}_E\boldsymbol{-I} \| _ { F }^2 = \|\boldsymbol{S}_E \| _ { F }^2 - 2 \operatorname{tr}(\boldsymbol{S}_E)  + \|\boldsymbol{I}\|_{F}^2 = \| \boldsymbol { \Sigma }_E - \boldsymbol { I } \| _ { F } ^ { 2 }$$
 \begin{equation} \label{eq:corot_sing}
-  \Psi(\boldsymbol{\Sigma}_E) = \mu \| \boldsymbol { \Sigma }_E - \mathbf { I } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } ( \boldsymbol { \Sigma }_E - \mathbf { I } )
+  \Psi(\boldsymbol{\Sigma}_E) = \mu \| \boldsymbol { \Sigma }_E - \boldsymbol { I } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } ( \boldsymbol { \Sigma }_E - \boldsymbol { I } )
 \end{equation}
-Equation \ref{eq:corot_sing} uses the diagonal matrix $\mathbf{\Sigma}_E$ containing the principal stretches typically acquired by the singular value decomposition $\mathbf{F}_E \mathbf{= U \Sigma}_E\mathbf{ V ^T }.$ Since the energy density in \ref{eq:corot_sing} is a function of only three (singular) values, which describe stretch/compression of the material, isotropy of the material is underlined.
+Equation \ref{eq:corot_sing} uses the diagonal matrix $\boldsymbol{\Sigma}_E$ containing the principal stretches typically acquired by the singular value decomposition $\boldsymbol{F}_E \boldsymbol{= U \Sigma}_E\boldsymbol{ V ^T }.$ Since the energy density in \ref{eq:corot_sing} is a function of only three (singular) values, which describe stretch/compression of the material, isotropy of the material is underlined.
 \cite{ADAMS:ELASTICITY}
 Numerical Stepping algorithms
 -> Newton Raphson scheme
@@ -353,11 +391,11 @@ Benefit: Easier description in terms of Invariants
   \caption{Euclid’s algorithm}\label{euclid}
   \begin{algorithmic}[1]
     \Procedure{Euclid}{$a,b$}\Comment{The g.c.d. of a and b}
-    \State $r\gets a\mathbfod b$ and \var{foobar}\label{foobar}
+    \State $r\gets a\boldsymbolod b$ and \var{foobar}\label{foobar}
     \While{$r\not=0$}\Comment{We have the answer if r is 0}
     \State $a\gets b$
     \State $b\gets r$
-    \State $r\gets a\mathbfod b$
+    \State $r\gets a\boldsymbolod b$
     \EndWhile\label{euclidendwhile}
     \State \textbf{return} $b$\Comment{The gcd is b}
     \EndProcedure
