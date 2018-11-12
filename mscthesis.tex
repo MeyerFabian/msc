@@ -188,6 +188,10 @@ $a _ { i } b _ { j }$ is multiplying component $i$ with component $j$ of vectors
 \begin{equation} \label{EINSTEIN:ADD}
   c _ { i } = a _ { i } + b _ { i } \quad \text { and } \quad D _ { i j } = A _ { i j } + B _ { i j }
 \end{equation}
+A transpose operator swaps the indices:
+\begin{equation}
+  D^T _ { i j }  =D_{ji}
+\end{equation}
 Repeated indices that are not otherwise defined however imply summation on that index. The vector dot product becomes:
 \begin{equation}
   a _ { i } b _ { i } \equiv \sum _ { i = 1 } ^ { n } a _ { i } b _ { i }
@@ -216,7 +220,10 @@ The Kronecker Delta as an operator is most efficiently described as a substituti
 \begin{equation}
   a _ { i } \delta _ { i j } = a _ { j }
 \end{equation}
-I.e. this component is only evaluated if $i = j$. In this case it becomes equivalent to the identity matrix $\boldsymbol{I}$.
+I.e. this component is only evaluated if $i = j$. In this case it becomes equivalent to the identity matrix $\boldsymbol{I}$. The Kronecker Delta comes up in differentiating a variable by itself with different indexing:
+\begin{equation}
+  \frac{\partial{x_0}}{\partial{x_1}}=0, \frac{\partial{x_0}}{\partial{x_0}}=1  \Rightarrow \frac{\partial{x_i}}{\partial{x_j}} = \delta_{ij}
+\end{equation}
 \cite{MCGINTY:CONTINUUM}
 \section{Basics}
 \subsection{Reference and current configuration}
@@ -229,7 +236,7 @@ Let $\Omega ^ { 0 } , \Omega ^ { t } \subset \mathbb { R } ^ {  { 3 } }$ be the 
   _t\boldsymbol{x} =  {^t_0}\phi ( _0\boldsymbol{x} , \boldsymbol { t } )
 \end{equation}
 If for instance the body consisting of each material point $_t\boldsymbol{x}$ moves with velocity $\boldsymbol{v}$ and rotation $\boldsymbol{R}(t)$ , we can defines this mapping to be:
-\begin{equation}
+\begin{equation}\label{eq:rigid}
   _t\boldsymbol{{x}} = {^t_0}\phi ( _0\boldsymbol{x} , \boldsymbol { t } ) = \boldsymbol{R}(t)_0\boldsymbol{x}+\boldsymbol{v}t
 \end{equation}
 The velocity of a material point in $_0\boldsymbol{x}$ can be defined using this mapping
@@ -276,20 +283,38 @@ This can also be achieved by the cross product. A cube spanned by vectors $_0\bo
 \begin{equation}\label{eq:j}
   d_tV = {^t_0J} d_0V.
 \end{equation}
-The area change is given by Nanson's Formula. Where $\boldsymbol{A}$ points in the direction of the normal of the area:
+The area change is given by Nanson's Formula. Where $d\boldsymbol{A}$ is a vector pointing in the direction of the normal of the area:
 $$ d{_tV} = d{_t\boldsymbol{A}} \cdot d{_t\boldsymbol{l}}, \quad d{_0V} = d{_0\boldsymbol{A}}\cdot d{_0\boldsymbol{l}} $$
 $$ \xRightarrow{\ref{eq:def_grad_pos},\ref{eq:j}} {^t_0J} d_0\boldsymbol{A} \cdot d_0\boldsymbol{l} = d{_t\boldsymbol{A}} \cdot ({^t_0\boldsymbol{F}}d{_0\boldsymbol{l}})$$
 \begin{equation}
   \Rightarrow d_t\boldsymbol{A} = {^t_0\boldsymbol{F}}^{-T} {^t_0}J d_0\boldsymbol{A} = {^0_t\boldsymbol{F}}^{T} {^t_0}J d_0\boldsymbol{A}.
 \end{equation}
-A surface intergral may then be transformed to current configuration by
+A surface integral may then be transformed to reference configuration by
 \begin{equation}
   \int _ { \partial B ^ { \mathfrak { t } } } \boldsymbol{h} ( {_t\boldsymbol{x}} , t ) \cdot d \boldsymbol{A} ( {_t\boldsymbol{x}} ) =  \int _ { \partial B ^ { \mathfrak { 0 } } } \boldsymbol{h} ( {_0\boldsymbol{x}} , t ) \cdot \boldsymbol{F}^{-T}J d \boldsymbol{A} ( {_0\boldsymbol{x}} )
 \end{equation}
-where $_0h = h(_0\boldsymbol{x},\cdot)$ is the pull back of $_th = h(_t\boldsymbol{x},\cdot)$.
+where $_0\boldsymbol{h} = \boldsymbol{h}(_0\boldsymbol{x},\cdot)$ is the pull back of $_t\boldsymbol{h} = \boldsymbol{h}(_t\boldsymbol{x},\cdot)$.
 \cite{MIT:CONTINUUM_MECHANICS}
 \cite{MPM:COURSE}
 \subsection{Polar- and Singular Value Decomposition}
+The target is to define strain measures in terms of the deformation gradient: $\boldsymbol{\epsilon}(\boldsymbol{F})$. In equation \ref{eq:rigid} a rigid body movement was introduced. A problem arises when calculating the deformation gradient of this equation.
+Let $b_i(t) = v_it$ be more generally a translation:
+\begin{equation}
+  ^t_0F_{ij} = \frac{\partial{_tx_i}}{\partial_0x_j} = \frac{\partial (R_{ik}(t)_0x_k+b_i(t))}{\partial _0x_j} = R_{ik}(t) \delta_{kj} = R_{ij}(t)
+\end{equation}
+As can be seen the deformation gradient contains a rigid rotation. For strain measures this is not beneficial as an assumption of the stiffness tensor requires no net-rotation. I.e. the deformation gradient has two components a constant rotation and the actual distortion or strain. There is two ways to deal with this:
+\begin{enumerate}
+  \item  Use a strain measure that cancels out the rotation. An example for this would be the Green-strain with quadratic components:
+    \begin{equation}\label{eq:green}
+      E _ { i j } = \frac { 1 } { 2 } \left( F _ { k i } F _ { k j } - \delta _ { i j } \right).
+    \end{equation}
+  \item \label{it:polar} Polar Decompose the deformation gradient in its rotational $\boldsymbol{R}$ and (symmetric) distortion $\boldsymbol{U}$ part $\boldsymbol{F}=\boldsymbol{U}\boldsymbol{R}$.
+\end{enumerate}
+That equation \ref{eq:green} cancels out the rotational part can be shown by item \ref{it:polar}
+$$ \frac { 1 } { 2 } \left( F _ { k i } F _ { k j } - \delta _ { i j } \right) = \frac { 1 } { 2 } \left( U _ {m i}R_{k m} R _ { k n} U_{n j} - \delta _ { i j } \right)$$
+$$= \frac { 1 } { 2 } \left( U _ {m i} \delta_{mn} U_{n j} - \delta _ { i j } \right) = \frac { 1 } { 2 } \left( U _ {i m} U_{m j} - \delta _ { i j } \right)$$
+$$= \frac{1}{2} \left(\boldsymbol{U}^2 - I \right).$$
+
 \cite{SVD:3x3}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                         Constitutive Models                         %
@@ -371,7 +396,7 @@ Comparing with equation \ref{eq:voigt} leads to coefficients $\gamma_{ij} = 2\ep
 The simplest tensor assumed by infinitesimal strain theory is the small strain tensor: \begin{equation}
   \boldsymbol{\epsilon} = \frac { 1 } { 2 } \left( \boldsymbol { F }_E + \boldsymbol { F }_E ^ { T } \right) - \boldsymbol { I }
 \end{equation}
-The energy produced by equation \ref{eq:linear_elas} using the small strain tensor is not rotationally invariant, w.r.t. to $\boldsymbol{F}_E$: $\psi(\boldsymbol{\epsilon}(\boldsymbol{R}_{0} \boldsymbol{F}_E)) \neq \psi(\boldsymbol{\epsilon}(\boldsymbol{F}_E))$. Rigid body motions however don't result in deformation and consequently don't need to be recovered from. So energy should not change. Given the polar decomposition $\boldsymbol{F}_E = \boldsymbol{R}_E\boldsymbol{S}_E$, an alternate strain measure may be defined as:
+The energy produced by equation \ref{eq:linear_elas} using the small strain tensor is not rotationally invariant, w.r.t. to $\boldsymbol{F}_E$: $\psi(\boldsymbol{\epsilon}(\boldsymbol{R}_{0} \boldsymbol{F}_E)) \neq \psi(\boldsymbol{\epsilon}(\boldsymbol{F}_E))$. Rigid body motions however don't result in strain and consequently don't need to be recovered from. So energy should not change. Given the polar decomposition $\boldsymbol{F}_E = \boldsymbol{R}_E\boldsymbol{S}_E$, an alternate strain measure may be defined as:
 \begin{equation}
   { \boldsymbol { \epsilon } } ( \boldsymbol { F }_E ) = \boldsymbol { \epsilon } \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E \right) = \frac { 1 } { 2 } \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E + \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E \right) ^ { T } \right) - \boldsymbol { I } = \boldsymbol { S }_E - \boldsymbol { I }
 \end{equation}
