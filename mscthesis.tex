@@ -192,13 +192,17 @@ Repeated indices that are not otherwise defined however imply summation on that 
 \begin{equation}
   a _ { i } b _ { i } \equiv \sum _ { i = 1 } ^ { n } a _ { i } b _ { i }
 \end{equation}
-Following this notation the Frobenius inner product between two second-order tensors is:
+Following this notation the Frobenius inner product between two second-order tensors is (also called Frobenius scalar product):
 \begin{equation} \label{EINSTEIN:FROBENIUS1}
   \boldsymbol { A } : \boldsymbol { B } \equiv A _ { i j } B _ { i j } \equiv \sum _ { i = 1 } ^ { n } \sum _ { j = 1 } ^ { m } A _ { ij } B _ { ij }
 \end{equation}
 The Frobenius inner product between a ${r \times s \times m \times n }$ fourth-order tensor $\boldsymbol{C}$  and second-order tensor creates a second order tensor combining the ideas of \ref{EINSTEIN:ADD} and \ref{EINSTEIN:FROBENIUS1}:
 \begin{equation}
   \boldsymbol { A } = A_ {ij} =  \boldsymbol {C} : \boldsymbol { B } = C _ {i j k l} B _ { k l  } = \sum _ { k = 1 } ^ { m } \sum _ { l = 1 } ^ { n } C _ { ijkl } B _ { kl }
+\end{equation}
+Matrix-Vector and Matrix-Matrix multiplication can be expressed this way as:
+\begin{equation}
+  b_i = A_{i j} a_j \quad D _ { i j } = A _ { i k } B _ { k j }
 \end{equation}
 The definition of the Kronecker Delta is as follows:
 \begin{equation}
@@ -212,11 +216,10 @@ The Kronecker Delta as an operator is most efficiently described as a substituti
 \begin{equation}
   a _ { i } \delta _ { i j } = a _ { j }
 \end{equation}
-I.e. this component is only evaluated if $i = j$.
+I.e. this component is only evaluated if $i = j$. In this case it becomes equivalent to the identity matrix $\boldsymbol{I}$.
 \cite{MCGINTY:CONTINUUM}
 \section{Basics}
-\subsection{Material Point Method}
-\subsubsection{Continuum Mechanics}
+\subsection{Reference and current configuration}
 Particles (or material points) in continuum mechanics are not what classically might be thought of as a particle. Rather the continuum assumption holds: each particle represents a continuous piece of material, s.t. a microscopic view does not need to be adopted. A particular body is composed of a set of particles and can adapt different configurations due to changes in shape. These changes are cause by external or internal effects (forces etc.) on it and deform the body over time. \cite{MIT:CONTINUUM_MECHANICS} \cite{MPM:COURSE}
 
 
@@ -257,17 +260,36 @@ Combining this with equation \ref{eq:velocity} and applying the push forward \re
 \begin{equation}
   \frac {  { D } } {   { D }   { t } }   {  {f} } ( _t\boldsymbol { x } ,   { t } ) = \frac { \partial   {  {f} } } { \partial   { t } } ( _t\boldsymbol {x } ,   { t } ) + \frac { \partial   {  {f} } } { \partial x _ {   { j } } } ( _t{\boldsymbol { x }} ,   { t } )  {v} _ {   { j } } ( _t\boldsymbol { x } ,   { t } )
 \end{equation}
-The Jacobian of the deformation map $\phi$ is the deformation gradient and is one of the key components to measure strain:
+The Jacobian of the deformation map $\phi$ is the deformation gradient $\boldsymbol{F}$ and is one of the key components to measure strain:
 \begin{equation}
-  {^t_0 F_{ij}} ( _0\boldsymbol {x} , \boldsymbol { t } ) = \frac { \partial {^t_0\phi_i} } { \partial _0 x _j } ( _0\boldsymbol { x } , \boldsymbol { t } ) = \frac { \partial _t x _i } { \partial _0 x_j } ( _0\boldsymbol { x } , \boldsymbol { t } )
+  {^t_0 F_{ij}} ( _0\boldsymbol {x} ,  t  ) = \frac { \partial {^t_0\phi_i} } { \partial _0 x _j } ( _0\boldsymbol { x } , t ) = \frac { \partial _t x _i } { \partial _0 x_j } ( _0\boldsymbol { x } , t )
 \end{equation}
-Intuitively it measures the local changes in length from the reference to the current configuration.
+Intuitively it measures the local deformation of all particles in a small neighborhood of $_0B$ to $_tB$. Topology specifies the neighborhood using the open ball concept $_{0,t}B_\epsilon(\boldsymbol{x}) = \{\boldsymbol{y} \in {\Omega^{0,t} | d(\boldsymbol{x},\boldsymbol{y}) < \epsilon}\}$ given a distance measure $d$. This allows to describe infinitesimal changes in position from the reference to the current configuration
+\begin{equation}\label{eq:def_grad_pos}
+  d {_tx_i} = {^t_0}F{_{ij}} d{_0x_j}.
+\end{equation}
+With this quantity in place volume and area changes are calculable. In a typical analytical fashion a coordinate system change $_0x \rightarrow {_tx}$ is done using the Jacobian (determinant) matrix. The determinant is given a separate name $^t_0J =\text{det}(^t_0\boldsymbol{F})$. The push forward of $_0g:\Omega^0\rightarrow \mathbb{R}^d$ is $_tg:\Omega^t\rightarrow \mathbb{R}^d$:
+\begin{equation}
+  \int _ { {_t\boldsymbol { B } }}  {_tg} ( {_t\boldsymbol { x }} )  d {_t\boldsymbol { x }} = \int _ { { _0\boldsymbol { B }}} {_0 g } ( {_0\boldsymbol{x}} ) {^t_0 J}d {_0\boldsymbol{x}}.
+\end{equation}
+This can also be achieved by the cross product. A cube spanned by vectors $_0\boldsymbol{x}_i$ ($i=1,2,3$) becomes a parallelepiped in the deformed configuration $d_tV =|{^t_0\boldsymbol{F}}d_0\boldsymbol{x}_0 \cdot({^t_0\boldsymbol{F}}d_0\boldsymbol{x}_1 \times {^t_0\boldsymbol{F}}d_0\boldsymbol{x}_2)| {d_0V}$:
+\begin{equation}\label{eq:j}
+  d_tV = {^t_0J} d_0V.
+\end{equation}
+The area change is given by Nanson's Formula. Where $\boldsymbol{A}$ points in the direction of the normal of the area:
+$$ d{_tV} = d{_t\boldsymbol{A}} \cdot d{_t\boldsymbol{l}}, \quad d{_0V} = d{_0\boldsymbol{A}}\cdot d{_0\boldsymbol{l}} $$
+$$ \xRightarrow{\ref{eq:def_grad_pos},\ref{eq:j}} {^t_0J} d_0\boldsymbol{A} \cdot d_0\boldsymbol{l} = d{_t\boldsymbol{A}} \cdot ({^t_0\boldsymbol{F}}d{_0\boldsymbol{l}})$$
+\begin{equation}
+  \Rightarrow d_t\boldsymbol{A} = {^t_0\boldsymbol{F}}^{-T} {^t_0}J d_0\boldsymbol{A} = {^0_t\boldsymbol{F}}^{T} {^t_0}J d_0\boldsymbol{A}.
+\end{equation}
+A surface intergral may then be transformed to current configuration by
+\begin{equation}
+  \int _ { \partial B ^ { \mathfrak { t } } } \boldsymbol{h} ( {_t\boldsymbol{x}} , t ) \cdot d \boldsymbol{A} ( {_t\boldsymbol{x}} ) =  \int _ { \partial B ^ { \mathfrak { 0 } } } \boldsymbol{h} ( {_0\boldsymbol{x}} , t ) \cdot \boldsymbol{F}^{-T}J d \boldsymbol{A} ( {_0\boldsymbol{x}} )
+\end{equation}
+where $_0h = h(_0\boldsymbol{x},\cdot)$ is the pull back of $_th = h(_t\boldsymbol{x},\cdot)$.
 \cite{MIT:CONTINUUM_MECHANICS}
 \cite{MPM:COURSE}
-\subsubsection{Conservation Equations}
-\cite{MPM:APIC}
-\subsubsection{CFL Condition}
-\subsection{Singular Value Decomposition}
+\subsection{Polar- and Singular Value Decomposition}
 \cite{SVD:3x3}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                         Constitutive Models                         %
@@ -282,6 +304,7 @@ Intuitively it measures the local changes in length from the reference to the cu
 \cite{MPM:PHASE_CHANGE} %Heat-Model
 \cite{MPM:OPTIMI_INTEGR} %Opimization Methods, BDF-Semi-Impl-Midpoint rule
 
+\subsubsection{Linear Elasticity}
 The first aim will be to find the strain energy density $\psi(\boldsymbol{\epsilon})$ of the strain $\bm{\epsilon}$.
 For an (hyper-)elastic material the Cauchy stress may be defined in terms of $\psi$ as:
 The most general linear stress-strain relationship is given by Hooke's Law in three dimensions
@@ -344,11 +367,11 @@ Comparing with equation \ref{eq:voigt} leads to coefficients $\gamma_{ij} = 2\ep
   \psi_{LE} = \mu \Vert \boldsymbol{\epsilon} \Vert^2_F + \frac{\lambda}{2} \text{tr}^2(\boldsymbol{\epsilon}).
 \end{equation}
 \cite{MIT:LINEAR_ELASTICITY}
-\subsubsection{Fixed Corotated Hyperelasticity}
+\subsubsection{Corotated Hyperelasticity}
 The simplest tensor assumed by infinitesimal strain theory is the small strain tensor: \begin{equation}
   \boldsymbol{\epsilon} = \frac { 1 } { 2 } \left( \boldsymbol { F }_E + \boldsymbol { F }_E ^ { T } \right) - \boldsymbol { I }
 \end{equation}
-The energy produced by equation \ref{eq:linear_elas} using the small strain tensor is not rotationally invariant, w.r.t. to $\boldsymbol{F}_E$: $\psi(\boldsymbol{R}_{0} \boldsymbol{F}_E) \neq \psi(\boldsymbol{F}_E)$. The deformation caused by stress however does not affect rigid body motions. Given the polar decomposition $\boldsymbol{F}_E = \boldsymbol{R}_E\boldsymbol{S}_E$, an alternate strain measure may be defined as:
+The energy produced by equation \ref{eq:linear_elas} using the small strain tensor is not rotationally invariant, w.r.t. to $\boldsymbol{F}_E$: $\psi(\boldsymbol{\epsilon}(\boldsymbol{R}_{0} \boldsymbol{F}_E)) \neq \psi(\boldsymbol{\epsilon}(\boldsymbol{F}_E))$. Rigid body motions however don't result in deformation and consequently don't need to be recovered from. So energy should not change. Given the polar decomposition $\boldsymbol{F}_E = \boldsymbol{R}_E\boldsymbol{S}_E$, an alternate strain measure may be defined as:
 \begin{equation}
   { \boldsymbol { \epsilon } } ( \boldsymbol { F }_E ) = \boldsymbol { \epsilon } \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E \right) = \frac { 1 } { 2 } \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E + \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E \right) ^ { T } \right) - \boldsymbol { I } = \boldsymbol { S }_E - \boldsymbol { I }
 \end{equation}
@@ -369,11 +392,16 @@ $$\Rightarrow \| \boldsymbol{S}_E\boldsymbol{-I} \| _ { F }^2 = \|\boldsymbol{S}
 \end{equation}
 Equation \ref{eq:corot_sing} uses the diagonal matrix $\boldsymbol{\Sigma}_E$ containing the principal stretches typically acquired by the singular value decomposition $\boldsymbol{F}_E \boldsymbol{= U \Sigma}_E\boldsymbol{ V ^T }.$ Since the energy density in \ref{eq:corot_sing} is a function of only three (singular) values, which describe stretch/compression of the material, isotropy of the material is underlined.
 \cite{ADAMS:ELASTICITY}
-Numerical Stepping algorithms
--> Newton Raphson scheme
--> Problem: Bad Primary contour
-Benefit: Easier description in terms of Invariants
+\subsubsection{Fixed Corotated Hyperelasticity}
+Numerical Stepping algorithms\\
+-> Newton Raphson scheme\\
+-> Problem: Bad Primary contour\\
+Benefit: Easier description in terms of Invariants\\
 \cite{MPM:INVERT}
+\subsubsection{Conservation Equations}
+\cite{MPM:APIC}
+\subsubsection{CFL Condition}
+
 
 \subsection{GPU memory}
 \subsubsection{Optimization opportunities}
