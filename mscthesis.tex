@@ -324,26 +324,30 @@ is already computed, where $\boldsymbol{U}$,$\boldsymbol{V}$ are orthogonal matr
   \boldsymbol{R} = \boldsymbol{V} \boldsymbol{W} ^ { T }, \quad \boldsymbol{S} = \boldsymbol{W} \boldsymbol{\Sigma} \boldsymbol{W} ^ { T }.
 \end{equation}
 Since singular values are positive, it is straightforward to see that the properties for $\boldsymbol{R}$ and $\boldsymbol{S}$ hold.
-
-The components of the singular value decomposition are important to gain an intuition: The columns of $\boldsymbol{U}$ and $\boldsymbol{V}$ span bases for the row and column spaces of $\boldsymbol{F}$ using the left and right singular vectors, respectively \cite{MIT:SVD}. For illustrating purposes imagine the manipulation of $\boldsymbol{v}_1$ due to $\boldsymbol{U\Sigma V}^T$:
+The components of the singular value decomposition are important to gain an intuition: The columns of $\boldsymbol{U}$ and $\boldsymbol{V}$ span bases for the row and column spaces of $\boldsymbol{F}$ using the left and right singular vectors $\boldsymbol{u}_i,\boldsymbol{v}_i$, respectively \cite{MIT:SVD}. For illustrating purposes imagine the manipulation of $\boldsymbol{v}_1$ due to $\boldsymbol{U\Sigma V}^T$:
 \begin{enumerate}
   \item Transform from the right singular vector space to standard basis space: $\boldsymbol{V}^T\boldsymbol{v}_1 = \boldsymbol{e}_1$
   \item Scale by singular values to transform to principal stretch space: $\boldsymbol{\Sigma} \boldsymbol{e}_1 = \sigma_1 \boldsymbol{e}_1$
   \item \label{it:tr_sing_vect} Transform to left singular vector space: $\boldsymbol{U}\sigma_1\boldsymbol{e}_1 = \sigma_1 \boldsymbol{u}_{1}$
 \end{enumerate}
 For a positive definite matrix the singular value decomposition becomes even easier as $\boldsymbol{U}=\boldsymbol{V}$. Item \ref{it:tr_sing_vect} then effectively just becomes a transform 'back'.
-Following is a summary of the $3 \times 3$ singular value decomposition as in \cite{SVD:3x3}.
+Following is a summary of the $3 \times 3$ singular value decomposition as in \cite{SVD:3x3}. The proposed singular value decomposition is also called 'Polar SVD' and follows a specific convention.
+\begin{itemize}\label{ref:itemize_conv}
+  \item $\boldsymbol{U}$,$\boldsymbol{V}$ are reflection-free corresponding to true rotation matrices, i.e. both $\text{det}(U), \text{det}(V) = 1$.
+  \item As a result if $\text{det}(\boldsymbol{F}) = -1$ the negative sign needs to move on to $\boldsymbol{\Sigma}$: The lowest singular value in magnitude will get a negative sign attached.
+\end{itemize}
+This convention does not change the existence or uniqueness of the singular value or polar decomposition, although strictly speaking $\boldsymbol{S}$ in the Polar decomposition is not positive definite anymore.
 \begin{enumerate}
   \item \label{it:eig} \textbf{Symmetric eigenanalysis:} A Jacobi eigenvalue algorithm begins with the symmetric positive definite matrix $\boldsymbol { S } ^{(0)}= \boldsymbol { A } ^ { T } \boldsymbol { A } = \boldsymbol { V } \boldsymbol { \Sigma } ^ { 2 } \boldsymbol { V } ^ { T }$.
     \begin{enumerate}[label*=\arabic*.]
-      \item \label{item:sk} Iteratively compute (an also symmetric, positive definite) $\boldsymbol { S } ^ { ( k + 1 ) } = [ \boldsymbol { Q } ^ { ( k )}] ^ { T } \boldsymbol { S } ^ { ( k ) } \boldsymbol { Q } ^ { ( k ) }$, where $\boldsymbol{Q}$ is a Givens rotation aiming to eliminate off $s_{12}$. Store $\boldsymbol{V}^{(k+1)} = \boldsymbol{V}^{(k)}  \boldsymbol{Q}^{(k)}$.
-      \item \label{item:sii} Do \ref{item:sk} again for the other off-diagonal entries $s_{13},s_{23}$.
+      \item \label{item:sk} Iteratively compute (an also symmetric, positive definite) $\boldsymbol { S } ^ { ( k + 1 ) } = [ \boldsymbol { Q } ^ { ( k )}] ^ { T } \boldsymbol { S } ^ { ( k ) } \boldsymbol { Q } ^ { ( k ) }$, where $\boldsymbol{Q}$ is a Givens rotation aiming to eliminate off $S_{12}$. Store $\boldsymbol{V}^{(k+1)} = \boldsymbol{V}^{(k)}  \boldsymbol{Q}^{(k)}$.
+      \item \label{item:sii} Do \ref{item:sk} again for the other off-diagonal entries $S_{13},S_{23}$.
       \item \label{item:redo_sii} Redo \ref{item:sk} - \ref{item:sii} a fixed amount of steps $m$.
     \end{enumerate}
-  \item \textbf{Sorting singular values:} Compute $\boldsymbol{B} := \boldsymbol{AV}$, where $\boldsymbol{V} = \boldsymbol{V}^{(3m)}$. Acquire $\boldsymbol{\Sigma}$ by $\|\boldsymbol{b}_i \|_2 = \|\boldsymbol{u}_i\sigma_i\|_2 = |\sigma_i|$, since also $\boldsymbol{B=U\Sigma}$ holds. Permute the singular values by sorting them in decreasing order. Apply the same permutation to the columns of $\boldsymbol{B}$ and $\boldsymbol{V}$, where switches in $\boldsymbol{V}$ also cause a sign change.
+  \item \textbf{Sorting singular values:} Compute $\boldsymbol{B} := \boldsymbol{AV}$, where $\boldsymbol{V} = \boldsymbol{V}^{(3m)}$. Acquire $\boldsymbol{\Sigma}$ by $\|\boldsymbol{b}_i \|_2 = \|\boldsymbol{u}_i\sigma_i\|_2 = |\sigma_i|$, where also $\boldsymbol{B=U\Sigma}$ holds. Permute the singular values by sorting them in decreasing order. Apply the same permutation to the columns of $\boldsymbol{B}$ and $\boldsymbol{V}$, where switches in $\boldsymbol{V}$ also cause a sign change. Enforce the convention mentioned above.
   \item \label{item:qr} \textbf{QR-Factorization:} Compute $\boldsymbol{U}$ using a $\boldsymbol{QR}$-Factorization with Givens Rotations, where $\boldsymbol{B}=\boldsymbol{QR}=\boldsymbol{U\Sigma}$. The $\boldsymbol{QR}$-Factorization is done once in the same fashion as in item \ref{item:sk} - \ref{item:sii}.
 \end{enumerate}
-Due to inherent normalization, fast multiplication and storage efficiency quaternions are preferred over actual rotation matrices. In item \ref{item:qr} a $\boldsymbol{QR}$-Factorization is preferred over a column normalization of $\boldsymbol{\Sigma U}$ due to its inaccuracy for near-zero singular values.
+Due to inherent normalization, fast multiplication and storage efficiency quaternions are preferred over actual rotation matrices. In item \ref{item:qr} a $\boldsymbol{QR}$-Factorization is preferred over a column normalization of $\boldsymbol{\Sigma U}$ due to its inaccuracy at near-zero singular values.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                         Constitutive Models                         %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
