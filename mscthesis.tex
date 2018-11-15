@@ -231,8 +231,8 @@ I.e. this component is only evaluated if $i = j$. In this case it becomes equiva
 Particles (or material points) in continuum mechanics are not what classically might be thought of as a particle. Rather the continuum assumption holds: each particle represents a continuous piece of material, s.t. a microscopic view does not need to be adopted. A particular body is composed of a set of particles and can adapt different configurations due to changes in shape. These changes are cause by external or internal effects (forces etc.) on it and deform the body over time. \cite{MIT:CONTINUUM_MECHANICS} \cite{MPM:COURSE}
 
 
-When modelling solids changes of quantities from one configuration (reference) $_0\boldsymbol{x}$ to another configuration (current) $_t\boldsymbol{x}$ need to be measured. In the material point method the reference configuration $^0\boldsymbol{x}$ is just the initial configuration of the body (at time $t=0$). This is similar to the total Lagrangian formulation in finite element methods \cite{bathe2006finite}.
-Let $\Omega ^ { 0 } , \Omega ^ { t } \subset \mathbb { R } ^ {  { 3 } }$ be the set of (material) points in the initial and current configuration respectively.  Then one may define a function or mapping ${^t_0}\phi ( \cdot , t ) : \Omega ^ { 0 } \rightarrow \Omega ^ { t }$, which relates the initial configuration to the current configuration. If we assume for simplicity that $_0\boldsymbol{x}$ and $_t\boldsymbol{{x}}$ describe the position of the particle in their respective configurations, this mapping becomes the deformation of the body from the reference configuration $_0\boldsymbol{x}$:
+When modelling solids changes of quantities from a initial reference configuration $_0\boldsymbol{x}$ to another current configuration $_t\boldsymbol{x}$ need to be measured. In the material point method the reference configuration $^0\boldsymbol{x}$ is just the initial configuration of the body (at time $t=0$). This is similar to the total Lagrangian formulation in finite element methods \cite{bathe2006finite}.
+Let $\Omega ^ { 0 } , \Omega ^ { t } \subset \mathbb { R } ^ {  { 3 } }$ be the set of (material) points in the reference and current configuration respectively.  Then one may define a function or mapping ${^t_0}\phi ( \cdot , t ) : \Omega ^ { 0 } \rightarrow \Omega ^ { t }$, which relates the reference configuration to the current configuration. If we assume for simplicity that $_0\boldsymbol{x}$ and $_t\boldsymbol{{x}}$ describe the position of the particle in their respective configurations, this mapping becomes the deformation of the body from the reference configuration $_0\boldsymbol{x}$:
 \begin{equation}
   _t\boldsymbol{x} =  {^t_0}\phi ( _0\boldsymbol{x} , \boldsymbol { t } )
 \end{equation}
@@ -249,7 +249,7 @@ and similarly the acceleration is defined
   _0\boldsymbol{a}(_0\boldsymbol{x},t) = \frac{\partial^2 {^t_0}\phi}{\partial t^2}(_0\boldsymbol{x},t) = \frac{\partial _0\boldsymbol{v}}{\partial t}(_0\boldsymbol{x},t).
 \end{equation}
 It is helpful to abstract away from the reference configuration and think of it as being defined in a different fixed material space. Physically this has the impact of moving with the particle in world space. Commonly known as the Lagrangian form. It is often easier in continuum mechanics to start with a Lagrangian description and switch to a Eulerian one if needed. The Eulerian description is static: Variables of particles that are moving by are measured while staying in a fixed position.
-These descriptions are different but they will yield the same measurements when related correctly. These relations for some particle quantity $f$ are called the (Lagrangian) pull back
+These descriptions are different but they will yield the same measurements when related correctly. I.e. both configuration refer variables defined on them do the deformed state, but the position where we 'look up' that value is different. In the reference configuration we look up at the initial position of the particle. In the current configuration we look up at the particle's 'world position'. These relations for some particle quantity $f$ are called the (Lagrangian) pull back
 \begin{equation}
   _0f(_0\boldsymbol{x},t)= {_tf}({^t_0}\phi(_0\boldsymbol{x},t),t)
 \end{equation}
@@ -260,25 +260,25 @@ and the (Eulerian) push forward
 with definitions over their respective spaces $_tf ( \cdot , t ) : \Omega ^ {  { t } } \rightarrow \mathbb { R }$, $_0f ( \cdot , t ) : \Omega ^ {   { 0 } } \rightarrow \mathbb { R }$.  To enable the operator ${^t_0}\phi$ to be homeomorphic, s.t. an inverse ${^t_0}\phi^{-1} = {_t^0}\phi$ is defined, it is assumed that no two particles will ever occupy the same space at the same time.
 
 The difficulty in the eulerian formulation becomes apparent when differentiating (due to the chain rule):
-\begin{equation}
+\begin{equation} \label{eq:eulerian_general}
   \frac {\partial}{\partial t} {_0f_i } ( {_0\boldsymbol { x }} ,  t  ) =
-  \frac { \partial  {_tv_i} } { \partial t } ( {^t_0}\phi ( {_0\boldsymbol {x }} , t ) , t ) + \frac { \partial  {_tv_i }} { \partial {_tx_j} } ( {^t_0}\phi ( {_0\boldsymbol { x }} , t ) , t ) \frac { \partial {^t_0}\phi_j } { \partial t } ( {_0\boldsymbol { x }} , t )
+  \frac { \partial  {_tf_i} } { \partial t } ( {^t_0}\phi ( {_0\boldsymbol {x }} , t ) , t ) + \frac { \partial  {_tf_i }} { \partial {_tx_j} } ( {^t_0}\phi ( {_0\boldsymbol { x }} , t ) , t ) \frac { \partial {^t_0}\phi_j } { \partial t } ( {_0\boldsymbol { x }} , t )
 \end{equation}
 Combining this with equation \ref{eq:velocity} and applying the push forward \ref{eq:push_forward} to cancel out mappings leads to the definition referred to as the material derivative:
-\begin{equation}
+\begin{equation} \label{eq:material_derivative}
   \frac {  { D } } {   { D }   { t } }   {  {f} } ( _t\boldsymbol { x } ,   { t } ) = \frac { \partial   {  {f} } } { \partial   { t } } ( _t\boldsymbol {x } ,   { t } ) + \frac { \partial   {  {f} } } { \partial x _ {   { j } } } ( _t{\boldsymbol { x }} ,   { t } )  {v} _ {   { j } } ( _t\boldsymbol { x } ,   { t } )
 \end{equation}
 The Jacobian of the deformation map $\phi$ is the deformation gradient $\boldsymbol{F}$ and is one of the key components to measure strain:
 \begin{equation}
   {^t_0 F_{ij}} ( _0\boldsymbol {x} ,  t  ) = \frac { \partial {^t_0\phi_i} } { \partial _0 x _j } ( _0\boldsymbol { x } , t ) = \frac { \partial _t x _i } { \partial _0 x_j } ( _0\boldsymbol { x } , t )
 \end{equation}
-Intuitively it measures the local deformation of all particles in a small neighborhood of $_0B$ to $_tB$. Topology specifies the neighborhood using the open ball concept $_{0,t}B_\epsilon(\boldsymbol{x}) = \{\boldsymbol{y} \in {\Omega^{0,t} | d(\boldsymbol{x},\boldsymbol{y}) < \epsilon}\}$ given a distance measure $d$. This allows to describe infinitesimal changes in position from the reference to the current configuration
+Intuitively it measures the local deformation of all particles in a small neighborhood of $_0B_\epsilon$ to $_tB_\epsilon$. Topology specifies the neighborhood using the open ball concept $_{0,t}B_\epsilon(\boldsymbol{x}) = \{\boldsymbol{y} \in {\Omega^{0,t} | d(\boldsymbol{x},\boldsymbol{y}) < \epsilon}\}$ given a distance measure $d$. $_0B_\epsilon$ becomes the pre-image of $_tB_\epsilon$ under $_0^t\phi$. This allows to describe infinitesimal changes in position from the reference to the current configuration
 \begin{equation}\label{eq:def_grad_pos}
   d {_tx_i} = {^t_0}F{_{ij}} d{_0x_j}.
 \end{equation}
 With this quantity in place volume and area changes are calculable. In a typical analytical fashion a coordinate system change $_0x \rightarrow {_tx}$ is done using the Jacobian (determinant) matrix. The determinant is given a separate name $^t_0J =\text{det}(^t_0\boldsymbol{F})$. The push forward of $_0g:\Omega^0\rightarrow \mathbb{R}^d$ is $_tg:\Omega^t\rightarrow \mathbb{R}^d$:
-\begin{equation}
-  \int _ { {_t\boldsymbol { B } }}  {_tg} ( {_t\boldsymbol { x }} )  d {_t\boldsymbol { x }} = \int _ { { _0\boldsymbol { B }}} {_0 g } ( {_0\boldsymbol{x}} ) {^t_0 J}d {_0\boldsymbol{x}}.
+\begin{equation} \label{eq:pull_back_vol}
+  \int _ { {_t\boldsymbol { B } }}  {_tg} ( {_t\boldsymbol { x }} ,t)  d {_t\boldsymbol { x }} = \int _ { { _0\boldsymbol { B }}} {_0 g } ( {_0\boldsymbol{x}},t) {^t_0 J}d {_0\boldsymbol{x}}.
 \end{equation}
 This can also be achieved by the cross product. A cube spanned by vectors $_0\boldsymbol{x}_i$ ($i=1,2,3$) becomes a parallelepiped in the deformed configuration $d_tV =|{^t_0\boldsymbol{F}}d_0\boldsymbol{x}_0 \cdot({^t_0\boldsymbol{F}}d_0\boldsymbol{x}_1 \times {^t_0\boldsymbol{F}}d_0\boldsymbol{x}_2)| {d_0V}$:
 \begin{equation}\label{eq:j}
@@ -291,10 +291,10 @@ $$ \xRightarrow{\ref{eq:def_grad_pos},\ref{eq:j}} {^t_0J} d_0\boldsymbol{A} \cdo
   \Rightarrow d_t\boldsymbol{A} = {^t_0\boldsymbol{F}}^{-T} {^t_0}J d_0\boldsymbol{A} = {^0_t\boldsymbol{F}}^{T} {^t_0}J d_0\boldsymbol{A}.
 \end{equation}
 A surface integral may then be transformed to reference configuration by
-\begin{equation}
-  \int _ { \partial B ^ { \mathfrak { t } } } \boldsymbol{h} ( {_t\boldsymbol{x}} , t ) \cdot d \boldsymbol{A} ( {_t\boldsymbol{x}} ) =  \int _ { \partial B ^ { \mathfrak { 0 } } } \boldsymbol{h} ( {_0\boldsymbol{x}} , t ) \cdot \boldsymbol{F}^{-T}J d \boldsymbol{A} ( {_0\boldsymbol{x}} )
+\begin{equation}\label{eq:surface_integral}
+  \int _ { \partial {_0B}  } \boldsymbol{h} ( {_t\boldsymbol{x}} , t ) \cdot d \boldsymbol{A} ( {_t\boldsymbol{x}} ) =  \int _ { \partial {_tB} } \boldsymbol{h} ( {_0\boldsymbol{x}} , t ) \cdot \boldsymbol{F}^{-T}J d \boldsymbol{A} ( {_0\boldsymbol{x}} )
 \end{equation}
-where $_0\boldsymbol{h} = \boldsymbol{h}(_0\boldsymbol{x},\cdot)$ is the pull back of $_t\boldsymbol{h} = \boldsymbol{h}(_t\boldsymbol{x},\cdot)$.
+where $_0\boldsymbol{h} = \boldsymbol{h}(_0\boldsymbol{x},\cdot)$ is the pull back of $_t\boldsymbol{h} = \boldsymbol{h}(_t\boldsymbol{x},\cdot)$. $d_0\boldsymbol{A}$,$d_t\boldsymbol{A}$ point in the direction of the surface normal of $\partial {_0B}(_0\boldsymbol{x})$, $\partial {_tB}(_t\boldsymbol{x})$, respectively.
 \cite{MIT:CONTINUUM_MECHANICS}
 \cite{MPM:COURSE}
 \subsection{Polar- and Singular Value Decomposition}
@@ -348,6 +348,7 @@ This convention does not change the existence or uniqueness of the singular valu
   \item \label{item:qr} \textbf{QR-Factorization:} Compute $\boldsymbol{U}$ using a $\boldsymbol{QR}$-Factorization with Givens Rotations, where $\boldsymbol{B}=\boldsymbol{QR}=\boldsymbol{U\Sigma}$. The $\boldsymbol{QR}$-Factorization is done once in the same fashion as in item \ref{item:sk} - \ref{item:sii}.
 \end{enumerate}
 Due to inherent normalization, fast multiplication and storage efficiency quaternions are preferred over actual rotation matrices. In item \ref{item:qr} a $\boldsymbol{QR}$-Factorization is preferred over a column normalization of $\boldsymbol{\Sigma U}$ due to its inaccuracy at near-zero singular values.
+\cite{MPM:COURSE}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                         Constitutive Models                         %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -360,7 +361,7 @@ Due to inherent normalization, fast multiplication and storage efficiency quater
 \cite{MPM:SHELLS} %Thin Shells
 \cite{MPM:PHASE_CHANGE} %Heat-Model
 \cite{MPM:OPTIMI_INTEGR} %Opimization Methods, BDF-Semi-Impl-Midpoint rule
-
+$$\boldsymbol{F}_E \boldsymbol{F}_P$$ \cite{ochsner2014elasto}
 \subsubsection{Linear Elasticity}
 The first aim will be to find the strain energy density $\psi(\boldsymbol{\epsilon})$ of the strain $\bm{\epsilon}$.
 For an (hyper-)elastic material the Cauchy stress may be defined in terms of $\psi$ as:
@@ -455,11 +456,89 @@ Numerical Stepping algorithms\\
 -> Problem: Bad Primary contour\\
 Benefit: Easier description in terms of Invariants\\
 \cite{MPM:INVERT}
-\subsubsection{Conservation Equations}
-\cite{MPM:APIC}
+\subsection{Governing equations}
+deriving the weak form
+\subsubsection{Conservation of mass}
+Let the Eulerian mass density be $_t\rho(_t\boldsymbol{x},t)$ and its (Lagrangian) pull back be $_0\rho(_0\boldsymbol{x},t)$.
+After \ref{eq:pull_back_vol} they are related as:
+\begin{equation} \label{eq:density_pull_back}
+  \int _ {_tB _ { \epsilon }}_t\rho(_t\boldsymbol{x},t)d_t\boldsymbol{x} =   \int _ {_0B _ { \epsilon }} {^t_0J}_0\rho(_0\boldsymbol{x},t) d_0\boldsymbol{x}
+\end{equation}
+An open ball $ _ { 0 }B _ { \epsilon } $ in the reference configuration will have the same mass as its respective open ball $B_{\epsilon}^t$ in the current configuration. Keep in mind that both refer to a deformed state.
+
+Conservation of mass dictates dictates that mass does not depend on motion or time. Only the space occupied by this mass may be more or less.
+\begin{equation}
+  \frac{d}{dt} \int _ {_tB _ { \epsilon }} _t\rho(_t\boldsymbol{x},t) d_t\boldsymbol{x} = 0
+\end{equation}
+Equivalently this can be formulated with the constant undeformed initial mass in Lagrangian view:
+\begin{equation}
+  \left(\int _ {_tB _ { \epsilon }} _t\rho(_t\boldsymbol{x},t) d_t\boldsymbol{x} \stackrel{\text{\ref{eq:density_pull_back}}}{=} \right)
+  \int _ {_0B _ { \epsilon }} {^t_0J}_0\rho(_0\boldsymbol{x},t) d_0\boldsymbol{x}=
+  \int _ {_0B _ { \epsilon }} _0\rho(_0\boldsymbol{x},0)d_0\boldsymbol{x}.
+\end{equation}
+In Eulerian view the conservation of mass is more difficult to develop and starts with the Lagrangian view. Since the integrals do account for arbitrary volumes, they are left out in the following:
+\begin{equation}\label{eq:euler_density_evol}
+  \frac{\partial}{\partial t}(_0\rho^t_0J) = \frac{\partial _0\rho}{\partial t}{^t_0J} + \frac{\partial{^t_0J}}{\partial t} {_0\rho} = 0.
+\end{equation}
+The left side could be immediately pushed forward, the right side is harder:
+\begin{equation}\label{eq:evol_jacobian}
+  \frac{\partial{J}}{\partial t}
+  = \frac{\partial{J}}{\partial {F_{ij}}} \frac{\partial {F_{ij}}}{\partial t}
+  \stackrel{\text{\ref{eq:det_deriv},\ref{eq:evol_def_grad}}}{=} {J}{F}^{-1}_{ji}\frac{\partial v_i}{\partial x_k}F_{kj}
+  = J \delta_{ik}\frac{\partial v_i}{\partial x_k} =  J \frac{\partial v_i}{\partial x_i}.
+\end{equation}
+The determinant differentiation rule can be shown by expressing the determinant with Laplace's expansion and applying the derivative on it:
+\begin{equation}\label{eq:det_deriv}
+  \frac{\partial J}{\partial F_{ij}} = \frac{\partial (F_{ik}\text{adj}(F)_{ki})}{\partial F_{ij}} =  \text{adj}(F)_{ji} = JF^{-1}_{ji}.
+\end{equation}
+The time-evolution of the deformation gradient is:
+\begin{equation}\label{eq:evol_def_grad}
+  \frac{\partial {{^t_0F_{ij}}}}{\partial t} =
+  \frac{\partial}{\partial t}\frac{\partial {^t_0\phi_i}}{\partial _0x_j}(_0\boldsymbol{x},t) = \frac{\partial {_0v_i}}{\partial _0x_j}(_0\boldsymbol{x},t) =
+  \frac{\partial {_tv_i}}{\partial _tx_k}(^t_0\phi(_0\boldsymbol{x},t),t)\frac{\partial {_tx_k}}{\partial {_0x_j}}(_0\boldsymbol{x},t).
+\end{equation}
+Pushing forward \ref{eq:euler_density_evol} with the result of \ref{eq:evol_jacobian} using the material derivative formulation \ref{eq:material_derivative}:
+\begin{equation}
+  \frac{D}{Dt}\rho(_t\boldsymbol{x},t) + \rho(_t\boldsymbol{x},t) \vec{\nabla} \cdot \boldsymbol{v}(_t\boldsymbol{x},t)=0
+\end{equation}
+Commonly used is the Nabla operator: $\vec { \nabla } = \left( \frac { \partial } { \partial x _ { 1 } } , \dots , \frac { \partial } { \partial x _ { n } } \right)$.
+\cite{MPM:COURSE}
+\subsubsection{Conservation of momentum}
+Continuum forces are divided up into body and surface forces. A surface force acts upon the surface of the material $\partial _tB_\epsilon$. While a body force scales upon the volume of the material $_tB_\epsilon$. Conservation of momentum may then be expressed in a similar way to the conservation of mass as:
+\begin{equation}
+  \frac { d } { d t } \int _ {_tB _ { \epsilon}  } \rho ( _t\boldsymbol{x} , t ) \boldsymbol{v} ( _t\boldsymbol{x} , t ) d _t\boldsymbol{x} = \int _ { \partial t_B _ {\epsilon  } } \boldsymbol{\sigma} d_t\boldsymbol{A} (_t\boldsymbol{x} ) + \int _ { _tB_\epsilon } \boldsymbol{f} ^ {\text{body} } d _t\boldsymbol{x}.
+\end{equation}
+Beginning with a mix out of Lagrangian and Eulerian view
+$$\left(\frac { d } { d t } \int _ {_tB _ { \epsilon}  } \rho ( _t\boldsymbol{x} , t ) \boldsymbol{v} ( _t\boldsymbol{x} , t ) d _t\boldsymbol{x} \stackrel{\text{\ref{eq:eulerian_general}}}{=} \right)
+\frac { d } { d t } \int _ {_0B _ { \epsilon}  } {^t_0J} \rho ( _0\boldsymbol{x} , t ) \boldsymbol{v} ( _0\boldsymbol{x} , t ) d _0\boldsymbol{x}$$
+\begin{equation}
+  \stackrel{\text{\ref{eq:euler_density_evol}}}{=}
+  \int _ {_0B _ { \epsilon}  } {^t_0J} \rho ( _0\boldsymbol{x} , t ) \boldsymbol{a} ( _0\boldsymbol{x} , t ) d _0\boldsymbol{x}
+  = \int _ { \partial t_B _ {\epsilon  } } \boldsymbol{\sigma} d_t\boldsymbol{A} (_t\boldsymbol{x} ) + \int _ { _tB_\epsilon } \boldsymbol{f} ^ {\text{body} } d _t\boldsymbol{x},
+\end{equation}
+where conservation of mass (equation \ref{eq:euler_density_evol}) was applied.
+The Eulerian push-forward of the left side combined with the divergence theorem becomes:
+\begin{equation}
+  \int _ {_tB _ { \epsilon}  } \rho ( _t\boldsymbol{x} , t ) \boldsymbol{a} ( _t\boldsymbol{x} , t ) d _t\boldsymbol{x} =
+  \int _ { \partial t_B _ {\epsilon } } \vec{\nabla} \cdot \boldsymbol{\sigma} d_t\boldsymbol{x}  + \int _ { _tB_\epsilon } \boldsymbol{f} ^ {\text{body} } d _t\boldsymbol{x}.
+\end{equation}
+The acceleration $_t\boldsymbol{a}$ is again defined due to the material derivative \ref{eq:material_derivative}. Thus the Eulerian momentum balance equation becomes:
+\begin{equation}
+  _t\rho \frac{D_t\boldsymbol{v}}{Dt} = \vec{\nabla} \cdot \boldsymbol{\sigma} +\boldsymbol{f} ^ {\text{body} }.
+\end{equation}
+There is a quantity left to be defined for the Lagrangian view. The Cauchy stress $\boldsymbol{\sigma}$ is defined in the current configuration. Pulling back the Cauchy stress leads to a stress measure named the first Piola Kirchhoff stress, denoted in the literature as $\boldsymbol{P} = \boldsymbol{\sigma}\boldsymbol{F}^{-T}J$:
+\begin{equation}
+  \int _ { \partial t_B _ {\epsilon  } } _t\boldsymbol{\sigma} d_t\boldsymbol{A} (_t\boldsymbol{x} )
+  \stackrel{\text{\ref{eq:surface_integral}}}{=}
+  \int _ { \partial 0_B _ {\epsilon  } }  _0\boldsymbol{\sigma}\boldsymbol{F}^{-T} Jd_0\boldsymbol{A} (_0\boldsymbol{x} )=
+  \int _ { \partial 0_B _ {\epsilon  } }  \boldsymbol{P}d_0\boldsymbol{A} (_0\boldsymbol{x} )
+\end{equation}
+Summarized the Lagrangian view of the momentum equation with an initial momentum is:
+\begin{equation}
+  _0\rho(_0\boldsymbol{x},0)_0\boldsymbol{a}(_0\boldsymbol{x},t)
+= \vec{\nabla}} \cdot \boldsymbol{P}(_0\boldsymbol{x},t) + {_0\boldsymbol{f}} ^ {\text{body}}(_0\boldsymbol{x},t) {^t_0J}.
+\end{equation}
 \subsubsection{CFL Condition}
-
-
 \subsection{GPU memory}
 \subsubsection{Optimization opportunities}
 \cite{NVIDIA:BEST:PRACTICE}
@@ -502,6 +581,7 @@ decorator pattern
 \subsection{Verifying Simulation}
 \begin{itemize}
   \item Conservation equations
+    \cite{MPM:APIC}
   \item Singular Value Decomposition
   \item Parallel Reduction
 \end{itemize}
