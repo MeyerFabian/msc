@@ -225,6 +225,18 @@ I.e. this component is only evaluated if $i = j$. In this case it becomes equiva
 \begin{equation}
   \frac{\partial{x_0}}{\partial{x_1}}=0, \frac{\partial{x_0}}{\partial{x_0}}=1  \Rightarrow \frac{\partial{x_i}}{\partial{x_j}} = \delta_{ij}
 \end{equation}
+The alternating tensor or Levi-Civita symbol
+\begin{equation}
+  \varepsilon _ { i j k } = \left\{ \begin{array} { r l } { + 1 } & { \text { if } ( i , j , k ) \text { is } ( 1,2,3 ) , ( 2,3,1 ) , \text { or } ( 3,1,2 ) } \\ { - 1 } & { \text { if } ( i , j , k ) \text { is } ( 3,2,1 ) , ( 1,3,2 ) , \text { or } ( 2,1,3 ) } \\ { 0 } & { \text { if } i = j , \text { or } j = k , \text { or } k = i } \end{array} \right.
+\end{equation}
+is used to express cross-products $\boldsymbol{c}=\boldsymbol{a} \times \boldsymbol{b}$:
+\begin{equation}
+  c_i = \varepsilon_{ijk} a_j b_k \left(= \sum _ { j = 1 } ^ { n } \sum _ { k = 1 } ^ { n } \varepsilon_{ijk} a_j b_k\right).
+\end{equation}
+A useful relation to the Kronecker-Delta is:
+\begin{equation}\label{eq:compact_levi}
+  \varepsilon _ { i j k } \varepsilon _ { i m n } = \delta _ { j m } \delta _ { k n } - \delta _ { j n } \delta _ { k m }.
+\end{equation}
 \cite{MCGINTY:CONTINUUM}
 \section{Basics}
 \subsection{Reference and current configuration}
@@ -362,7 +374,7 @@ Due to inherent normalization, fast multiplication and storage efficiency quater
 \cite{MPM:PHASE_CHANGE} %Heat-Model
 \cite{MPM:OPTIMI_INTEGR} %Opimization Methods, BDF-Semi-Impl-Midpoint rule
 $$\boldsymbol{F}_E \boldsymbol{F}_P$$ \cite{ochsner2014elasto}
-\subsubsection{Linear Elasticity}
+\subsubsection{Linear Elasticity}\label{sec:linear_elasticty}
 The first aim will be to find the strain energy density $\psi(\boldsymbol{\epsilon})$ of the strain $\bm{\epsilon}$.
 For an (hyper-)elastic material the Cauchy stress may be defined in terms of $\psi$ as:
 The most general linear stress-strain relationship is given by Hooke's Law in three dimensions
@@ -506,9 +518,9 @@ Commonly used is the Nabla operator: $\vec { \nabla } = \left( \frac { \partial 
 \subsubsection{Conservation of momentum}
 Continuum forces are divided up into body and surface forces. A surface force acts upon the surface of the material $\partial _tB_\epsilon$. While a body force scales upon the volume of the material $_tB_\epsilon$. Conservation of momentum may then be expressed in a similar way to the conservation of mass as:
 \begin{equation}
-  \frac { d } { d t } \int _ {_tB _ { \epsilon}  } \rho ( _t\boldsymbol{x} , t ) \boldsymbol{v} ( _t\boldsymbol{x} , t ) d _t\boldsymbol{x} = \int _ { \partial t_B _ {\epsilon  } } \boldsymbol{\sigma} d_t\boldsymbol{A} (_t\boldsymbol{x} ) + \int _ { _tB_\epsilon } \boldsymbol{f} ^ {\text{body} } d _t\boldsymbol{x}.
+  \frac { d } { d t } \int _ {_tB _ { \epsilon}  } \rho ( _t\boldsymbol{x} , t ) \boldsymbol{v} ( _t\boldsymbol{x} , t ) d _t\boldsymbol{x} = \int _ { \partial _tB _ {\epsilon  } } \boldsymbol{\sigma} d_t\boldsymbol{A} (_t\boldsymbol{x} ) + \int _ { _tB_\epsilon } \boldsymbol{f} ^ {\text{body} } d _t\boldsymbol{x}.
 \end{equation}
-Beginning with a mix out of Lagrangian and Eulerian view
+Where the assumption due to angular momentum conservation $\boldsymbol{\sigma}^T  = \boldsymbol{\sigma} $ out of the second part of this section has already been made for completion. Beginning with a mix out of Lagrangian and Eulerian view
 $$\left(\frac { d } { d t } \int _ {_tB _ { \epsilon}  } \rho ( _t\boldsymbol{x} , t ) \boldsymbol{v} ( _t\boldsymbol{x} , t ) d _t\boldsymbol{x} \stackrel{\text{\ref{eq:eulerian_general}}}{=} \right)
 \frac { d } { d t } \int _ {_0B _ { \epsilon}  } {^t_0J} \rho ( _0\boldsymbol{x} , t ) \boldsymbol{v} ( _0\boldsymbol{x} , t ) d _0\boldsymbol{x}$$
 \begin{equation}
@@ -518,7 +530,7 @@ $$\left(\frac { d } { d t } \int _ {_tB _ { \epsilon}  } \rho ( _t\boldsymbol{x}
 \end{equation}
 where conservation of mass (equation \ref{eq:euler_density_evol}) was applied.
 The Eulerian push-forward of the left side combined with the divergence theorem becomes:
-\begin{equation}
+\begin{equation}\label{eq:eul_transport}
   \int _ {_tB _ { \epsilon}  } \rho ( _t\boldsymbol{x} , t ) \boldsymbol{a} ( _t\boldsymbol{x} , t ) d _t\boldsymbol{x} =
   \int _ { \partial t_B _ {\epsilon } } \vec{\nabla} \cdot \boldsymbol{\sigma} d_t\boldsymbol{x}  + \int _ { _tB_\epsilon } \boldsymbol{f} ^ {\text{body} } d _t\boldsymbol{x}.
 \end{equation}
@@ -528,16 +540,42 @@ The acceleration $_t\boldsymbol{a}$ is again defined due to the material derivat
 \end{equation}
 There is a quantity left to be defined for the Lagrangian view. The Cauchy stress $\boldsymbol{\sigma}$ is defined in the current configuration. Pulling back the Cauchy stress leads to a stress measure named the first Piola Kirchhoff stress, denoted in the literature as $\boldsymbol{P} = \boldsymbol{\sigma}\boldsymbol{F}^{-T}J$:
 \begin{equation}
-  \int _ { \partial t_B _ {\epsilon  } } _t\boldsymbol{\sigma} d_t\boldsymbol{A} (_t\boldsymbol{x} )
+  \int _ { \partial _tB _ {\epsilon  } } _t\boldsymbol{\sigma} d_t\boldsymbol{A} (_t\boldsymbol{x} )
   \stackrel{\text{\ref{eq:surface_integral}}}{=}
-  \int _ { \partial 0_B _ {\epsilon  } }  _0\boldsymbol{\sigma}\boldsymbol{F}^{-T} Jd_0\boldsymbol{A} (_0\boldsymbol{x} )=
-  \int _ { \partial 0_B _ {\epsilon  } }  \boldsymbol{P}d_0\boldsymbol{A} (_0\boldsymbol{x} )
+  \int _ { \partial _0B _ {\epsilon  } }  _0\boldsymbol{\sigma}\boldsymbol{F}^{-T} Jd_0\boldsymbol{A} (_0\boldsymbol{x} )=
+  \int _ { \partial _0B _ {\epsilon  } }  \boldsymbol{P}d_0\boldsymbol{A} (_0\boldsymbol{x} )
 \end{equation}
-Summarized the Lagrangian view of the momentum equation with an initial momentum is:
+Summarized the Lagrangian view of the momentum equation with an initial momentum is ($^0_0J=1$):
 \begin{equation}
   _0\rho(_0\boldsymbol{x},0)_0\boldsymbol{a}(_0\boldsymbol{x},t)
 = \vec{\nabla}} \cdot \boldsymbol{P}(_0\boldsymbol{x},t) + {_0\boldsymbol{f}} ^ {\text{body}}(_0\boldsymbol{x},t) {^t_0J}.
 \end{equation}
+For the stress strain relationship $\boldsymbol{C}$ in chapter \ref{sec:linear_elasticty} as well as the start of this chapter conservation of angular momentum caused $\sigma_{ij} = \sigma_{ji}$. This can be shown as follows.
+The description of angular momentum follows that of linear momentum where product rule generally applies $\left(\frac{D_t\boldsymbol{x}}{Dt} \times {_t\boldsymbol{v}} = {_t\boldsymbol{v}} \times {_t\boldsymbol{v}} = 0\right)$ :
+\begin{equation}
+  \int _ {_tB _ { \epsilon}  } _t\boldsymbol{x} \times \rho ( _t\boldsymbol{x} , t ) \boldsymbol{a} ( _t\boldsymbol{x} , t ) d _t\boldsymbol{x} = \int _ { \partial _tB _ {\epsilon  } }_t\boldsymbol{x} \times  \boldsymbol{\sigma}^T d_t\boldsymbol{A} (_t\boldsymbol{x} ) + \int _ { _tB_\epsilon }_t\boldsymbol{x} \times  \boldsymbol{f} ^ {\text{body} } d _t\boldsymbol{x}.
+\end{equation}
+In component form this becomes:
+\begin{equation}\label{eq:gen_ang_mom}
+  \int _ {_tB _ { \epsilon}  } \varepsilon_{ijk} \rho x_j a_k d _t\boldsymbol{x} = \int _ { \partial _tB _ {\epsilon  } } \varepsilon_{ijk} x_j \sigma_{mk} dA_m(_t\boldsymbol{x} ) + \int _ { _tB_\epsilon } \varepsilon_{ijk} x_j f_k ^ {\text{body} } d _t\boldsymbol{x}.
+\end{equation}
+The divergence theorem is again applied to the surface forces $\left(\vec{\nabla} = \frac{\partial}{\partial x_m}\right)$:
+$$
+\int _ { \partial _tB _ {\epsilon  } } \varepsilon_{ijk} x_j \sigma_{mk} dA_m (_t\boldsymbol{x} ) =
+\int _ {_tB _ {\epsilon  } } \varepsilon_{ijk} \frac{\partial(x_j \sigma_{mk})}{\partial x_m} d_t\boldsymbol{x}
+$$
+\begin{equation}\label{eq:surface_ang_mom}
+  = \int _ {_tB _ {\epsilon  } } \varepsilon_{ijk} \left(\delta_{jm} \sigma_{mk}+ x_j\frac{ \partial \sigma_{mk}}{\partial x_m}\right) d_t\boldsymbol{x}.
+\end{equation}
+The conservation of momentum (eq. \ref{eq:eul_transport}) can then be applied to the result of plugging \ref{eq:surface_ang_mom} into \ref{eq:gen_ang_mom} leaving only:
+\begin{equation}
+  \int _ {_tB _ {\epsilon  } } \varepsilon_{ijk} \sigma_{jk} d_t\boldsymbol{x} = 0.
+\end{equation}
+Leaving out the integral and multiplying by ${\varepsilon_irs}$ enables equation \label{eq:compact_levi}. The Cauchy stress is constrained to
+\begin{equation}
+  \sigma_{ij} =\sigma_{ji}
+\end{equation}
+as assumed before. Note that $\boldsymbol{P}$ however is not constrained to be symmetric.
 \subsubsection{CFL Condition}
 \subsection{GPU memory}
 \subsubsection{Optimization opportunities}
