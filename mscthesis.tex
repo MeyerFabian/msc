@@ -234,7 +234,7 @@ is used to express cross-products $\boldsymbol{c}=\boldsymbol{a} \times \boldsym
   c_i = \varepsilon_{ijk} a_j b_k \left(= \sum _ { j = 1 } ^ { n } \sum _ { k = 1 } ^ { n } \varepsilon_{ijk} a_j b_k\right).
 \end{equation}
 A useful relation to the Kronecker-Delta is:
-\begin{equation}\label{eq:compact_levi}
+\begin{equation} \label{eq:compact_levi}
   \varepsilon _ { i j k } \varepsilon _ { i m n } = \delta _ { j m } \delta _ { k n } - \delta _ { j n } \delta _ { k m }.
 \end{equation}
 \cite{MCGINTY:CONTINUUM}
@@ -289,7 +289,7 @@ Intuitively it measures the local deformation of all particles in a small neighb
   d {_tx_i} = {^t_0}F{_{ij}} d{_0x_j}.
 \end{equation}
 With this quantity in place volume and area changes are calculable. In a typical analytical fashion a coordinate system change $_0x \rightarrow {_tx}$ is done using the Jacobian (determinant) matrix. The determinant is given a separate name $^t_0J =\text{det}(^t_0\boldsymbol{F})$. The push forward of $_0g:\Omega^0\rightarrow \mathbb{R}^d$ is $_tg:\Omega^t\rightarrow \mathbb{R}^d$:
-\begin{equation} \label{eq:pull_back_vol}
+\begin{equation} \label{eq:volume_integral}
   \int _ { {_t\boldsymbol { B } }}  {_tg} ( {_t\boldsymbol { x }} ,t)  d {_t\boldsymbol { x }} = \int _ { { _0\boldsymbol { B }}} {_0 g } ( {_0\boldsymbol{x}},t) {^t_0 J}d {_0\boldsymbol{x}}.
 \end{equation}
 This can also be achieved by the cross product. A cube spanned by vectors $_0\boldsymbol{x}_i$ ($i=1,2,3$) becomes a parallelepiped in the deformed configuration $d_tV =|{^t_0\boldsymbol{F}}d_0\boldsymbol{x}_0 \cdot({^t_0\boldsymbol{F}}d_0\boldsymbol{x}_1 \times {^t_0\boldsymbol{F}}d_0\boldsymbol{x}_2)| {d_0V}$:
@@ -526,27 +526,31 @@ $$\left(\frac { d } { d t } \int _ {_tB _ { \epsilon}  } \rho ( _t\boldsymbol{x}
 \begin{equation}
   \stackrel{\text{\ref{eq:euler_density_evol}}}{=}
   \int _ {_0B _ { \epsilon}  } {^t_0J} \rho ( _0\boldsymbol{x} , t ) \boldsymbol{a} ( _0\boldsymbol{x} , t ) d _0\boldsymbol{x}
-  = \int _ { \partial t_B _ {\epsilon  } } \boldsymbol{\sigma} d_t\boldsymbol{A} (_t\boldsymbol{x} ) + \int _ { _tB_\epsilon } \boldsymbol{f} ^ {\text{body} } d _t\boldsymbol{x},
+  = \int _ { \partial _tB _ {\epsilon  } } \boldsymbol{\sigma} d_t\boldsymbol{A} (_t\boldsymbol{x} ) + \int _ { _tB_\epsilon } \boldsymbol{f} ^ {\text{body} } d _t\boldsymbol{x},
 \end{equation}
 where conservation of mass (equation \ref{eq:euler_density_evol}) was applied.
 The Eulerian push-forward of the left side combined with the divergence theorem becomes:
 \begin{equation}\label{eq:eul_transport}
   \int _ {_tB _ { \epsilon}  } \rho ( _t\boldsymbol{x} , t ) \boldsymbol{a} ( _t\boldsymbol{x} , t ) d _t\boldsymbol{x} =
-  \int _ { \partial t_B _ {\epsilon } } \vec{\nabla} \cdot \boldsymbol{\sigma} d_t\boldsymbol{x}  + \int _ { _tB_\epsilon } \boldsymbol{f} ^ {\text{body} } d _t\boldsymbol{x}.
+  \int _ { \partial _tB _ {\epsilon } } \vec{\nabla} \cdot \boldsymbol{\sigma} d_t\boldsymbol{x}  + \int _ { _tB_\epsilon } \boldsymbol{f} ^ {\text{body} } d _t\boldsymbol{x}.
 \end{equation}
 The acceleration $_t\boldsymbol{a}$ is again defined due to the material derivative \ref{eq:material_derivative}. Thus the Eulerian momentum balance equation becomes:
 \begin{equation}
   _t\rho \frac{D_t\boldsymbol{v}}{Dt} = \vec{\nabla} \cdot \boldsymbol{\sigma} +\boldsymbol{f} ^ {\text{body} }.
 \end{equation}
-There is a quantity left to be defined for the Lagrangian view. The Cauchy stress $\boldsymbol{\sigma}$ is defined in the current configuration. Pulling back the Cauchy stress leads to a stress measure named the first Piola Kirchhoff stress, denoted in the literature as $\boldsymbol{P} = \boldsymbol{\sigma}\boldsymbol{F}^{-T}J$:
+There is a quantity left to be defined for the Lagrangian view. The Cauchy stress $\boldsymbol{\sigma}$ is defined in the current configuration. Pulling back the Cauchy stress leads to a stress measure named the first Piola Kirchhoff stress
 \begin{equation}
   \int _ { \partial _tB _ {\epsilon  } } _t\boldsymbol{\sigma} d_t\boldsymbol{A} (_t\boldsymbol{x} )
   \stackrel{\text{\ref{eq:surface_integral}}}{=}
   \int _ { \partial _0B _ {\epsilon  } }  _0\boldsymbol{\sigma}\boldsymbol{F}^{-T} Jd_0\boldsymbol{A} (_0\boldsymbol{x} )=
-  \int _ { \partial _0B _ {\epsilon  } }  \boldsymbol{P}d_0\boldsymbol{A} (_0\boldsymbol{x} )
+  \int _ { \partial _0B _ {\epsilon  } }  \boldsymbol{P}d_0\boldsymbol{A} (_0\boldsymbol{x} ),
+\end{equation}
+denoted in the literature as:
+\begin{equation}\label{eq:piola}
+  \boldsymbol{P} = \boldsymbol{\sigma}\boldsymbol{F}^{-T}J
 \end{equation}
 Summarized the Lagrangian view of the momentum equation with an initial momentum is ($^0_0J=1$):
-\begin{equation}
+\begin{equation}\label{eq:lagr_mom}
   _0\rho(_0\boldsymbol{x},0)_0\boldsymbol{a}(_0\boldsymbol{x},t)
 = \vec{\nabla}} \cdot \boldsymbol{P}(_0\boldsymbol{x},t) + {_0\boldsymbol{f}} ^ {\text{body}}(_0\boldsymbol{x},t) {^t_0J}.
 \end{equation}
@@ -571,12 +575,72 @@ The conservation of momentum (eq. \ref{eq:eul_transport}) can then be applied to
 \begin{equation}
   \int _ {_tB _ {\epsilon  } } \varepsilon_{ijk} \sigma_{jk} d_t\boldsymbol{x} = 0.
 \end{equation}
-Leaving out the integral and multiplying by ${\varepsilon_irs}$ enables equation \label{eq:compact_levi}. The Cauchy stress is constrained to
+Leaving out the integral and multiplying by ${\varepsilon_{irs}}$ enables equation \ref{eq:compact_levi}. The Cauchy stress is constrained to
 \begin{equation}
   \sigma_{ij} =\sigma_{ji}
 \end{equation}
 as assumed before. Note that $\boldsymbol{P}$ however is not constrained to be symmetric.
-\subsubsection{CFL Condition}
+\subsubsection{Weak formulation}
+Before deriving the weak form an explanation of what it achieves is in order. The previous presented governing equations are written in the strong form: a solution to the equation needs to be exact on the whole domain (and is as such influenced by the whole domain in general). Such a solution can be found for simplified models analytically. These act as a ground truth to numerical methods like the material point method. Analytical methods of today can't handle complex problems: Numerical solutions try to overcome that hurdle.
+
+The complete mathematical description of the weak formulation is beyond this thesis. Numeric books that discuess finite element methods will provide one (\cite{bathe2006finite}, \cite{dahmen2008numerik}). For simplicity: The weak formulation combined with Galerkin discretization restricts the globalility of the strong method due to so called 'test functions': $_0\boldsymbol{q}_h$ . A 'test function' generally only has influence ($ _0\boldsymbol{q}_h\neq 0$) on a very small subset of the whole domain $\Omega^0$. This is mostly used to gather information on a local neighborhood.
+
+The weak formulation requires an observation of the dot product. Consider the conservation of momentum in the strong form as formulated before (\ref{eq:lagr_mom}) as
+\begin{equation}\label{eq:strong}
+  _0\rho(_0\boldsymbol{x},0)_0\boldsymbol{a}(_0\boldsymbol{x},t)
+  = \vec{\nabla} \cdot \boldsymbol{P}(_0\boldsymbol{x},t) + {_0\boldsymbol{f}} ^ {\text{body}}(_0\boldsymbol{x},t) {^t_0J}.
+\end{equation}
+Multiply both sides with the dot product of an arbitrary function $_0\boldsymbol{q}(\cdot,t):\Omega^0 \rightarrow \mathbb{R}^d$ and integrate over $\Omega^0$. If a solution solves the balance of \ref{eq:strong} then it also solves:
+$$
+\int _ { \Omega ^ { 0 } } _0q _ { i } ( _0\boldsymbol { x } , t ) \left(_0\rho (_0\boldsymbol{x} , 0 ) _0a _{ i } (_0\boldsymbol{x} , t ) - {_0\boldsymbol{f}} ^ {\text{body}}(_0\boldsymbol{x},t) {^t_0J}\right) d _0\boldsymbol{x}
+$$
+\begin{equation}
+  =\int _ { \Omega ^ { 0 } } _0q _ { i } ( _0\boldsymbol { x } , t ) \frac{\partial P _ {ij}}{\partial x_j} ( _0\boldsymbol{x} , t ) d_0\boldsymbol{x}.
+\end{equation}
+With the help of partial integration in multiple dimension the derivative moves over to the test-function.
+Reducing the order of derivatives by moving a derivative to the test function is the main motive of the weak form:
+$$
+\int _ { \Omega ^ { 0 } } \frac{\partial (_0q _ { i } ( _0\boldsymbol { x } , t ) P _ {ij} ( _0\boldsymbol{x} , t ))}{\partial _0x_j}
+- \frac{\partial _0q _ { i }}{\partial _0x_j} ( _0\boldsymbol { x } , t ) P _ {ij}( _0\boldsymbol{x} , t )
+d_0\boldsymbol{x}
+$$
+The divergence theorem allows to convert the first term to a boundary integral.
+\begin{equation}
+  \int _ { \partial \Omega ^ { 0 } } _0q _ { i } ( _0\boldsymbol { x } , t ) P _ {ij} ( _0\boldsymbol{x} , t)
+  d_0\boldsymbol{A}(_0\boldsymbol{x})
+  -\int _ { \Omega ^ { 0 } }  \frac{\partial _0q _ { i }}{\partial _0x_j} ( _0\boldsymbol { x } , t ) P _ {ij}( _0\boldsymbol{x} , t )
+  d_0\boldsymbol{x}
+\end{equation}
+Mathematically the boundary integral serves as a boundary condition which is set by the specific problem (e.g. context of the simulation). Finally putting together the previous results gives the weak form of force balance in the Lagrangian view:
+$$
+\int _ { \Omega ^ { 0 } } _0q _ { i } ( _0\boldsymbol { x } , t ) \left(_0\rho (_0\boldsymbol{x} , 0 ) _0a _{ i } (_0\boldsymbol{x} , t ) - {_0f_i} ^ {\text{body}}(_0\boldsymbol{x},t) {^t_0J}\right) d _0\boldsymbol{x}
+$$
+\begin{equation}
+  = \int _ { \partial \Omega ^ { 0 } } _0q _ { i } ( _0\boldsymbol { x } , t ) P _ {ij} ( _0\boldsymbol{x} , t)
+  d_0\boldsymbol{A}(_0\boldsymbol{x})
+  -\int _ { \Omega ^ { 0 } }  \frac{\partial _0q _ { i }}{\partial _0x_j} ( _0\boldsymbol { x } , t ) P _ {ij}( _0\boldsymbol{x} , t )
+  d_0\boldsymbol{x}
+\end{equation}
+In the material point method stress computations are more naturally done in the current configuration. Pushing the equation forward to Eulerian view with the push forward $_t\boldsymbol{q}:\Omega^t \rightarrow \mathbb{R}^d$ of $_0\boldsymbol{q}$ is only a problem for the last term:
+$$
+\int _ { \Omega ^ { 0 } }  \frac{\partial _0q _ { i }}{\partial _0x_j} ( _0\boldsymbol { x } , t ) P _ {ij} d_0\boldsymbol{x}
+\stackrel{\text{\ref{eq:piola}, \ref{eq:volume_integral}}}{=}
+\int _ { \Omega ^ { 0 } }  \left({^t_0}F_{kj}\frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\right) \left({_t^0}F_{kj} \sigma _ {ik} {_0^tJ}\right) {_t^0J} d_t\boldsymbol{x}
+$$
+\begin{equation}
+  =  \int _ { \Omega ^ { t } } \frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\sigma _ {ik} d_t\boldsymbol{x}
+\end{equation}
+This completes the Eulerian view to be:
+$$
+\int _ { \Omega ^ { t } } _tq _ { i } ( _t\boldsymbol { x } , t ) \left(_t\rho (_t\boldsymbol{x} , t) _ta _{ i } (_t\boldsymbol{x} , t ) - {_tf_i} ^ {\text{body}}(_t\boldsymbol{x},t)\right) d _t\boldsymbol{x}
+$$
+\begin{equation}
+  = \int _ { \partial \Omega ^ { t } } _tq _ { i } ( _t\boldsymbol { x } , t ) \sigma _ {ij} d_tA_t\boldsymbol{x} -  \int _ { \Omega ^ { t } } \frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\sigma _ {ik} d_t\boldsymbol{x}.
+\end{equation}
+\cite{MPM:COURSE}
+\cite{strang2007computational}
+\cite{bathe2006finite}
+\subsubsection{CFL condition}
 \subsection{GPU memory}
 \subsubsection{Optimization opportunities}
 \cite{NVIDIA:BEST:PRACTICE}
