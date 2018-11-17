@@ -619,7 +619,7 @@ $$
   = \int _ { \partial \Omega ^ { 0 } } _0q _ { i } ( _0\boldsymbol { x } , t ) P _ {ij} ( _0\boldsymbol{x} , t)
   d_0\boldsymbol{A}(_0\boldsymbol{x})
   -\int _ { \Omega ^ { 0 } }  \frac{\partial _0q _ { i }}{\partial _0x_j} ( _0\boldsymbol { x } , t ) P _ {ij}( _0\boldsymbol{x} , t )
-  d_0\boldsymbol{x}
+  d_0\boldsymbol{x}.
 \end{equation}
 In the material point method stress computations are more naturally done in the current configuration. Pushing the equation forward to Eulerian view with the push forward $_t\boldsymbol{q}:\Omega^t \rightarrow \mathbb{R}^d$ of $_0\boldsymbol{q}$ is only a problem for the last term:
 $$
@@ -628,18 +628,33 @@ $$
 \int _ { \Omega ^ { 0 } }  \left({^t_0}F_{kj}\frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\right) \left({_t^0}F_{kj} \sigma _ {ik} {_0^tJ}\right) {_t^0J} d_t\boldsymbol{x}
 $$
 \begin{equation}
-  =  \int _ { \Omega ^ { t } } \frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\sigma _ {ik} d_t\boldsymbol{x}
+  =  \int _ { \Omega ^ { t } } \frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\sigma _ {ik} d_t\boldsymbol{x}.
 \end{equation}
 This completes the Eulerian view to be:
 $$
 \int _ { \Omega ^ { t } } _tq _ { i } ( _t\boldsymbol { x } , t ) \left(_t\rho (_t\boldsymbol{x} , t) _ta _{ i } (_t\boldsymbol{x} , t ) - {_tf_i} ^ {\text{body}}(_t\boldsymbol{x},t)\right) d _t\boldsymbol{x}
 $$
 \begin{equation}
-  = \int _ { \partial \Omega ^ { t } } _tq _ { i } ( _t\boldsymbol { x } , t ) \sigma _ {ij} d_tA_t\boldsymbol{x} -  \int _ { \Omega ^ { t } } \frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\sigma _ {ik} d_t\boldsymbol{x}.
+  = \int _ { \partial \Omega ^ { t } } _tq _ { i } ( _t\boldsymbol { x } , t ) \sigma _ {ij} d_tA_j(_t\boldsymbol{x}) -  \int _ { \Omega ^ { t } } \frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\sigma _ {ik} d_t\boldsymbol{x}.
 \end{equation}
 \cite{MPM:COURSE}
 \cite{strang2007computational}
 \cite{bathe2006finite}
+\subsection{Material Particles}
+\begin{equation}
+  w( x ) = \left\{ \begin{array} { l l } { \frac { 1 } { 2 } | x | ^ { 3 } - | x | ^ { 2 } + \frac { 2 } { 3 } } & { 0 \leqslant | x | < 1 } \\ { \frac { 1 } { 6 } ( 2 - | x | ) ^ { 3 } } & { 1 \leqslant | x | < 2 } \\ { 0 } & { 2 \leqslant | x | } \end{array} \right.
+\end{equation}
+\begin{equation}
+  \nabla w_{\boldsymbol{i}}(\boldsymbol{x})
+  =\frac { 1 } {  { h } }
+  \left(
+    \begin{array} {l}
+      w^{\prime} (\frac { 1 } {  { h } } ( x  - x _ { i } ))  { w }          ( \frac { 1 } {  { h } } (  { y }  -  { y } _ { i}  ) )   { w }         ( \frac { 1 } {  { h } } ( z  - z _ { i } ) \\
+      w(\frac{1} {  { h } } ( x  - x _ { i } ))               { w }^{\prime} ( \frac { 1 } {  { h } } (  { y }  -  { y } _ { i}  ) )   { w }         ( \frac { 1 } {  { h } } ( z  - z _ { i } ) \\
+      w(\frac{1} {  { h } } ( x  - x _ { i } ))               { w }          ( \frac { 1 } {  { h } } (  { y }  -  { y } _ { i}  ) )   { w }^{\prime}( \frac { 1 } {  { h } } ( z  - z _ { i } ) \\
+    \end{array}
+  \right)
+\end{equation}
 \subsubsection{CFL condition}
 \subsection{GPU memory}
 \subsubsection{Optimization opportunities}
