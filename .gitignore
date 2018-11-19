@@ -38,3 +38,5 @@
 *.fls
 *.fdb_latexmk
 logos/
+_minted-mscthesis
+mscthesis.loa
