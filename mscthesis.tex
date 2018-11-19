@@ -18,8 +18,19 @@
 \usepackage{mathtools}
 \usepackage{subdepth}
 \usepackage{enumitem}
+\usepackage[toc,page]{appendix}
+\usepackage{minted}
 \addbibresource{mscthesis.bib}
-
+\makeatletter
+\def\ext@algorithm{lol}% algorithm captions will be written to the .lol file
+% share the list making commands and redefine the heading
+\AtBeginDocument{%
+  \let\l@algorithm\l@lstlisting
+  \let\c@algorithm\c@lstlisting
+  \let\thealgorithm\thelstlisting
+  \renewcommand{\lstlistlistingname}{Algorithms and source code}%
+}
+\makeatother
 \lstdefinelanguage{GLSL}
 {
   sensitive=true,
@@ -132,12 +143,9 @@
   stringstyle=\color[rgb]{0.639,0.082,0.082},
   numbers=left,
 }
-\renewcommand{\lstlistingname}{Source code}
-
-\renewcommand{\lstlistlistingname}{List of source codes}
 
 
-
+\newenvironment{code}{\captionsetup{type=algorithm}}{}
 \begin{document}
 
 \author{Fabian Meyer}
@@ -181,8 +189,8 @@ benefits over radix sort /thrust sort-by-key -> counting sort
 \cite{MPM:GPU}
 %look again for MPM/PIC gpu impl
 %SPH, FEM methods
-\section{Notation}
-Multi-component types are generally printed in bold letters $\boldsymbol{A}$, $\boldsymbol{a}$. Vectors furthermore use lower-case letters $\boldsymbol{v}$, while Matrices use upper-case letters $\boldsymbol{M}$. A variable in the Lagrangian form has a subscript 0 $ _0{\boldsymbol{x}}$, the Eulerian description will be written with an 'overline' $_t\boldsymbol{x}$ if distinction is needed. Occasionally notation may be omitted where it is apparent from context.
+\section{Notation}\label{sec:notation}
+Multi-component types are generally printed in bold letters $\boldsymbol{A}$, $\boldsymbol{a}$. Vectors furthermore use lower-case letters $\boldsymbol{v}$, while Matrices use upper-case letters $\boldsymbol{M}$. A variable in the Lagrangian form has a subscript 0 $ _0{\boldsymbol{x}}$, the Eulerian description will be written with an 'overline' $_t\boldsymbol{x}$ if distinction is needed. Occasionally notation may be omitted where it is apparent from context. Beginning from chapter \ref{sec:mat_point} variables defined on a particle will have subscript $p$ (e.g. $\boldsymbol{x}_p$). Grid cells will be assigned a subscript $i$ denoting the grid index (e.g. $\boldsymbol{x}_i$). This is not to be confused with the following Einstein-Notation. Therefore beginning with chapter \ref{sec:mat_point} Einstein-Notation will use greek letters ($\alpha,\beta$). A variable of the $n$-th time step with associated time $t^n = \sum_{i=1}^{n} t^i$ will have a right superscript: $\boldsymbol{x}^n$.
 \subsection{Einstein-Notation}
 Used throughout this thesis is at instances the Einstein-Notation when using tensors and vectors. Let $\boldsymbol{a}$ and $\boldsymbol{b}$ be vectors of dimension $n$ and  $\boldsymbol{A,B,D}$ $ { m \times n }$ tensors. Repeated indices that are also defined on the variable imply component-wise operations.
 $a _ { i } b _ { j }$ is multiplying component $i$ with component $j$ of vectors $\boldsymbol{a}$ and $\boldsymbol{b}$. Vector and tensor/matrix addition thus become:
@@ -365,7 +373,7 @@ Due to inherent normalization, fast multiplication and storage efficiency quater
 %                         Constitutive Models                         %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\subsection{Constitutive Models}
+\subsection{Constitutive Models}\label{seq:constitutive_models}
 \cite{MPM:DRUCKER} %Sand Plasticity
 \cite{MPM:MULTI} %Sand+Water
 \cite{MPM:INVERT} %Neo-Hookean
@@ -483,7 +491,7 @@ Conservation of mass dictates dictates that mass does not depend on motion or ti
   \frac{d}{dt} \int _ {_tB _ { \epsilon }} _t\rho(_t\boldsymbol{x},t) d_t\boldsymbol{x} = 0
 \end{equation}
 Equivalently this can be formulated with the constant undeformed initial mass in Lagrangian view:
-\begin{equation}
+\begin{equation}\label{eq:lagr_mass}
   \left(\int _ {_tB _ { \epsilon }} _t\rho(_t\boldsymbol{x},t) d_t\boldsymbol{x} \stackrel{\text{\ref{eq:density_pull_back}}}{=} \right)
   \int _ {_0B _ { \epsilon }} {^t_0J}_0\rho(_0\boldsymbol{x},t) d_0\boldsymbol{x}=
   \int _ {_0B _ { \epsilon }} _0\rho(_0\boldsymbol{x},0)d_0\boldsymbol{x}.
@@ -640,21 +648,93 @@ $$
 \cite{MPM:COURSE}
 \cite{strang2007computational}
 \cite{bathe2006finite}
-\subsection{Material Particles}
+\subsection{Material Point Method}\label{sec:mat_point}
+The key idea of the material point method is to use (Lagrangian) particles as a consistent storage of material properties. All stress based forces are computed on a Eulerian grid however. This grid does not store any material properties and is therefore often referred to as a scratch pad.
+
+As a corollary there needs to be a way to transfer information from a particle to the neighboring grid cells. This also induces switching from Lagrangian to Eulerian view. After stresses are computed there also needs to be a way to get back the relevant information from the grid to the particles. After the information is transferred back the particles are moved. This advection is typically hard to do in Eulerian/FEM-like methods and cause of a lot of problems down the development pipeline. In a Lagrangian view particle advection is trivial.
+
+Its is very important that the two transfers as well as the grid solver are in compliance with the governing equations. While the grid solver will be derived from the weak form of the governing equation the transfers also need to be chosen in a way that also conserve the properties defined in them.
+\cite{MPM:COURSE}
+\subsubsection{Interpolation weights}
+The choice of interpolation weights is flexible. Nevertheless a kernel $w(\boldsymbol{x})$ requires some important properties to be qualified for MPM:
+\begin{enumerate}
+
+  \item Partition of unity:
+    \begin{equation}\label{eq:partition_unity}
+      \sum _ { i } w \left(  { \boldsymbol{x} } -  { \boldsymbol{x} } _ { i } ^ { n } \right) & = 1.
+    \end{equation}
+  \item Identity relation:
+    \begin{equation}
+      \sum _ { i }  { \boldsymbol{x} } _ { i } ^ { n } w \left(  { \boldsymbol{x} } -  {\boldsymbol{ x} } _ { i } ^ { n } \right) & =  { \boldsymbol{x} }.
+    \end{equation}
+  \item $C^1$-continuity s.t. $\nabla w_i$ is continuous.
+\end{enumerate}
+As a reminder of chapter \ref{sec:notation}: $\boldsymbol{x}_p$ refers to a particle's position. $\boldsymbol{x}_i$ to a grid cell's position.
+\\
+Often dyadic products of one-dimensional interpolation functions suffice
 \begin{equation}
-  w( x ) = \left\{ \begin{array} { l l } { \frac { 1 } { 2 } | x | ^ { 3 } - | x | ^ { 2 } + \frac { 2 } { 3 } } & { 0 \leqslant | x | < 1 } \\ { \frac { 1 } { 6 } ( 2 - | x | ) ^ { 3 } } & { 1 \leqslant | x | < 2 } \\ { 0 } & { 2 \leqslant | x | } \end{array} \right.
+  w(\boldsymbol{x}-\boldsymbol{x}_i^n) = w_i^n(\boldsymbol{x}) = w\left(\frac{1}{h}\left(x-x_i^n\right)\right)w\left(\frac{1}{h}\left(y-y_i^n\right)\right)w\left(\frac{1}{h}\left(z-z_i^n\right)\right)
 \end{equation}
 \begin{equation}
-  \nabla w_{\boldsymbol{i}}(\boldsymbol{x})
+  \nabla w_{i}^n(\boldsymbol{x})
   =\frac { 1 } {  { h } }
   \left(
     \begin{array} {l}
-      w^{\prime} (\frac { 1 } {  { h } } ( x  - x _ { i } ))  { w }          ( \frac { 1 } {  { h } } (  { y }  -  { y } _ { i}  ) )   { w }         ( \frac { 1 } {  { h } } ( z  - z _ { i } ) \\
-      w(\frac{1} {  { h } } ( x  - x _ { i } ))               { w }^{\prime} ( \frac { 1 } {  { h } } (  { y }  -  { y } _ { i}  ) )   { w }         ( \frac { 1 } {  { h } } ( z  - z _ { i } ) \\
-      w(\frac{1} {  { h } } ( x  - x _ { i } ))               { w }          ( \frac { 1 } {  { h } } (  { y }  -  { y } _ { i}  ) )   { w }^{\prime}( \frac { 1 } {  { h } } ( z  - z _ { i } ) \\
+      w^{\prime} (\frac { 1 } {  { h } } ( x  - x _ { i }^n ))  { w }          ( \frac { 1 } {  { h } } (  { y }  -  { y } _ { i}^n  ) )   { w }         ( \frac { 1 } {  { h } } ( z  - z _ { i }^n ) \\
+      w(\frac{1} {  { h } } ( x  - x _ { i }^n ))               { w }^{\prime} ( \frac { 1 } {  { h } } (  { y }  -  { y } _ { i}^n  ) )   { w }         ( \frac { 1 } {  { h } } ( z  - z _ { i }^n ) \\
+      w(\frac{1} {  { h } } ( x  - x _ { i }^n ))               { w }          ( \frac { 1 } {  { h } } (  { y }  -  { y } _ { i}^n  ) )   { w }^{\prime}( \frac { 1 } {  { h } } ( z  - z _ { i }^n ) \\
     \end{array}
-  \right)
+  \right),
 \end{equation}
+where $h$ is the grid spacing (of a uniform grid). An interpolation function often employed is a cubic B-spline ($C^2$):
+\begin{equation}
+  w(x) = \left\{ \begin{array} { l l } { \frac { 1 } { 2 } | x | ^ { 3 } - | x | ^ { 2 } + \frac { 2 } { 3 } } & { 0 \leqslant | x | < 1 } \\ { \frac { 1 } { 6 } ( 2 - | x | ) ^ { 3 } } & { 1 \leqslant | x | < 2 } \\ { 0 } & { 2 \leqslant | x | } \end{array} \right. .
+\end{equation}
+Since these function are used to weight (or filter) particles a shortening in notation may be employed as $ w_{ip}^n = w(\boldsymbol{x}_p^n-\boldsymbol{x}_i^n)$.
+\cite{MPM:APIC}\cite{MPM:COURSE}
+\subsubsection{Mass transfer}
+Each material point will be assigned an initial volume $_0V_p$ as well as a initial mass $_0m_p$. The volume the material point occupies may change in time due to eq. \ref{eq:j}: ${^t_0}J _0V_p = {_tV_p}$. But due to conservation of mass \ref{eq:lagr_mass} it will have a constant, initial mass associated with it. I.e. there will only be a transfer to the grid and no transfer back.
+A transfer of mass to the grid may then be expressed as:
+\begin{equation}\label{eq:mpm:mass}
+  m_i = \sum_p w_{ip}m_p.
+\end{equation}
+$\sum_i m_i =\sum_p m_p$ is a complete prove this fulfills the conservation of mass. Remember there is no transfer back. In doing so no information can be lost on the particles. Proving that the mass transfer to the grid is conserving is enough. The stress based-solver may manipulate this information further (mass-lumping strategies).
+\begin{equation}
+  \sum_i m_i
+  \stackrel{\text{\ref{eq:mpm:mass}}}{=}
+  \sum _i \sum_p w_{ip} m_p =
+  \sum _p m_p \sum_i w_{ip}
+  \stackrel{\text{\ref{eq:partition_unity}}}{=}
+  \sum_p m_p
+\end{equation}
+\cite{MPM:APIC}\cite{MPM:COURSE}
+\subsubsection{APIC momentum Transfers}
+The momentum transfer round trip could be defined as:
+\begin{enumerate}
+  \item Particle to grid momentum transfer:
+    \begin{equation}\label{eq:lin_p2g}
+      (m\boldsymbol{v})_i^n = \sum_p w_{ip}m_p\boldsymbol{v}^n_p.
+    \end{equation}
+  \item Factoring out mass:
+    \begin{equation}
+      \boldsymbol{v}_i^n = \frac{(m\boldsymbol{v})_i^n}{m_i^n}.
+    \end{equation}
+  \item Coupled with either ($\alpha \in \{0,1\}$) or a combination ($\alpha \in ]0;1[$) of:
+    \begin{equation}
+      \boldsymbol{v}_p^{n+1} = \alpha\boldsymbol{v}_{p,{PIC}}^{n+1} + (1-\alpha)\boldsymbol{v}_{p,{FLIP}}^{n+1}
+    \end{equation}
+    \begin{equation}\label{eq:PIC}
+      \boldsymbol{v}_{p,{PIC}}^{n+1} = \sum_i w_{ip}\boldsymbol{v}_i^{n+1}.
+    \end{equation}
+    \begin{equation}\label{eq:FLIP}
+      \boldsymbol{v}_{p,{FLIP}}^{n+1} = \boldsymbol{v}_p^{n} + \sum_i w_{ip}(\boldsymbol{v}_i^{n+1}-\boldsymbol{v}_i^{n+1}).
+    \end{equation}
+\end{enumerate}
+While $PIC$-Transfers are very stable they suffer from excessive (energy) dissipation due to double interpolating on the whole quantity \ref{eq:lin_p2g},\ref{eq:PIC}. This causes a heavy loss in angular momentum and velocity modes.
+$FLIP$-Transfers avoid dissipation and loss of angular momentum by only updating the velocity with a difference \ref{eq:FLIP}. However some velocity modes are also not recognized on the grid and may cause unpredictable and unstable behavior in following steps. Therefore often a combination of both is taken.
+
+$APIC$ builds on top of the very stable $PIC$-transfers and effectively only adds an extra term of the Taylor series to increase accuracy. This extra term $\boldsymbol{C}_p$ may be in short just referred to as the velocity derivative. The local velocity field around a particle may then be characterized by the affine function $\boldsymbol{v}(\boldsymbol{x}) = \boldsymbol{C}_p(\boldsymbol{x}-\boldsymbol{x}_p)$.
+\cite{MPM:APIC}\cite{MPM:OLD_APIC}
 \subsubsection{CFL condition}
 \subsection{GPU memory}
 \subsubsection{Optimization opportunities}
@@ -711,10 +791,79 @@ decorator pattern
 Particle Activation: \cite{MPM:GPU}
 
 Sparse: \cite{OPENVDB} \cite{NVIDIA:GVDB_VOXELS}
+\begin{appendices}
+  \section{Inertia Tensor for Cubic Splines}
+  \begin{code}
+\caption{$\boldsymbol{D}_p$ proof}
+  \begin{minted}{python}
+import numpy as np
+from sympy import *
 
-\listoffigures
+def round_expr(expr, num_digits):
+  return expr.xreplace({n : round(n, num_digits) for n in expr.atoms(Number)})
+
+# Limit a,b,c,x to interval [0,1] for simplyfing
+a, b, c = symbols('a b c', nonnegative=true)
+a = a/(1+a)
+b = b/(1+b)
+c = c/(1+c)
+
+x = symbols('x', nonnegative=true)
+x = x/(1+x)
+
+# Define cubic interpolation function
+def N1(x):
+  return 0.5*pow(abs(x),3)-pow(x,2)+2/3
+def N2(x):
+  return -1/6*pow(abs(x),3)+pow(x,2)-2*abs(x)+4/3
+def wip(i,x):
+  if(i==1 or i==2):
+    return N1(x)
+  else:
+    return N2(x)
+
+# Define the parametrized position in the grid
+def grid_points(x):
+  return np.array([-x-1,-x,1-x,2-x])
+
+alphas = grid_points(a)
+betas = grid_points(b)
+gammas = grid_points(c)
+
+D_temp = np.array([[0,0,0],[0,0,0],[0,0,0]])
+
+# Loop over all grid nodes in the vicinity
+for i,ai in enumerate(alphas):
+  for j,bj in enumerate(betas):
+    for k,ck in enumerate(gammas):
+      # xi_xp is the distance from parametrized position to grid node [i,j,k]
+      xi_xp = np.array([ai,bj,ck])
+      # each outer product weighted by interpolation functions
+      this_outer = wip(i,ai)*wip(j,bj)*wip(k,ck)*np.outer(xi_xp,xi_xp)
+      # summed up over all grid nodes
+      D_temp = np.add(D_temp,this_outer)
+
+D = np.array([[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
+
+for i,D_row in enumerate(D_temp):
+  for j,D_ij in enumerate(D_row):
+    #simplify to cancel polynoms, round_expr because numerical cancellation
+    D[i][j] = round_expr(simplify(D_ij),14)
+    print(D)
+\end{minted}
+\end{code}
+  Prints out:
+  $$
+  \left[
+    \begin{array}{ccc}
+      0.33333333 &0.         &0.        \\
+      0.         &0.33333333 &0.	\\
+      0.         &0.         &0.33333333\\
+  \end{array}\right]=\boldsymbol{D}_p
+  $$
+\end{appendices}
 \clearpage
-\listoftables
+\listoffigures
 \lstlistoflistings
 \clearpage
 \selectlanguage{english}

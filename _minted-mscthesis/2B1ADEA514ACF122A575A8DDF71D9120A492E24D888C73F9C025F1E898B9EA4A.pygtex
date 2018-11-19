@@ -1,0 +1,56 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{k+kn}{import} \PYG{n+nn}{numpy} \PYG{k+kn}{as} \PYG{n+nn}{np}
+\PYG{k+kn}{from} \PYG{n+nn}{sympy} \PYG{k+kn}{import} \PYG{o}{*}
+
+\PYG{k}{def} \PYG{n+nf}{round\PYGZus{}expr}\PYG{p}{(}\PYG{n}{expr}\PYG{p}{,} \PYG{n}{num\PYGZus{}digits}\PYG{p}{):}
+  \PYG{k}{return} \PYG{n}{expr}\PYG{o}{.}\PYG{n}{xreplace}\PYG{p}{(\PYGZob{}}\PYG{n}{n} \PYG{p}{:} \PYG{n+nb}{round}\PYG{p}{(}\PYG{n}{n}\PYG{p}{,} \PYG{n}{num\PYGZus{}digits}\PYG{p}{)} \PYG{k}{for} \PYG{n}{n} \PYG{o+ow}{in} \PYG{n}{expr}\PYG{o}{.}\PYG{n}{atoms}\PYG{p}{(}\PYG{n}{Number}\PYG{p}{)\PYGZcb{})}
+
+\PYG{c+c1}{\PYGZsh{} Limit a,b,c,x to interval [0,1] for simplyfing}
+\PYG{n}{a}\PYG{p}{,} \PYG{n}{b}\PYG{p}{,} \PYG{n}{c} \PYG{o}{=} \PYG{n}{symbols}\PYG{p}{(}\PYG{l+s+s1}{\PYGZsq{}a b c\PYGZsq{}}\PYG{p}{,} \PYG{n}{nonnegative}\PYG{o}{=}\PYG{n}{true}\PYG{p}{)}
+\PYG{n}{a} \PYG{o}{=} \PYG{n}{a}\PYG{o}{/}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{o}{+}\PYG{n}{a}\PYG{p}{)}
+\PYG{n}{b} \PYG{o}{=} \PYG{n}{b}\PYG{o}{/}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{o}{+}\PYG{n}{b}\PYG{p}{)}
+\PYG{n}{c} \PYG{o}{=} \PYG{n}{c}\PYG{o}{/}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{o}{+}\PYG{n}{c}\PYG{p}{)}
+
+\PYG{n}{x} \PYG{o}{=} \PYG{n}{symbols}\PYG{p}{(}\PYG{l+s+s1}{\PYGZsq{}x\PYGZsq{}}\PYG{p}{,} \PYG{n}{nonnegative}\PYG{o}{=}\PYG{n}{true}\PYG{p}{)}
+\PYG{n}{x} \PYG{o}{=} \PYG{n}{x}\PYG{o}{/}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{o}{+}\PYG{n}{x}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Define cubic interpolation function}
+\PYG{k}{def} \PYG{n+nf}{N1}\PYG{p}{(}\PYG{n}{x}\PYG{p}{):}
+  \PYG{k}{return} \PYG{l+m+mf}{0.5}\PYG{o}{*}\PYG{n+nb}{pow}\PYG{p}{(}\PYG{n+nb}{abs}\PYG{p}{(}\PYG{n}{x}\PYG{p}{),}\PYG{l+m+mi}{3}\PYG{p}{)}\PYG{o}{\PYGZhy{}}\PYG{n+nb}{pow}\PYG{p}{(}\PYG{n}{x}\PYG{p}{,}\PYG{l+m+mi}{2}\PYG{p}{)}\PYG{o}{+}\PYG{l+m+mi}{2}\PYG{o}{/}\PYG{l+m+mi}{3}
+\PYG{k}{def} \PYG{n+nf}{N2}\PYG{p}{(}\PYG{n}{x}\PYG{p}{):}
+  \PYG{k}{return} \PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{o}{/}\PYG{l+m+mi}{6}\PYG{o}{*}\PYG{n+nb}{pow}\PYG{p}{(}\PYG{n+nb}{abs}\PYG{p}{(}\PYG{n}{x}\PYG{p}{),}\PYG{l+m+mi}{3}\PYG{p}{)}\PYG{o}{+}\PYG{n+nb}{pow}\PYG{p}{(}\PYG{n}{x}\PYG{p}{,}\PYG{l+m+mi}{2}\PYG{p}{)}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{2}\PYG{o}{*}\PYG{n+nb}{abs}\PYG{p}{(}\PYG{n}{x}\PYG{p}{)}\PYG{o}{+}\PYG{l+m+mi}{4}\PYG{o}{/}\PYG{l+m+mi}{3}
+\PYG{k}{def} \PYG{n+nf}{wip}\PYG{p}{(}\PYG{n}{i}\PYG{p}{,}\PYG{n}{x}\PYG{p}{):}
+  \PYG{k}{if}\PYG{p}{(}\PYG{n}{i}\PYG{o}{==}\PYG{l+m+mi}{1} \PYG{o+ow}{or} \PYG{n}{i}\PYG{o}{==}\PYG{l+m+mi}{2}\PYG{p}{):}
+    \PYG{k}{return} \PYG{n}{N1}\PYG{p}{(}\PYG{n}{x}\PYG{p}{)}
+  \PYG{k}{else}\PYG{p}{:}
+    \PYG{k}{return} \PYG{n}{N2}\PYG{p}{(}\PYG{n}{x}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Define the parametrized position in the grid}
+\PYG{k}{def} \PYG{n+nf}{grid\PYGZus{}points}\PYG{p}{(}\PYG{n}{x}\PYG{p}{):}
+  \PYG{k}{return} \PYG{n}{np}\PYG{o}{.}\PYG{n}{array}\PYG{p}{([}\PYG{o}{\PYGZhy{}}\PYG{n}{x}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,}\PYG{o}{\PYGZhy{}}\PYG{n}{x}\PYG{p}{,}\PYG{l+m+mi}{1}\PYG{o}{\PYGZhy{}}\PYG{n}{x}\PYG{p}{,}\PYG{l+m+mi}{2}\PYG{o}{\PYGZhy{}}\PYG{n}{x}\PYG{p}{])}
+
+\PYG{n}{alphas} \PYG{o}{=} \PYG{n}{grid\PYGZus{}points}\PYG{p}{(}\PYG{n}{a}\PYG{p}{)}
+\PYG{n}{betas} \PYG{o}{=} \PYG{n}{grid\PYGZus{}points}\PYG{p}{(}\PYG{n}{b}\PYG{p}{)}
+\PYG{n}{gammas} \PYG{o}{=} \PYG{n}{grid\PYGZus{}points}\PYG{p}{(}\PYG{n}{c}\PYG{p}{)}
+
+\PYG{n}{D\PYGZus{}temp} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{array}\PYG{p}{([[}\PYG{l+m+mi}{0}\PYG{p}{,}\PYG{l+m+mi}{0}\PYG{p}{,}\PYG{l+m+mi}{0}\PYG{p}{],[}\PYG{l+m+mi}{0}\PYG{p}{,}\PYG{l+m+mi}{0}\PYG{p}{,}\PYG{l+m+mi}{0}\PYG{p}{],[}\PYG{l+m+mi}{0}\PYG{p}{,}\PYG{l+m+mi}{0}\PYG{p}{,}\PYG{l+m+mi}{0}\PYG{p}{]])}
+
+\PYG{c+c1}{\PYGZsh{} Loop over all grid nodes in the vicinity}
+\PYG{k}{for} \PYG{n}{i}\PYG{p}{,}\PYG{n}{ai} \PYG{o+ow}{in} \PYG{n+nb}{enumerate}\PYG{p}{(}\PYG{n}{alphas}\PYG{p}{):}
+  \PYG{k}{for} \PYG{n}{j}\PYG{p}{,}\PYG{n}{bj} \PYG{o+ow}{in} \PYG{n+nb}{enumerate}\PYG{p}{(}\PYG{n}{betas}\PYG{p}{):}
+    \PYG{k}{for} \PYG{n}{k}\PYG{p}{,}\PYG{n}{ck} \PYG{o+ow}{in} \PYG{n+nb}{enumerate}\PYG{p}{(}\PYG{n}{gammas}\PYG{p}{):}
+      \PYG{c+c1}{\PYGZsh{} xi\PYGZus{}xp is the distance from parametrized position to grid node [i,j,k]}
+      \PYG{n}{xi\PYGZus{}xp} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{array}\PYG{p}{([}\PYG{n}{ai}\PYG{p}{,}\PYG{n}{bj}\PYG{p}{,}\PYG{n}{ck}\PYG{p}{])}
+      \PYG{c+c1}{\PYGZsh{} each outer product weighted by interpolation functions}
+      \PYG{n}{this\PYGZus{}outer} \PYG{o}{=} \PYG{n}{wip}\PYG{p}{(}\PYG{n}{i}\PYG{p}{,}\PYG{n}{ai}\PYG{p}{)}\PYG{o}{*}\PYG{n}{wip}\PYG{p}{(}\PYG{n}{j}\PYG{p}{,}\PYG{n}{bj}\PYG{p}{)}\PYG{o}{*}\PYG{n}{wip}\PYG{p}{(}\PYG{n}{k}\PYG{p}{,}\PYG{n}{ck}\PYG{p}{)}\PYG{o}{*}\PYG{n}{np}\PYG{o}{.}\PYG{n}{outer}\PYG{p}{(}\PYG{n}{xi\PYGZus{}xp}\PYG{p}{,}\PYG{n}{xi\PYGZus{}xp}\PYG{p}{)}
+      \PYG{c+c1}{\PYGZsh{} summed up over all grid nodes}
+      \PYG{n}{D\PYGZus{}temp} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{add}\PYG{p}{(}\PYG{n}{D\PYGZus{}temp}\PYG{p}{,}\PYG{n}{this\PYGZus{}outer}\PYG{p}{)}
+
+\PYG{n}{D} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{array}\PYG{p}{([[}\PYG{l+m+mf}{0.0}\PYG{p}{,}\PYG{l+m+mf}{0.0}\PYG{p}{,}\PYG{l+m+mf}{0.0}\PYG{p}{],[}\PYG{l+m+mf}{0.0}\PYG{p}{,}\PYG{l+m+mf}{0.0}\PYG{p}{,}\PYG{l+m+mf}{0.0}\PYG{p}{],[}\PYG{l+m+mf}{0.0}\PYG{p}{,}\PYG{l+m+mf}{0.0}\PYG{p}{,}\PYG{l+m+mf}{0.0}\PYG{p}{]])}
+
+\PYG{k}{for} \PYG{n}{i}\PYG{p}{,}\PYG{n}{D\PYGZus{}row} \PYG{o+ow}{in} \PYG{n+nb}{enumerate}\PYG{p}{(}\PYG{n}{D\PYGZus{}temp}\PYG{p}{):}
+  \PYG{k}{for} \PYG{n}{j}\PYG{p}{,}\PYG{n}{D\PYGZus{}ij} \PYG{o+ow}{in} \PYG{n+nb}{enumerate}\PYG{p}{(}\PYG{n}{D\PYGZus{}row}\PYG{p}{):}
+    \PYG{c+c1}{\PYGZsh{}simplify to cancel polynoms, round\PYGZus{}expr because numerical cancellation}
+    \PYG{n}{D}\PYG{p}{[}\PYG{n}{i}\PYG{p}{][}\PYG{n}{j}\PYG{p}{]} \PYG{o}{=} \PYG{n}{round\PYGZus{}expr}\PYG{p}{(}\PYG{n}{simplify}\PYG{p}{(}\PYG{n}{D\PYGZus{}ij}\PYG{p}{),}\PYG{l+m+mi}{14}\PYG{p}{)}
+    \PYG{k}{print}\PYG{p}{(}\PYG{n}{D}\PYG{p}{)}
+\end{Verbatim}
