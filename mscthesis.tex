@@ -591,7 +591,7 @@ as assumed before. Note that $\boldsymbol{P}$ however is not constrained to be s
 \subsubsection{Weak formulation}
 Before deriving the weak form an explanation of what it achieves is in order. The previous presented governing equations are written in the strong form: a solution to the equation needs to be exact on the whole domain (and is as such influenced by the whole domain in general). Such a solution can be found for simplified models analytically. These act as a ground truth to numerical methods like the material point method. Analytical methods of today can't handle complex problems: Numerical solutions try to overcome that hurdle.
 
-The complete mathematical description of the weak formulation is beyond this thesis. Numeric books that discuess finite element methods will provide one (\cite{bathe2006finite}, \cite{dahmen2008numerik}). For simplicity: The weak formulation combined with Galerkin discretization restricts the globalility of the strong method due to so called 'test functions': $_0\boldsymbol{q}_h$ . A 'test function' generally only has influence ($ _0\boldsymbol{q}_h\neq 0$) on a very small subset of the whole domain $\Omega^0$. This is mostly used to gather information on a local neighborhood.
+The complete mathematical description of the weak formulation is beyond this thesis. Numeric books that discuess finite element methods will provide one (\cite{bathe2006finite}, \cite{dahmen2008numerik}). For simplicity: The weak formulation combined with Galerkin discretization restricts the globalility of the strong method due to so called 'test functions': $_0\boldsymbol{q}_h$ . A 'test function' generally only has limited support ($ _0\boldsymbol{q}_h\neq 0$ on a very small subset of the whole domain $\Omega^0$). This is mostly used to gather information on a local neighborhood.
 
 The weak formulation requires an observation of the dot product. Consider the conservation of momentum in the strong form as formulated before (\ref{eq:lagr_mom}) as
 \begin{equation}\label{eq:strong}
@@ -623,7 +623,7 @@ Mathematically the boundary integral serves as a boundary condition which is set
 $$
 \int _ { \Omega ^ { 0 } } _0q _ { i } ( _0\boldsymbol { x } , t ) \left(_0\rho (_0\boldsymbol{x} , 0 ) _0a _{ i } (_0\boldsymbol{x} , t ) - {_0f_i} ^ {\text{body}}(_0\boldsymbol{x},t) {^t_0J}\right) d _0\boldsymbol{x}
 $$
-\begin{equation}
+\begin{equation} \label{eq:lagr_force_bal}
   = \int _ { \partial \Omega ^ { 0 } } _0q _ { i } ( _0\boldsymbol { x } , t ) P _ {ij} ( _0\boldsymbol{x} , t)
   d_0\boldsymbol{A}(_0\boldsymbol{x})
   -\int _ { \Omega ^ { 0 } }  \frac{\partial _0q _ { i }}{\partial _0x_j} ( _0\boldsymbol { x } , t ) P _ {ij}( _0\boldsymbol{x} , t )
@@ -635,14 +635,13 @@ $$
 \stackrel{\text{\ref{eq:piola}, \ref{eq:volume_integral}}}{=}
 \int _ { \Omega ^ { 0 } }  \left({^t_0}F_{kj}\frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\right) \left({_t^0}F_{kj} \sigma _ {ik} {_0^tJ}\right) {_t^0J} d_t\boldsymbol{x}
 $$
-\begin{equation}
-  =  \int _ { \Omega ^ { t } } \frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\sigma _ {ik} d_t\boldsymbol{x}.
+\begin{equation}  =  \int _ { \Omega ^ { t } } \frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\sigma _ {ik} d_t\boldsymbol{x}.
 \end{equation}
 This completes the Eulerian view to be:
 $$
 \int _ { \Omega ^ { t } } _tq _ { i } ( _t\boldsymbol { x } , t ) \left(_t\rho (_t\boldsymbol{x} , t) _ta _{ i } (_t\boldsymbol{x} , t ) - {_tf_i} ^ {\text{body}}(_t\boldsymbol{x},t)\right) d _t\boldsymbol{x}
 $$
-\begin{equation}
+\begin{equation}\label{eq:eul_force_bal}
   = \int _ { \partial \Omega ^ { t } } _tq _ { i } ( _t\boldsymbol { x } , t ) \sigma _ {ij} d_tA_j(_t\boldsymbol{x}) -  \int _ { \Omega ^ { t } } \frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\sigma _ {ik} d_t\boldsymbol{x}.
 \end{equation}
 \cite{MPM:COURSE}
@@ -653,7 +652,7 @@ The key idea of the material point method is to use (Lagrangian) particles as a 
 
 As a corollary there needs to be a way to transfer information from a particle to the neighboring grid cells. This also induces switching from Lagrangian to Eulerian view. After stresses are computed there also needs to be a way to get back the relevant information from the grid to the particles. After the information is transferred back the particles are moved. This advection is typically hard to do in Eulerian/FEM-like methods and cause of a lot of problems down the development pipeline. In a Lagrangian view particle advection is trivial.
 
-Its is very important that the two transfers as well as the grid solver are in compliance with the governing equations. While the grid solver will be derived from the weak form of the governing equation the transfers also need to be chosen in a way that also conserve the properties defined in them.
+Its is very important that the two transfers as well as the grid solver are in compliance with all governing equations. While the grid solver will be derived from the weak form of the governing equation the transfers also need to be chosen in a way that also conserve the properties defined in them.
 \cite{MPM:COURSE}
 \subsubsection{Interpolation weights}
 The choice of interpolation weights is flexible. Nevertheless a kernel $w(\boldsymbol{x})$ requires some important properties to be qualified for MPM:
@@ -687,7 +686,7 @@ Often dyadic products of one-dimensional interpolation functions suffice
   \right),
 \end{equation}
 where $h$ is the grid spacing (of a uniform grid). An interpolation function often employed is a cubic B-spline ($C^2$):
-\begin{equation}
+\begin{equation}\label{eq:cubic_weights}
   w(x) = \left\{ \begin{array} { l l } { \frac { 1 } { 2 } | x | ^ { 3 } - | x | ^ { 2 } + \frac { 2 } { 3 } } & { 0 \leqslant | x | < 1 } \\ { \frac { 1 } { 6 } ( 2 - | x | ) ^ { 3 } } & { 1 \leqslant | x | < 2 } \\ { 0 } & { 2 \leqslant | x | } \end{array} \right. .
 \end{equation}
 Since these function are used to weight (or filter) particles a shortening in notation may be employed as $ w_{ip}^n = w(\boldsymbol{x}_p^n-\boldsymbol{x}_i^n)$.
@@ -734,8 +733,90 @@ While $PIC$-Transfers are very stable they suffer from excessive (energy) dissip
 $FLIP$-Transfers avoid dissipation and loss of angular momentum by only updating the velocity with a difference \ref{eq:FLIP}. However some velocity modes are also not recognized on the grid and may cause unpredictable and unstable behavior in following steps. Therefore often a combination of both is taken.
 
 $APIC$ builds on top of the very stable $PIC$-transfers and effectively only adds an extra term of the Taylor series to increase accuracy. This extra term $\boldsymbol{C}_p$ may be in short just referred to as the velocity derivative. The local velocity field around a particle may then be characterized by the affine function $\boldsymbol{v}(\boldsymbol{x}) = \boldsymbol{C}_p(\boldsymbol{x}-\boldsymbol{x}_p)$.
+
+Motivated by the theory of angular momentum and moment of inertia one can define a quantity
+\begin{equation}
+\boldsymbol { D } _ { p } ^ { n } = \sum _ { i } w _ { i p } ^ { n } ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } ) ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } ) ^ { T },
+\end{equation}
+which is similar to the classically known inertia tensor:
+\begin{equation}
+  \boldsymbol{I} _ { p } = - \sum _ { i } m _ { i } [\boldsymbol{x} _ { i }-\boldsymbol{x}_{p}][\boldsymbol{x} _ { i }-\boldsymbol{x}_{p}]^T
+\end{equation}
+$$
+=
+\sum _ { i } m _ { i }((\boldsymbol{x} _ { i }-\boldsymbol{x}_{p})^T(\boldsymbol{x} _ { i }-\boldsymbol{x}_{p})\boldsymbol{I} -(\boldsymbol{x} _ { i }-\boldsymbol{x}_{p})(\boldsymbol{x} _ { i }-\boldsymbol{x}_{p})^T)
+$$
+Bearing in mind that $\boldsymbol{D}_p^n$ does not include a mass and is defined for an affine motion instead of an angular motion, where $[a]_{\alpha\gamma} = \varepsilon_{\alpha\beta\gamma}a_{\beta}$ is the cross-product matrix and $\boldsymbol{I}$ denotes the identity matrix.
+In classical mechanics the angular velocity $\boldsymbol{\omega_p}$ can be then described using the inertia tensor $\boldsymbol{I}_p$ with the help of the angular momentum $\boldsymbol{L}_p$:
+\begin{equation}
+  \boldsymbol{\omega}_p = \boldsymbol{I}_p^{-1} \boldsymbol{L}_p.
+\end{equation}
+This motivates the velocity derivative to be equally defined by a similar relationship, where $\boldsymbol{B}^n_p$ holds momentum information.
+\begin{equation}
+  \boldsymbol{C}^n_p = (\boldsymbol{D}_p^n)^{-1} \boldsymbol{B}^n_p.
+\end{equation}
+The transfers of the $APIC$-scheme are then summarized:
+\begin{enumerate}
+\item Particle to grid:
+  \begin{equation}\label{eq:apic_mom_p2g}
+    (m\boldsymbol{v})^n_i = \sum_p w^n_{ip}m_p (\boldsymbol { v } _ { p } ^ { n } + \boldsymbol { B } _ { p } ^ { n } ( \boldsymbol { D } _ { p } ^ { n } ) ^ { - 1 } ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } ) )
+\end{equation}
+  \item Factoring out mass.
+    \begin{equation}
+      \boldsymbol{v}_i^n = \frac{(m\boldsymbol{v})_i^n}{m_i^n}.
+    \end{equation}
+
+  \item Grid to Particle Transfer (in a $PIC$-manner):
+$$
+    \boldsymbol { B } _ { p } ^ { n + 1 } = \frac { 1 } { 2 } \sum _ { i } w _ { i p } ^ { n } (  { \boldsymbol { v } } _ { i } ^ { n + 1 } ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } +  { \boldsymbol { x } } _ { i } ^ { n + 1 } - \boldsymbol { x } _ { p } ^ { n + 1 } ) ^ { T }
+    $$
+    \begin{equation}\label{eq:apic_mom_g2p}
++ ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } -  { \boldsymbol { x } } _ { i } ^ { n + 1 } + \boldsymbol { x } _ { p } ^ { n + 1 } ) (  { \boldsymbol { v } } _ { i } ^ { n + 1 } ) ^ { T } )
+    \end{equation}
+    \begin{equation}
+      \boldsymbol{v}_{p}^{n+1} = \sum_i w_{ip}\boldsymbol{v}_i^{n+1}.
+    \end{equation}
+\end{enumerate}
+For a full proof that these transfers preserve linear and angular momentum consult \cite{MPM:APIC}. For the choice of dyadic products of cubic b-splines (\ref{eq:cubic_weights}) $\boldsymbol{D}_p$ takes on the simple form:
+\begin{equation}
+\boldsymbol{D}_p^n = \frac { 1 } { 3 } h ^ { 2 } \boldsymbol { I }.
+\end{equation}
+A simple proof (Appendices: \ref{app:dp_proof}) cancelling out the numerous polynomials can be done for instance using \textbf{SymPy} (\cite{Sympy}).
 \cite{MPM:APIC}\cite{MPM:OLD_APIC}
 \subsubsection{CFL condition}
+The CFL condition is prominent for FEM-like methods: For a stable integration a particle should not travel father than the grid spacing $h$ in a discrete time-step $\Delta t$. $\Delta t$ is thus limited by:
+\begin{equation}
+  \Delta t \leq \frac{h}{\|\boldsymbol{v}^n_i\|_2}.
+\end{equation}
+Assuming $\|\boldsymbol{x}_i^n -\boldsymbol{x}_p^n\| \leq \kappa h$, where $\kappa$ is determined by the interpolation stencil support (cubic 3D: $\kappa = 2\sqrt{3}$) and additionally assuming $\boldsymbol{D}_p^n = k\boldsymbol{I} \Rightarrow (\boldsymbol{D}_p^n)^{-1} = \frac{1}{k}\boldsymbol{I}$ (cubic 3D: $k=\frac{1}{3}h^2$).
+$\|\boldsymbol{v}^n_i\|_2$ can be estimated on the particles. Typically the number of particles is lower. Given Eq. \ref{eq:apic_mom_p2g}:
+$$
+\|\boldsymbol{v}^n_i\|_2 \leq \frac{1}{m_i^n}\left(\sum _ { p } w _ { i p } ^ { n } m _ { p } \| \boldsymbol { v } _ { p } ^ { n } \|_2 + \sum _ { p } w _ { i p } ^ { n } m _ { p } \| \boldsymbol { B } _ { p } ^ { n } \| _ { F } \| ( \boldsymbol { D } _ { p } ^ { n } ) ^ { - 1 } ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } ) \|_2\right)
+$$
+\begin{equation}
+\leq \max _ { p } ( \| \boldsymbol { v } _ { p } ^ { n } \|_2 + \frac { \kappa } { k } \Delta x \| \boldsymbol { B } _ { p } ^ { n } \| _ { F } )
+\end{equation}
+\cite{MPM:APIC}
+\subsection{Discretization}
+The weak form of the force-balance in (\ref{eq:lagr_force_bal},\ref{eq:eul_force_bal}) implies the following for MPM preferable description:
+\begin{equation}
+  \int _ { \Omega ^ { 0 } } (_0q _ \alpha) (_0\rho_0) (_0a _\alpha)  d _0\boldsymbol{x}= \int _ { \partial \Omega ^ { t^n } } _tq _ \alpha \sigma _ {\alpha\beta} d_tA_\beta(_t\boldsymbol{x}) -  \int _ { \Omega ^ { t^n} } \frac{\partial _tq _ \alpha}{\partial _tx_\beta} \sigma _ {\alpha\beta} d_t\boldsymbol{x}.
+\end{equation}
+The boundary integral is mostly due to collisions and will be ignored for now. \cite{MPM:OPTIMI_INTEGR} discusses level set collisions due to constraint collisions, object penalty collision and penalty self-collisions. An handling of collision would need to take them into account when solving the equation. A simple though less accurate method is to process collisions separately in a typical computer graphics manner, which is assumed for now.
+\subsubsection{Discretize time}
+Any conservative integrator could be used to discretize time. The implicit midpoint rule is one of such ($\lambda =\frac{1}{2}$)
+\begin{equation}\label{eq:midpoint}
+  \frac{y ^ { n + 1 } - y ^ { n }}{ \Delta t} =  f \left(t^n+\frac{\Delta t}{2}, \frac { y ^ { n } + y^{n+1}}{2}\right)
+\end{equation}
+for a differential equation of order one:
+\begin{equation}
+  \frac{\partial y}{\partial t}( t ) = f (t,y(t)) , \quad y (0) = y _ { 0 }.
+\end{equation}
+Replacing the Lagrangian acceleration $_0a_\alpha$ with the left side of \ref{eq:midpoint} using velocity, taking care of the right side and pushing forward to Eulerian view:
+\begin{equation}
+  \frac{1}{\Delta t} \int _{ \Omega^{t^n}}(_tq_\alpha)(_t\rho)({_tv_\alpha^{n+1}}-{_tv_\alpha^{n}}) d_t\boldsymbol{x} =
+  -  \int _ { \Omega ^ { t^n} } \frac{\partial _tq _ \alpha}{\partial _tx_\beta} \sigma _ {\alpha\beta}^{n+\lambda} d_t\boldsymbol{x}.
+\end{equation}
 \subsection{GPU memory}
 \subsubsection{Optimization opportunities}
 \cite{NVIDIA:BEST:PRACTICE}
@@ -792,7 +873,7 @@ Particle Activation: \cite{MPM:GPU}
 
 Sparse: \cite{OPENVDB} \cite{NVIDIA:GVDB_VOXELS}
 \begin{appendices}
-  \section{Inertia Tensor for Cubic Splines}
+  \section{"Inertia Tensor" for Cubic Splines}\label{app:dp_proof}
   \begin{code}
 \caption{$\boldsymbol{D}_p$ proof}
   \begin{minted}{python}
@@ -800,7 +881,9 @@ import numpy as np
 from sympy import *
 
 def round_expr(expr, num_digits):
-  return expr.xreplace({n : round(n, num_digits) for n in expr.atoms(Number)})
+  return expr.xreplace(
+  {n : round(n, num_digits) for n in expr.atoms(Number)}
+  )
 
 # Limit a,b,c,x to interval [0,1] for simplyfing
 a, b, c = symbols('a b c', nonnegative=true)
@@ -836,10 +919,12 @@ D_temp = np.array([[0,0,0],[0,0,0],[0,0,0]])
 for i,ai in enumerate(alphas):
   for j,bj in enumerate(betas):
     for k,ck in enumerate(gammas):
-      # xi_xp is the distance from parametrized position to grid node [i,j,k]
+      # xi_xp is the distance from parametrized
+      # position to grid node [i,j,k]
       xi_xp = np.array([ai,bj,ck])
       # each outer product weighted by interpolation functions
-      this_outer = wip(i,ai)*wip(j,bj)*wip(k,ck)*np.outer(xi_xp,xi_xp)
+      this_outer = wip(i,ai)*wip(j,bj)*wip(k,ck)*
+		    np.outer(xi_xp,xi_xp)
       # summed up over all grid nodes
       D_temp = np.add(D_temp,this_outer)
 
@@ -847,7 +932,8 @@ D = np.array([[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
 
 for i,D_row in enumerate(D_temp):
   for j,D_ij in enumerate(D_row):
-    #simplify to cancel polynoms, round_expr because numerical cancellation
+    # simplify to cancel polynoms
+    # round_expr because of numerical cancellation
     D[i][j] = round_expr(simplify(D_ij),14)
     print(D)
 \end{minted}
@@ -859,7 +945,7 @@ for i,D_row in enumerate(D_temp):
       0.33333333 &0.         &0.        \\
       0.         &0.33333333 &0.	\\
       0.         &0.         &0.33333333\\
-  \end{array}\right]=\boldsymbol{D}_p
+  \end{array}\right]= \frac{\boldsymbol{D}_p}{h^2}
   $$
 \end{appendices}
 \clearpage
