@@ -560,7 +560,7 @@ denoted in the literature as:
 Summarized the Lagrangian view of the momentum equation with an initial momentum is ($^0_0J=1$):
 \begin{equation}\label{eq:lagr_mom}
   _0\rho(_0\boldsymbol{x},0)_0\boldsymbol{a}(_0\boldsymbol{x},t)
-= \vec{\nabla}} \cdot \boldsymbol{P}(_0\boldsymbol{x},t) + {_0\boldsymbol{f}} ^ {\text{body}}(_0\boldsymbol{x},t) {^t_0J}.
+= \vec{\nabla} \cdot \boldsymbol{P}(_0\boldsymbol{x},t) + {_0\boldsymbol{f}} ^ {\text{body}}(_0\boldsymbol{x},t) {^t_0J}.
 \end{equation}
 For the stress strain relationship $\boldsymbol{C}$ in chapter \ref{sec:linear_elasticty} as well as the start of this chapter conservation of angular momentum caused $\sigma_{ij} = \sigma_{ji}$. This can be shown as follows.
 The description of angular momentum follows that of linear momentum where product rule generally applies $\left(\frac{D_t\boldsymbol{x}}{Dt} \times {_t\boldsymbol{v}} = {_t\boldsymbol{v}} \times {_t\boldsymbol{v}} = 0\right)$ :
@@ -588,7 +588,7 @@ Leaving out the integral and multiplying by ${\varepsilon_{irs}}$ enables equati
   \sigma_{ij} =\sigma_{ji}
 \end{equation}
 as assumed before. Note that $\boldsymbol{P}$ however is not constrained to be symmetric.
-\subsubsection{Weak formulation}
+\subsubsection{Weak formulation}\label{sec:weak}
 Before deriving the weak form an explanation of what it achieves is in order. The previous presented governing equations are written in the strong form: a solution to the equation needs to be exact on the whole domain (and is as such influenced by the whole domain in general). Such a solution can be found for simplified models analytically. These act as a ground truth to numerical methods like the material point method. Analytical methods of today can't handle complex problems: Numerical solutions try to overcome that hurdle.
 
 The complete mathematical description of the weak formulation is beyond this thesis. Numeric books that discuess finite element methods will provide one (\cite{bathe2006finite}, \cite{dahmen2008numerik}). For simplicity: The weak formulation combined with Galerkin discretization restricts the globalility of the strong method due to so called 'test functions': $_0\boldsymbol{q}_h$ . A 'test function' generally only has limited support ($ _0\boldsymbol{q}_h\neq 0$ on a very small subset of the whole domain $\Omega^0$). This is mostly used to gather information on a local neighborhood.
@@ -804,19 +804,72 @@ The weak form of the force-balance in (\ref{eq:lagr_force_bal},\ref{eq:eul_force
 \end{equation}
 The boundary integral is mostly due to collisions and will be ignored for now. \cite{MPM:OPTIMI_INTEGR} discusses level set collisions due to constraint collisions, object penalty collision and penalty self-collisions. An handling of collision would need to take them into account when solving the equation. A simple though less accurate method is to process collisions separately in a typical computer graphics manner, which is assumed for now.
 \subsubsection{Discretize time}
-Any conservative integrator could be used to discretize time. The implicit midpoint rule is one of such ($\lambda =\frac{1}{2}$)
+Any conservative integrator could be used to discretize time. The implicit midpoint rule ($\lambda =\frac{1}{2}$) is one of such
 \begin{equation}\label{eq:midpoint}
-  \frac{y ^ { n + 1 } - y ^ { n }}{ \Delta t} =  f \left(t^n+\frac{\Delta t}{2}, \frac { y ^ { n } + y^{n+1}}{2}\right)
+  \frac{y ^ { n + 1 } - y ^ { n }}{ \Delta t} = f^{n+\lambda} = f \left(t^n+\lambda\Delta t, (1-\lambda) y ^ { n } +\lambda y^{n+1}\right)
 \end{equation}
 for a differential equation of order one:
 \begin{equation}
   \frac{\partial y}{\partial t}( t ) = f (t,y(t)) , \quad y (0) = y _ { 0 }.
 \end{equation}
 Replacing the Lagrangian acceleration $_0a_\alpha$ with the left side of \ref{eq:midpoint} using velocity, taking care of the right side and pushing forward to Eulerian view:
-\begin{equation}
+\begin{equation}\label{eq:time_disc}
   \frac{1}{\Delta t} \int _{ \Omega^{t^n}}(_tq_\alpha)(_t\rho)({_tv_\alpha^{n+1}}-{_tv_\alpha^{n}}) d_t\boldsymbol{x} =
   -  \int _ { \Omega ^ { t^n} } \frac{\partial _tq _ \alpha}{\partial _tx_\beta} \sigma _ {\alpha\beta}^{n+\lambda} d_t\boldsymbol{x}.
 \end{equation}
+\subsubsection{Discretize space}
+A Galerkin discretization brings all spatial terms of equation \ref{eq:time_disc} to a finite-dimensional space: $\boldsymbol{q} \rightarrow \boldsymbol{q}_h$. To not further clutter up the notation, the $h$ will be omitted. This will replace $q_\alpha, v^n_\alpha , v_\alpha^{n+1}$ with their finite-dimensional grid-based interpolants:
+\begin{equation}
+  {_t q } _ { \alpha } ^ {  { n } } =  ({_t q } _ {  { i } \alpha } ^ {  { n } })  ({_t w } _ { i }) , \quad _tv _ { \alpha } ^ {  { n } } = ({_tv _ {  { j\alpha } } ^ {  { n } }} )( {_t w } _ {  { j } }) , \quad {_tv _ { \alpha } ^ {  { n } + 1 }} = ({_tv _ {  { j } \alpha } ^ {  { n } + 1 }}) ({_t w } _ {  { j } }).
+\end{equation}
+Further chapter \ref{sec:weak} mentions that $\boldsymbol{q}$ can be chosen arbitrarily. The Galerkin discretization of a $d$-dimensional space with $m$ grid nodes therefore uses the standard basis functions $e_1,e_2, ... ,e_{d \times m}$. Due to the scalar-product $d\times m$ equations would need to be solved:
+\begin{equation}\label{eq:galerkin}
+  \frac{1}{\Delta t} \int _{ \Omega^{t^n}} ({ _tw } _ {i  })(_t\rho)({_t w } _ { j  })({_tv_{j\alpha}^{n+1}}-{_tv_{j\alpha}^{n}}) d_t\boldsymbol{x} =
+ - \int _ { \Omega ^ {  t^ n } }   \frac{\partial{_t w } _ { {i  }}}{\partial_tx_\beta }  \sigma _ {{ \alpha } \beta }  { d } \boldsymbol { x }.
+\end{equation}
+A mass matrix can be factored out as:
+\begin{equation}
+  m_{ij}^n = \int _{ \Omega^{t^n}} {_t w } _ {i  }(_t\rho){_t w } _ { j  } d_t\boldsymbol{x}.
+\end{equation}
+The Lagrangian pull-back relates this to the initial density in the Lagrangian view and discretizing the integral with the initial time-invariant particle mass $m_p \approx V_p^0\rho(_0x_p,0)$:
+\begin{equation}
+m_{ij}^n = \int _{ \Omega^{t^0}} ({_tw_i})(_0\rho_0)({_tw} _ { j  }) d_0 \boldsymbol{x} \approx \sum _ {  { p } }  { m } _ {  { p } }  { w } _ {  { i } } (\boldsymbol { x } _ {  { p } } )  { w } _ {  { j } } ( \boldsymbol { x } _ {  { p } } ).
+\end{equation}
+This matrix is symmetric positive semi-definite (since mass is positive). Numerically this matrix is mostly not used as is due to possibility of it being singular. This is solved commonly due to a mass lumping strategy. Replace $m^n_{ii}$ with the $i$-th row sum to get:
+\begin{equation}\label{eq:mass_discr}
+\sum _ {  { p } }  { m } _ {  { p } }  { w } _ {ip}   w_{jp}
+\stackrel{\text{\ref{eq:partition_unity}}}{\approx}
+\sum_p m_p w_{ip}
+\stackrel{\text{\ref{eq:mpm:mass}}}{=}
+m_i,
+\end{equation}
+where partition of unity $\sum_j w_{jp} = 1$ is used. This is exactly the mass transfer as in eq. \ref{eq:mpm:mass}, s.t. no further assembling of a mass matrix is needed.
+Discretizing the right side of \ref{eq:galerkin} with an estimated per particle stress $\boldsymbol{\sigma}_p^{n+\lambda}$:
+\begin{equation}\label{eq:stress_discr}
+\int _ { \Omega ^ {  t^ n } }   \frac{\partial{_t w } _ { {i  }}}{\partial_tx_\beta }  \sigma _ {{ \alpha } \beta }  { d } \boldsymbol { x } \approx
+\sum _ { p } (\sigma _ { p }^{n+\lambda}) _ { \alpha \beta } \frac{{ \partial w } _ { {ip}}^n}{ \partial x_\beta }  V _ { p } ^ { n }.
+\end{equation}
+Setting in equation \ref{eq:mass_discr} and \ref{eq:stress_discr} into \ref{eq:galerkin} summarizes the space discretization as:
+\begin{equation}\label{eq:space_discr}
+  \frac{1}{\Delta t} ({m\boldsymbol{v}_i^{n+1}}-{m\boldsymbol{v}_i^{n}}) =
+  -\sum _ { p } \boldsymbol{\sigma} _ { p }^{n+\lambda} \nabla w_{ip}^n V _ { p } ^ { n }
+  = \boldsymbol{f}_i^{n+\lambda}.
+\end{equation}
+The momentum change of the left side is by construction equal to a (grid node) force.\\
+Given that the material point method keeps track of the deformation by a deformation gradient. Each particle will have one associated with it for the deformation of its local neighborhood $\boldsymbol{F}^n_p$. Based on this one may also gain a volume change measure around the particle as $J^n_p = \text{det}(\boldsymbol{F}^n_p)$. Starting with an initial volume of a particle $V_p^0$ the volume may be tracked in time by:
+\begin{equation}\label{eq:volume_discr}
+  V^n_p \stackrel{\text{\ref{eq:j}}}{\approx} V_p^0J^n_p.
+\end{equation}
+In eq. \ref{eq:piola} an alternate measure for the stress by the first Piola Kirchhoff stress. The results of \ref{eq:space_discr} may therefore equally expressed by it:
+$$
+  f_{i\alpha} \stackrel{\text{\ref{eq:piola},\ref{eq:volume_discr}}}{=}
+  - \sum_p \frac{1}{J^n_p}P^n_{p\alpha\gamma}F^n_{p\beta\gamma}\frac{\partial w_{ip}}{\partial x_\beta}V^0_pJ^n_p
+$$
+\begin{equation}
+  = - \sum_p P^n_{p\alpha\gamma}F^n_{p\beta\gamma}\frac{\partial w_{ip}}{\partial x_\beta}V^0_p
+\end{equation}
+\cite{MPM:COURSE} \cite{MPM:APIC} \cite{bathe2006finite}
+\subsubsection{Deformation gradient evolution}
 \subsection{GPU memory}
 \subsubsection{Optimization opportunities}
 \cite{NVIDIA:BEST:PRACTICE}
