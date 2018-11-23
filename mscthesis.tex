@@ -190,7 +190,7 @@ benefits over radix sort /thrust sort-by-key -> counting sort
 %look again for MPM/PIC gpu impl
 %SPH, FEM methods
 \section{Notation}\label{sec:notation}
-Multi-component types are generally printed in bold letters $\boldsymbol{A}$, $\boldsymbol{a}$. Vectors furthermore use lower-case letters $\boldsymbol{v}$, while Matrices use upper-case letters $\boldsymbol{M}$. A variable in the Lagrangian form has a subscript 0 $ _0{\boldsymbol{x}}$, the Eulerian description will be written with an 'overline' $_t\boldsymbol{x}$ if distinction is needed. Occasionally notation may be omitted where it is apparent from context. Beginning from chapter \ref{sec:mat_point} variables defined on a particle will have subscript $p$ (e.g. $\boldsymbol{x}_p$). Grid cells will be assigned a subscript $i$ denoting the grid index (e.g. $\boldsymbol{x}_i$). This is not to be confused with the following Einstein-Notation. Therefore beginning with chapter \ref{sec:mat_point} Einstein-Notation will use greek letters ($\alpha,\beta$). A variable of the $n$-th time step with associated time $t^n = \sum_{i=1}^{n} t^i$ will have a right superscript: $\boldsymbol{x}^n$.
+Multi-component types are generally printed in bold letters $\boldsymbol{A}$, $\boldsymbol{a}$. Vectors furthermore use lower-case letters $\boldsymbol{v}$, while Matrices use upper-case letters $\boldsymbol{M}$. A variable in the Lagrangian form has a subscript 0 $ _0{\boldsymbol{x}}$, the Eulerian description will be written with an 'overline' $_t\boldsymbol{x}$ if distinction is needed. Occasionally notation may be omitted where it is apparent from context. Beginning from chapter \ref{sec:mat_point} variables defined on a particle will have subscript $p$ (e.g. $\boldsymbol{x}_p$). Grid cells will be assigned a subscript $i$ denoting the grid index (e.g. $\boldsymbol{x}_i$). This is not to be confused with the following Einstein-Notation. Therefore beginning with chapter \ref{sec:mat_point} Einstein-Notation for components will use greek letters ($\alpha,\beta$). Occasionally summation over grid index $i$ and particles $p$ may be implied. A variable of the $n$-th time step with associated time $t^n = \sum_{i=1}^{n} t^i$ will have a right superscript: $\boldsymbol{x}^n$.
 \subsection{Einstein-Notation}
 Used throughout this thesis is at instances the Einstein-Notation when using tensors and vectors. Let $\boldsymbol{a}$ and $\boldsymbol{b}$ be vectors of dimension $n$ and  $\boldsymbol{A,B,D}$ $ { m \times n }$ tensors. Repeated indices that are also defined on the variable imply component-wise operations.
 $a _ { i } b _ { j }$ is multiplying component $i$ with component $j$ of vectors $\boldsymbol{a}$ and $\boldsymbol{b}$. Vector and tensor/matrix addition thus become:
@@ -841,7 +841,7 @@ This matrix is symmetric positive semi-definite (since mass is positive). Numeri
 \stackrel{\text{\ref{eq:partition_unity}}}{\approx}
 \sum_p m_p w_{ip}
 \stackrel{\text{\ref{eq:mpm:mass}}}{=}
-m_i,
+m_i^n,
 \end{equation}
 where partition of unity $\sum_j w_{jp} = 1$ is used. This is exactly the mass transfer as in eq. \ref{eq:mpm:mass}, s.t. no further assembling of a mass matrix is needed.
 Discretizing the right side of \ref{eq:galerkin} with an estimated per particle stress $\boldsymbol{\sigma}_p^{n+\lambda}$:
@@ -851,7 +851,7 @@ Discretizing the right side of \ref{eq:galerkin} with an estimated per particle 
 \end{equation}
 Setting in equation \ref{eq:mass_discr} and \ref{eq:stress_discr} into \ref{eq:galerkin} summarizes the space discretization as:
 \begin{equation}\label{eq:space_discr}
-  \frac{1}{\Delta t} ({m\boldsymbol{v}_i^{n+1}}-{m\boldsymbol{v}_i^{n}}) =
+  \frac{1}{\Delta t} (({m^n\boldsymbol{v}^{n+1}})_i-({m^n\boldsymbol{v}^n})_i) =
   -\sum _ { p } \boldsymbol{\sigma} _ { p }^{n+\lambda} \nabla w_{ip}^n V _ { p } ^ { n }
   = \boldsymbol{f}_i^{n+\lambda}.
 \end{equation}
@@ -862,14 +862,54 @@ Given that the material point method keeps track of the deformation by a deforma
 \end{equation}
 In eq. \ref{eq:piola} an alternate measure for the stress by the first Piola Kirchhoff stress. The results of \ref{eq:space_discr} may therefore equally expressed by it:
 $$
-  f_{i\alpha} \stackrel{\text{\ref{eq:piola},\ref{eq:volume_discr}}}{=}
-  - \sum_p \frac{1}{J^n_p}P^n_{p\alpha\gamma}F^n_{p\beta\gamma}\frac{\partial w_{ip}}{\partial x_\beta}V^0_pJ^n_p
+\boldsymbol{f}^{n+\lambda}_i \stackrel{\text{\ref{eq:piola},\ref{eq:volume_discr}}}{=}
+- \sum_p \frac{1}{J^n_p}\boldsymbol{P}^{n+\lambda}_{p}(\boldsymbol{F}^{n}_{p})^T \nabla w_{ip}V^0_pJ^n_p
 $$
 \begin{equation}
-  = - \sum_p P^n_{p\alpha\gamma}F^n_{p\beta\gamma}\frac{\partial w_{ip}}{\partial x_\beta}V^0_p
+  = - \sum_p \boldsymbol{P}^{n+\lambda}_{p}(\boldsymbol{F}^{n}_{p})^T \nabla w_{ip}V^0_p.
 \end{equation}
 \cite{MPM:COURSE} \cite{MPM:APIC} \cite{bathe2006finite}
 \subsubsection{Deformation gradient evolution}
+In eq. \ref{eq:evol_def_grad} the evolution of the deformation gradient is shown to be:
+\begin{equation}
+  \frac{\partial ^t_0\boldsymbol{F}}{\partial t} =  \nabla{_0\boldsymbol{v}}(_0\boldsymbol{x},t).
+\end{equation}
+Discretizing the Lagrangian deformation gradient in time with eq. \ref{eq:midpoint} results in:
+\begin{equation}
+  \frac{\boldsymbol{F}^{n+1}_p + \boldsymbol{F}^{n}_p}{\Delta t} =  \nabla_0\boldsymbol{v}^{n+\lambda}(_0\boldsymbol{x}).
+\end{equation}
+Pushing the right side forward to Eulerian view
+\begin{equation}
+  \frac{\boldsymbol{F}^{n+1}_p + \boldsymbol{F}^{n}_p}{\Delta t} =  \nabla_t\boldsymbol{v}^{n+\lambda}(_t\boldsymbol{x})^t_0\boldsymbol{F} = \nabla_t\boldsymbol{v}^{n+\lambda}(_t\boldsymbol{x})\boldsymbol{F}^n_p
+\end{equation}
+and further applying the Galerkin discretization
+\begin{equation}
+  (_tv^{n+\lambda})_\alpha = (v_{i}^{n+\lambda})_\alpha w_i \Rightarrow \frac{\partial (_tv^{n+\lambda})_\alpha}{\partial x_\beta} =(v_i^{n+\lambda})_\alpha\frac{\partial w_i}{\partial x_\beta}
+\end{equation}
+leads to the final update rule for the deformation gradient:
+\begin{equation}
+\boldsymbol{F}^{n+1}_p = \left( \boldsymbol{I} + \Delta t\sum_i \boldsymbol{v}_i^{n+\lambda}({\nabla w_{ip}})^T \right)\boldsymbol{F}^{n}_p.
+\end{equation}
+\subsubsection{Grid nodal forces}
+Starting from the last update on the grid which is typically the position with eq. \ref{eq:midpoint}:
+$$
+\frac{\partial _t\boldsymbol{x}}{\partial t} = {_t\boldsymbol{v}} \Rightarrow \frac{\boldsymbol{\hat{x}}_i^{n+1} - \boldsymbol{x}_i^{n}}{\Delta t} = \boldsymbol{v}_i^{n+\lambda} =  (1-\lambda)\boldsymbol{v}_i^n + \lambda\boldsymbol{\hat{v}}_i^{n+1}
+  $$
+\begin{equation}
+  \Leftrightarrow \boldsymbol{\hat{x}}_i^{n+1}   =\boldsymbol{x}_i^{n} + \Delta t \left((1-\lambda)\boldsymbol{v}_i^n + \lambda\boldsymbol{\hat{v}}_i^{n+1}\right).
+\end{equation}
+Due to \ref{eq:space_discr} a velocity update can be put together as
+\begin{equation}
+  \frac{1}{\Delta t} (({m^n\boldsymbol{\hat{v}}^{n+1}})_i-({m^n\boldsymbol{v}^n})_i)
+  = \boldsymbol{f}_i^{n+\lambda}
+ \Leftrightarrow
+ \boldsymbol{\hat{v}}^{n+1}_i
+ = \boldsymbol{v}^n_i+ \frac{\Delta t}{m_i^n}\boldsymbol{f}_i^{n+\lambda},
+\end{equation}
+where the force can be also described in terms of the in-between point:
+\begin{equation}
+ \boldsymbol{f}_i^{n+\lambda} = \boldsymbol{\sigma}^{n+\lambda}_p(\boldsymbol{F}_p^{n+\lambda}(\boldsymbol{\hat{x}}_i^{n+1})).
+\end{equation}
 \subsection{GPU memory}
 \subsubsection{Optimization opportunities}
 \cite{NVIDIA:BEST:PRACTICE}
