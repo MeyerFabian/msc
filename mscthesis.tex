@@ -180,12 +180,11 @@
 \section{Introduction} \label{intro}
 bib-test \cite{MPM:SNOW}
 $$ -  \int_{\pi/2}^{\pi} \frac{1}{\sqrt{u}} \frac{\lvert \cos{x} \rvert}{\cos{x}} du $$
-\subsection{Motivation}
 \section{Related Work}
 \cite{PIC:GPU} -> \cite{NVIDIA:NNSEARCH}
 benefits over radix sort /thrust sort-by-key -> counting sort
 \cite{NVIDIA:SHUFFLE}
-
+\cite{MPM:POLYPIC}
 \cite{MPM:GPU}
 %look again for MPM/PIC gpu impl
 %SPH, FEM methods
@@ -383,8 +382,8 @@ Due to inherent normalization, fast multiplication and storage efficiency quater
 \cite{MPM:OPTIMI_INTEGR} %Opimization Methods, BDF-Semi-Impl-Midpoint rule
 $$\boldsymbol{F}_E \boldsymbol{F}_P$$ \cite{ochsner2014elasto}
 \subsubsection{Linear Elasticity}\label{sec:linear_elasticty}
-The first aim will be to find the strain energy density $\psi(\boldsymbol{\epsilon})$ of the strain $\bm{\epsilon}$.
-For an (hyper-)elastic material the Cauchy stress may be defined in terms of $\psi$ as:
+The first aim will be to find the strain energy density $\Psi(\boldsymbol{\epsilon})$ of the strain $\bm{\epsilon}$.
+For an (hyper-)elastic material the Cauchy stress may be defined in terms of $\Psi$ as:
 The most general linear stress-strain relationship is given by Hooke's Law in three dimensions
 \begin{equation}\label{eq:hook}
   \sigma_{ij} = C_{ijkl} \epsilon_{kl},
@@ -394,16 +393,16 @@ Assuming following symmetries reduces the tensors to 6 and 21 unique elements re
 \begin{enumerate}
   \item Conservation of angular momentum: $\sigma_{ij} = \sigma_{ji} \Rightarrow C_{ijkl} = C_{jikl} $
   \item No-net-rotation: $\epsilon_{kl} = \epsilon_{lk} \Rightarrow C_{ijkl} = C_{ijlk}$
-  \item \label{it:mixed_partials}Equivalence of second-order mixed partials of $\psi$:
+  \item \label{it:mixed_partials}Equivalence of second-order mixed partials of $\Psi$:
     \begin{equation}
-      C _ { i j k l } = \frac { \partial ^ { 2 } { \psi } } { \partial \epsilon _ { k l } \partial \epsilon _ { i j } } = \frac { \partial ^ { 2 } { \psi } } { \partial \epsilon _ { i j } \partial \epsilon _ { k l } } = C _ { k l i j },
+      C _ { i j k l } = \frac { \partial ^ { 2 } { \Psi } } { \partial \epsilon _ { k l } \partial \epsilon _ { i j } } = \frac { \partial ^ { 2 } { \Psi } } { \partial \epsilon _ { i j } \partial \epsilon _ { k l } } = C _ { k l i j },
     \end{equation}
 \end{enumerate}
 where item \ref{it:mixed_partials} holds for the strain energy density functional of an (hyper-)elastic material. The stress may then also be calculated by
 \begin{equation}\label{eq:partial_energy}
-  \sigma _ { i j } = \sigma _ { i j } ( \boldsymbol{\epsilon} ) = \frac { \partial { \psi } } { \partial \epsilon _ { i j } },
+  \sigma _ { i j } = \sigma _ { i j } ( \boldsymbol{\epsilon} ) = \frac { \partial { \Psi } } { \partial \epsilon _ { i j } },
 \end{equation}
-if such a $\psi$ is given. An isotropic (direction-independent) linear elastic material further only has three unique elements $C _ {i j k l}$. Using Voigt-Notation, which collapses indices $i=j$ and $k=l$, equation \ref{eq:hook} can be rewritten as:
+if such a $\Psi$ is given. An isotropic (direction-independent) linear elastic material further only has three unique elements $C _ {i j k l}$. Using Voigt-Notation, which collapses indices $i=j$ and $k=l$, equation \ref{eq:hook} can be rewritten as:
 \begin{equation} \label{eq:voigt}
   \left[ \begin{array} {c}
       {\sigma_{11}}\\
@@ -440,33 +439,33 @@ using engineering constants Young's modulus $E$ and Poisson ratio $\nu$. Inverti
 \begin{equation} \label{eq:stress_strain}
   \sigma_{ij} = 2\mu \epsilon_{ij} + \lambda \text{tr}(\boldsymbol{\epsilon}) \delta_{ij}.
 \end{equation}
-Comparing with equation \ref{eq:voigt} leads to coefficients $\gamma_{ij} = 2\epsilon_{ij} \text{ for } (i \neq j)$, $C_{11} = \lambda +2 \mu$, $C_{12} = \lambda$ and $C_{22} = \mu$. $\gamma$ is also referred to as the engineering strain. Due to the relationship in \ref{eq:partial_energy} the model for linear elasticity in terms of the strain energy density function $\psi_{LE}$ after integration of \ref{eq:stress_strain} concludes to:
+Comparing with equation \ref{eq:voigt} leads to coefficients $\gamma_{ij} = 2\epsilon_{ij} \text{ for } (i \neq j)$, $C_{11} = \lambda +2 \mu$, $C_{12} = \lambda$ and $C_{22} = \mu$. $\gamma$ is also referred to as the engineering strain. Due to the relationship in \ref{eq:partial_energy} the model for linear elasticity in terms of the strain energy density function $\Psi_{LE}$ after integration of \ref{eq:stress_strain} concludes to:
 \begin{equation}\label{eq:linear_elas}
-  \psi_{LE} = \mu \Vert \boldsymbol{\epsilon} \Vert^2_F + \frac{\lambda}{2} \text{tr}^2(\boldsymbol{\epsilon}).
+  \Psi_{LE} = \mu \Vert \boldsymbol{\epsilon} \Vert^2_F + \frac{\lambda}{2} \text{tr}^2(\boldsymbol{\epsilon}).
 \end{equation}
 \cite{MIT:LINEAR_ELASTICITY}
-\subsubsection{Corotated Hyperelasticity}
+\subsubsection{Corotated Hyperelasticity}\label{sec:cor_hyper}
 The simplest tensor assumed by infinitesimal strain theory is the small strain tensor: \begin{equation}
   \boldsymbol{\epsilon} = \frac { 1 } { 2 } \left( \boldsymbol { F }_E + \boldsymbol { F }_E ^ { T } \right) - \boldsymbol { I }
 \end{equation}
-The energy produced by equation \ref{eq:linear_elas} using the small strain tensor is not rotationally invariant, w.r.t. to $\boldsymbol{F}_E$: $\psi(\boldsymbol{\epsilon}(\boldsymbol{R}_{0} \boldsymbol{F}_E)) \neq \psi(\boldsymbol{\epsilon}(\boldsymbol{F}_E))$. Rigid body motions however don't result in strain and consequently don't need to be recovered from. So energy should not change. Given the polar decomposition $\boldsymbol{F}_E = \boldsymbol{R}_E\boldsymbol{S}_E$, an alternate strain measure may be defined as:
+The energy produced by equation \ref{eq:linear_elas} using the small strain tensor is not rotationally invariant, w.r.t. to $\boldsymbol{F}_E$: $\Psi_{LE}(\boldsymbol{\epsilon}(\boldsymbol{R}_{0} \boldsymbol{F}_E)) \neq \Psi_{LE}(\boldsymbol{\epsilon}(\boldsymbol{F}_E))$. Rigid body motions however don't result in strain and consequently don't need to be recovered from. So energy should not change. Given the polar decomposition $\boldsymbol{F}_E = \boldsymbol{R}_E\boldsymbol{S}_E$, an alternate strain measure may be defined as:
 \begin{equation}
   { \boldsymbol { \epsilon } } ( \boldsymbol { F }_E ) = \boldsymbol { \epsilon } \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E \right) = \frac { 1 } { 2 } \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E + \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E \right) ^ { T } \right) - \boldsymbol { I } = \boldsymbol { S }_E - \boldsymbol { I }
 \end{equation}
 Substituting $ {\boldsymbol{\epsilon}}$ into equation \ref{eq:linear_elas} leads to the energy definition of corotational hyperelasticity:
 \begin{equation}\label{eq:corot_S}
-  \Psi = \mu \| \boldsymbol{ S }_E - \boldsymbol { I } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } ( \boldsymbol { S }_E - \boldsymbol { I } )
+  \Psi_{CH} = \mu \| \boldsymbol{ S }_E - \boldsymbol { I } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } ( \boldsymbol { S }_E - \boldsymbol { I } )
 \end{equation}
 Using rotation-invariance of the Frobenius norm:
 \begin{equation}
-  \Psi = \mu \| \boldsymbol {F}_E  - \boldsymbol {R}_E \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E - \boldsymbol { I } \right)
+  \Psi_{CH} = \mu \| \boldsymbol {F}_E  - \boldsymbol {R}_E \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } \left( \boldsymbol { R }_E ^ { T } \boldsymbol { F }_E - \boldsymbol { I } \right)
 \end{equation}
 Even more insight yields the relationship to their singular values $\sigma _ i$, also called the principal stretches:
 $$\operatorname {tr}\left(\boldsymbol{S}\right) = \sum _ { i = 1 } \sigma _ { i } = \operatorname{tr}\left(\boldsymbol{\Sigma}_E\right)$$
 $$\| \boldsymbol{S}_E \| _ { F }^2 = \sum _ { i = 1 } \sigma _ { i } ^ { 2 } = \| \boldsymbol{\Sigma}_E\|_{F}^2$$
 $$\Rightarrow \| \boldsymbol{S}_E\boldsymbol{-I} \| _ { F }^2 = \|\boldsymbol{S}_E \| _ { F }^2 - 2 \operatorname{tr}(\boldsymbol{S}_E)  + \|\boldsymbol{I}\|_{F}^2 = \| \boldsymbol { \Sigma }_E - \boldsymbol { I } \| _ { F } ^ { 2 }$$
 \begin{equation} \label{eq:corot_sing}
-  \Psi(\boldsymbol{\Sigma}_E) = \mu \| \boldsymbol { \Sigma }_E - \boldsymbol { I } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } ( \boldsymbol { \Sigma }_E - \boldsymbol { I } )
+  \Psi_{CH}(\boldsymbol{\Sigma}_E) = \mu \| \boldsymbol { \Sigma }_E - \boldsymbol { I } \| _ { F } ^ { 2 } + \frac { \lambda } { 2 } \operatorname { tr } ^ { 2 } ( \boldsymbol { \Sigma }_E - \boldsymbol { I } )
 \end{equation}
 Equation \ref{eq:corot_sing} uses the diagonal matrix $\boldsymbol{\Sigma}_E$ containing the principal stretches typically acquired by the singular value decomposition $\boldsymbol{F}_E \boldsymbol{= U \Sigma}_E\boldsymbol{ V ^T }.$ Since the energy density in \ref{eq:corot_sing} is a function of only three (singular) values, which describe stretch/compression of the material, isotropy of the material is underlined.
 \cite{ADAMS:ELASTICITY}
@@ -555,7 +554,9 @@ There is a quantity left to be defined for the Lagrangian view. The Cauchy stres
 \end{equation}
 denoted in the literature as:
 \begin{equation}\label{eq:piola}
-  \boldsymbol{P} = \boldsymbol{\sigma}\boldsymbol{F}^{-T}J
+  \boldsymbol{P} =
+  \frac{\partial \Psi}{\partial \boldsymbol{F}}=
+  \boldsymbol{\sigma}\boldsymbol{F}^{-T}J.
 \end{equation}
 Summarized the Lagrangian view of the momentum equation with an initial momentum is ($^0_0J=1$):
 \begin{equation}\label{eq:lagr_mom}
@@ -707,7 +708,7 @@ $\sum_i m_i =\sum_p m_p$ is a complete prove this fulfills the conservation of m
   \sum_p m_p
 \end{equation}
 \cite{MPM:APIC}\cite{MPM:COURSE}
-\subsubsection{APIC momentum Transfers}
+\subsubsection{APIC transfers}
 The momentum transfer round trip could be defined as:
 \begin{enumerate}
   \item Particle to grid momentum transfer:
@@ -761,20 +762,24 @@ The transfers of the $APIC$-scheme are then summarized:
   \begin{equation}\label{eq:apic_mom_p2g}
     (m\boldsymbol{v})^n_i = \sum_p w^n_{ip}m_p (\boldsymbol { v } _ { p } ^ { n } + \boldsymbol { B } _ { p } ^ { n } ( \boldsymbol { D } _ { p } ^ { n } ) ^ { - 1 } ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } ) )
 \end{equation}
-  \item Factoring out mass.
+  \item Factoring out mass:
     \begin{equation}
       \boldsymbol{v}_i^n = \frac{(m\boldsymbol{v})_i^n}{m_i^n}.
     \end{equation}
 
-  \item Grid to Particle Transfer (in a $PIC$-manner):
+  \item Grid to particle transfer (in a $PIC$-manner), where in contrast the new particle position $\boldsymbol{x}_p$ also needs to be interpolated:
+    \begin{equation}
+      \boldsymbol{x}_{p}^{n+1} = \sum_i w_{ip}\boldsymbol{x}_i^{n+1}
+    \end{equation}
+
+    \begin{equation}
+      \boldsymbol{v}_{p}^{n+1} = \sum_i w_{ip}\boldsymbol{v}_i^{n+1}
+    \end{equation}
 $$
     \boldsymbol { B } _ { p } ^ { n + 1 } = \frac { 1 } { 2 } \sum _ { i } w _ { i p } ^ { n } (  { \boldsymbol { v } } _ { i } ^ { n + 1 } ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } +  { \boldsymbol { x } } _ { i } ^ { n + 1 } - \boldsymbol { x } _ { p } ^ { n + 1 } ) ^ { T }
     $$
     \begin{equation}\label{eq:apic_mom_g2p}
-+ ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } -  { \boldsymbol { x } } _ { i } ^ { n + 1 } + \boldsymbol { x } _ { p } ^ { n + 1 } ) (  { \boldsymbol { v } } _ { i } ^ { n + 1 } ) ^ { T } )
-    \end{equation}
-    \begin{equation}
-      \boldsymbol{v}_{p}^{n+1} = \sum_i w_{ip}\boldsymbol{v}_i^{n+1}.
++ ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } -  { \boldsymbol { x } } _ { i } ^ { n + 1 } + \boldsymbol { x } _ { p } ^ { n + 1 } ) (  { \boldsymbol { v } } _ { i } ^ { n + 1 } ) ^ { T } ).
     \end{equation}
 \end{enumerate}
 For a full proof that these transfers preserve linear and angular momentum consult \cite{MPM:APIC}. For the choice of dyadic products of cubic b-splines (\ref{eq:cubic_weights}) $\boldsymbol{D}_p$ takes on the simple form:
@@ -799,20 +804,19 @@ $$
 \cite{MPM:APIC}
 \subsection{Discretization}
 The weak form of the force-balance in (\ref{eq:lagr_force_bal},\ref{eq:eul_force_bal}) implies the following for MPM preferable description:
-\begin{equation}
+\begin{equation} \label{eq:weak_mpm}
   \int _ { \Omega ^ { 0 } } (_0q _ \alpha) (_0\rho_0) (_0a _\alpha)  d _0\boldsymbol{x}= \int _ { \partial \Omega ^ { t^n } } _tq _ \alpha \sigma _ {\alpha\beta} d_tA_\beta(_t\boldsymbol{x}) -  \int _ { \Omega ^ { t^n} } \frac{\partial _tq _ \alpha}{\partial _tx_\beta} \sigma _ {\alpha\beta} d_t\boldsymbol{x}.
 \end{equation}
 The boundary integral is mostly due to collisions and will be ignored for now. \cite{MPM:OPTIMI_INTEGR} discusses level set collisions due to constraint collisions, object penalty collision and penalty self-collisions. An handling of collision would need to take them into account when solving the equation. A simple though less accurate method is to process collisions separately in a typical computer graphics manner, which is assumed for now.
 \subsubsection{Discretize time}
-Any conservative integrator could be used to discretize time. The implicit midpoint rule ($\lambda =\frac{1}{2}$) is one of such
-\begin{equation}\label{eq:midpoint}
+Any integrator conserving linear and angular momentum could be used to discretize time. The class of time integrators used here are characterized by \begin{equation}\label{eq:midpoint}
   \frac{y ^ { n + 1 } - y ^ { n }}{ \Delta t} = f^{n+\lambda} = f \left(t^n+\lambda\Delta t, (1-\lambda) y ^ { n } +\lambda y^{n+1}\right)
 \end{equation}
 for a differential equation of order one:
 \begin{equation}
   \frac{\partial y}{\partial t}( t ) = f (t,y(t)) , \quad y (0) = y _ { 0 }.
 \end{equation}
-Replacing the Lagrangian acceleration $_0a_\alpha$ with the left side of \ref{eq:midpoint} using velocity, taking care of the right side and pushing forward to Eulerian view:
+A prominent member of this class is the implicit midpoint rule ($\lambda =\frac{1}{2}$). Replacing the Lagrangian acceleration $_0a_\alpha$ in eq. \ref{eq:weak_mpm} with the left side of \ref{eq:midpoint} using velocity, taking care of the right side and pushing forward to Eulerian view:
 \begin{equation}\label{eq:time_disc}
   \frac{1}{\Delta t} \int _{ \Omega^{t^n}}(_tq_\alpha)(_t\rho)({_tv_\alpha^{n+1}}-{_tv_\alpha^{n}}) d_t\boldsymbol{x} =
   -  \int _ { \Omega ^ { t^n} } \frac{\partial _tq _ \alpha}{\partial _tx_\beta} \sigma _ {\alpha\beta}^{n+\lambda} d_t\boldsymbol{x}.
@@ -865,7 +869,7 @@ $$
 \boldsymbol{f}^{n+\lambda}_i \stackrel{\text{\ref{eq:piola},\ref{eq:volume_discr}}}{=}
 - \sum_p \frac{1}{J^n_p}\boldsymbol{P}^{n+\lambda}_{p}(\boldsymbol{F}^{n}_{p})^T \nabla w_{ip}V^0_pJ^n_p
 $$
-\begin{equation}
+\begin{equation}\label{eq:force_disc}
   = - \sum_p \boldsymbol{P}^{n+\lambda}_{p}(\boldsymbol{F}^{n}_{p})^T \nabla w_{ip}V^0_p.
 \end{equation}
 \cite{MPM:COURSE} \cite{MPM:APIC} \cite{bathe2006finite}
@@ -887,29 +891,70 @@ and further applying the Galerkin discretization
   (_tv^{n+\lambda})_\alpha = (v_{i}^{n+\lambda})_\alpha w_i \Rightarrow \frac{\partial (_tv^{n+\lambda})_\alpha}{\partial x_\beta} =(v_i^{n+\lambda})_\alpha\frac{\partial w_i}{\partial x_\beta}
 \end{equation}
 leads to the final update rule for the deformation gradient:
-\begin{equation}
+\begin{equation}\label{eq:evol_def_grad_disc}
 \boldsymbol{F}^{n+1}_p = \left( \boldsymbol{I} + \Delta t\sum_i \boldsymbol{v}_i^{n+\lambda}({\nabla w_{ip}})^T \right)\boldsymbol{F}^{n}_p.
 \end{equation}
+The discretization of the position will also be of need to advance the particles and weight them back:
+\begin{equation}  \frac{\partial _t\boldsymbol{x}}{\partial t} = {_t\boldsymbol{v}} \Rightarrow \frac{\boldsymbol{\hat{x}}_i^{n+1}
+  - \boldsymbol{x}_i^{n}}{\Delta t} = \boldsymbol{v}_i^{n+\lambda}.
+\end{equation}
+The grid position $\boldsymbol{\hat{x}}_i^{n+1}$ does not correspond to an actual deformation. The grid never actually gets deformed (unlike in FEM-methods). Therefore the discretized evolution of the deformation gradient  \ref{eq:evol_def_grad_disc} is directly a function of $\boldsymbol{\hat{x}}$. For the point $\boldsymbol{\hat{x}}_i^{n+1}$ this becomes:
+\begin{equation}\label{eq:evol_def_grad_disc_x}
+  \boldsymbol{\hat{F}}^{n+1}_p(\boldsymbol{\hat{x}}_i^{n+1}) =  \left( \boldsymbol{I} + \sum_i (\boldsymbol{\hat{x}}_i^{n+1} - \boldsymbol{x}_i^{n})({\nabla w_{ip}})^T \right)\boldsymbol{F}^{n}_p.
+\end{equation}
+As part of the class of time integrators in use (\ref{eq:midpoint}) a function of $\boldsymbol{x}_i$ gets evaluated at an in-between point given by:
+\begin{equation}
+  \boldsymbol{x}_i^{n+\lambda} = \lambda \boldsymbol{x}_i^{n+1} + (1-\lambda)\boldsymbol{x}_i^n.
+\end{equation}
+Plugging this point into \ref{eq:evol_def_grad_disc_x} leads to the following generalization:
+$$\boldsymbol{\hat{F}}^{n+\lambda}_p(\boldsymbol{x}_i^{n+\lambda}) = \left( \boldsymbol{I} + \lambda \sum_i (\boldsymbol{\hat{x}}_i^{n+1} - \boldsymbol{x}_i^{n})({\nabla w_{ip}})^T \right)\boldsymbol{F}^{n}_p
+  $$
+  \begin{equation} \label{eq:def_grad_lambda}
+  = (1-\lambda)\boldsymbol{F}^n_p + \lambda \boldsymbol{F}^{n+1}_p
+\end{equation}
+This
+\cite{MPM:COURSE}
 \subsubsection{Grid nodal forces}
-Starting from the last update on the grid which is typically the position with eq. \ref{eq:midpoint}:
+The notion of a total elastic potential energy function $\Psi$ was introduced in chapter \ref{sec:cor_hyper}. The MPM approximation to this function can be defined by:
+\begin{equation}
+  e(\hat{\boldsymbol{x}}) = \sum_pV^0_p \Psi(\hat{\boldsymbol{F}}_{Ep}(\hat{\boldsymbol{x}})).
+\end{equation}
+The evolution of the deformation gradient \ref{eq:evol_def_grad_disc_x} for a general $\boldsymbol{\hat{x}}_i$  is necessary
+$$\frac{\partial \hat{F}_{\omega\beta}}{\partial \hat{x}_\alpha}
+= \delta_{\omega \alpha}
+\frac{\partial w_{ip}}{\partial x_\gamma}F_{\gamma\beta} = \delta_{\omega \alpha}F_{\gamma\beta} \frac{\partial{w_{ip}}}{\partial x_\gamma}$$
+for the spatial derivative of the potential $e(\boldsymbol{\hat{x}})$. This is just the force created by elastic stresses out of eq. \ref{eq:force_disc}:
 $$
-\frac{\partial _t\boldsymbol{x}}{\partial t} = {_t\boldsymbol{v}} \Rightarrow \frac{\boldsymbol{\hat{x}}_i^{n+1} - \boldsymbol{x}_i^{n}}{\Delta t} = \boldsymbol{v}_i^{n+\lambda} =  (1-\lambda)\boldsymbol{v}_i^n + \lambda\boldsymbol{\hat{v}}_i^{n+1}
+  \frac{\partial e}{\partial \hat{x}_{i\alpha}}(\hat{\boldsymbol{x}})
+  = \sum_p V^0_p \frac{\partial \Psi}{\partial \hat{F}_{\omega\beta}}(\hat{\boldsymbol{F}}_{Ep})\frac{\partial \hat{F}_{\omega\beta}}{\partial \hat{x}_\alpha}
   $$
 \begin{equation}
-  \Leftrightarrow \boldsymbol{\hat{x}}_i^{n+1}   =\boldsymbol{x}_i^{n} + \Delta t \left((1-\lambda)\boldsymbol{v}_i^n + \lambda\boldsymbol{\hat{v}}_i^{n+1}\right).
+  = \sum_p V^0_p P_{\alpha\beta}(\hat{\boldsymbol{F}}_{Ep})F_{\gamma\beta}\frac{\partial w_{ip}}{\partial x_\gamma} = -\hat{f}_{i\alpha}
 \end{equation}
-Due to \ref{eq:space_discr} a velocity update can be put together as
+where the force can be also described in terms of the Cauchy stress:
 \begin{equation}
-  \frac{1}{\Delta t} (({m^n\boldsymbol{\hat{v}}^{n+1}})_i-({m^n\boldsymbol{v}^n})_i)
-  = \boldsymbol{f}_i^{n+\lambda}
- \Leftrightarrow
- \boldsymbol{\hat{v}}^{n+1}_i
- = \boldsymbol{v}^n_i+ \frac{\Delta t}{m_i^n}\boldsymbol{f}_i^{n+\lambda},
-\end{equation}
-where the force can be also described in terms of the in-between point:
+  \boldsymbol{\hat{f}}_i = - \sum_p V^n_p \boldsymbol{\sigma}_p(\boldsymbol{\hat{F}}_{Ep})\nabla{w^n_{ip}}.
+ \end{equation}
+Due to eq. \ref{eq:def_grad_lambda} we can for the class of functions summarize the stress computation as:
 \begin{equation}
- \boldsymbol{f}_i^{n+\lambda} = \boldsymbol{\sigma}^{n+\lambda}_p(\boldsymbol{F}_p^{n+\lambda}(\boldsymbol{\hat{x}}_i^{n+1})).
+  \boldsymbol{P}^{n+\lambda}(\hat{\boldsymbol{F}}_{Ep}) = \boldsymbol{P}(\hat{\boldsymbol{F}}^{n+\lambda}_{Ep}),
+  \quad
+  \boldsymbol{\sigma}^{n+\lambda}(\hat{\boldsymbol{F}}_{Ep}) = \boldsymbol{\sigma}(\hat{\boldsymbol{F}}^{n+\lambda}_{Ep}).
 \end{equation}
+\cite{MPM:COURSE}\cite{MPM:APIC}
+\subsubsection{Symplectic midpoint scheme}
+Starting from the last update on the grid which is typically the position with eq. \ref{eq:midpoint} the general midpoint scheme ($\lambda=\frac{1}{2}$) is:
+\begin{equation}
+  \boldsymbol{\hat{x}}_i^{n+1}   =\boldsymbol{x}_i^{n} + \Delta t \boldsymbol{v}_i^{n+\frac{1}{2}}.
+\end{equation}
+Due to \ref{eq:space_discr} a velocity update can be put together as:
+\begin{equation}
+\boldsymbol{\hat{v}}^{n+1}_i
+ = \boldsymbol{v}^n_i+ \frac{\Delta t}{m_i^n}\boldsymbol{f}_i^{n+\frac{1}{2}}.
+\end{equation}
+\begin{equation}
+\end{equation}
+\cite{MPM:APIC}
 \subsection{GPU memory}
 \subsubsection{Optimization opportunities}
 \cite{NVIDIA:BEST:PRACTICE}
