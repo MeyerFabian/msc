@@ -667,7 +667,7 @@ The choice of interpolation weights is flexible. Nevertheless a kernel $w(\bolds
     \begin{equation}
       \sum _ { i }  { \boldsymbol{x} } _ { i } ^ { n } w \left(  { \boldsymbol{x} } -  {\boldsymbol{ x} } _ { i } ^ { n } \right) & =  { \boldsymbol{x} }.
     \end{equation}
-  \item $C^1$-continuity s.t. $\nabla w_i$ is continuous.
+  \item $C^1$-continuity s.t. $\nabla w$ is continuous.
 \end{enumerate}
 As a reminder of chapter \ref{sec:notation}: $\boldsymbol{x}_p$ refers to a particle's position. $\boldsymbol{x}_i$ to a grid cell's position.
 \\
@@ -929,13 +929,13 @@ $$
   = \sum_p V^0_p \frac{\partial \Psi}{\partial \hat{F}_{\omega\beta}}(\hat{\boldsymbol{F}}_{Ep})\frac{\partial \hat{F}_{\omega\beta}}{\partial \hat{x}_\alpha}
   $$
 \begin{equation}
-  = \sum_p V^0_p P_{\alpha\beta}(\hat{\boldsymbol{F}}_{Ep})F_{\gamma\beta}\frac{\partial w_{ip}}{\partial x_\gamma} = -\hat{f}_{i\alpha}
+  = \sum_p V^0_p P_{\alpha\beta}(\hat{\boldsymbol{F}}_{Ep})F_{\gamma\beta}\frac{\partial w_{ip}}{\partial x_\gamma} = -\hat{f}_{i\alpha}.
 \end{equation}
-where the force can be also described in terms of the Cauchy stress:
+The nodal force can be also described in terms of the Cauchy stress:
 \begin{equation}
   \boldsymbol{\hat{f}}_i = - \sum_p V^n_p \boldsymbol{\sigma}_p(\boldsymbol{\hat{F}}_{Ep})\nabla{w^n_{ip}}.
  \end{equation}
-Due to eq. \ref{eq:def_grad_lambda} we can for the class of functions summarize the stress computation as:
+Due to eq. \ref{eq:def_grad_lambda} the stress computation is summarized for the class of functions in use as:
 \begin{equation}
   \boldsymbol{P}^{n+\lambda}(\hat{\boldsymbol{F}}_{Ep}) = \boldsymbol{P}(\hat{\boldsymbol{F}}^{n+\lambda}_{Ep}),
   \quad
@@ -944,15 +944,23 @@ Due to eq. \ref{eq:def_grad_lambda} we can for the class of functions summarize 
 \cite{MPM:COURSE}\cite{MPM:APIC}
 \subsubsection{Symplectic midpoint scheme}
 Starting from the last update on the grid which is typically the position with eq. \ref{eq:midpoint} the general midpoint scheme ($\lambda=\frac{1}{2}$) is:
-\begin{equation}
+\begin{equation}\label{eq:vel_midpoint}
   \boldsymbol{\hat{x}}_i^{n+1}   =\boldsymbol{x}_i^{n} + \Delta t \boldsymbol{v}_i^{n+\frac{1}{2}}.
 \end{equation}
 Due to \ref{eq:space_discr} a velocity update can be put together as:
-\begin{equation}
+\begin{equation}\label{eq:force_midpoint}
 \boldsymbol{\hat{v}}^{n+1}_i
  = \boldsymbol{v}^n_i+ \frac{\Delta t}{m_i^n}\boldsymbol{f}_i^{n+\frac{1}{2}}.
 \end{equation}
+The modified energy conserving implicit midpoint scheme from \cite{GONZALEZ} for the Material Point Method differs from this by the use of a trapezoidal approximation of $\boldsymbol{v}_i^{n+\frac{1}{2}}$:
+\begin{equation}\label{eq:trapezoidal}
+  \boldsymbol{v}_i^{n+\frac{1}{2}} \approx \frac{\boldsymbol{\hat{v}}_i^{n+1} + \boldsymbol{v}_i^{n}}{2}.
+\end{equation}
+The trapezoidal rule has the same order of error $O(\Delta t^2)$ as the implicit midpoint scheme. This modification allows for a more direct one-step scheme as shown in the following. Plugging in eq. \ref{eq:vel_midpoint} into \ref{eq:force_midpoint}:
 \begin{equation}
+  m_i^n \frac{\boldsymbol{\hat{v}}^{n+1}-\boldsymbol{v}_i^n}{\Delta t} = \boldsymbol{f}_i \left( \frac{\boldsymbol{x_i}^n+\boldsymbol{x_i}^n + \Delta t \left( \frac{\boldsymbol{\hat{v}}_i^{n+1} + \boldsymbol{v}_i^{n}}{2}
+\right)
+    }{2}\right)
 \end{equation}
 \cite{MPM:APIC}
 \subsection{GPU memory}
@@ -968,16 +976,25 @@ Due to \ref{eq:space_discr} a velocity update can be put together as:
 \section{Implementation}
 \newcommand{\var}[1]{{\ttfamily#1}}% variable
 \begin{algorithm}[t]
-  \caption{Euclid’s algorithm}\label{euclid}
+  \caption{Conjugate gradient}\label{alg:conj_grad}
   \begin{algorithmic}[1]
-    \Procedure{Euclid}{$a,b$}\Comment{The g.c.d. of a and b}
-    \State $r\gets a\boldsymbolod b$ and \var{foobar}\label{foobar}
-    \While{$r\not=0$}\Comment{We have the answer if r is 0}
-    \State $a\gets b$
-    \State $b\gets r$
-    \State $r\gets a\boldsymbolod b$
-    \EndWhile\label{euclidendwhile}
-    \State \textbf{return} $b$\Comment{The gcd is b}
+    \Procedure{CONJUGATE-GRADIENT}{$A,x,b$}
+    \State $\boldsymbol{r}\gets \boldsymbol{b} - \boldsymbol{Ax}$
+    \State $\boldsymbol{p}\gets \boldsymbol{r}$
+    \State $\gamma \gets \langle \boldsymbol { r } , \boldsymbol { r } \rangle$
+    \Repeat
+      \State $\boldsymbol { s } \gets \boldsymbol { A } \boldsymbol { p }$
+      \State $\alpha \gets \frac { \gamma } { \langle \boldsymbol { p } , \boldsymbol { s } \rangle }$
+      \State $\boldsymbol { x } \gets \boldsymbol { x } + \alpha \boldsymbol { p }$
+      \State $\boldsymbol { r } \leftarrow \boldsymbol { r } - \alpha \boldsymbol { s }$
+      \State $\kappa \leftarrow \langle \boldsymbol { r } , \boldsymbol { r } \rangle$
+      \If{$ \kappa < \epsilon$} \Comment{alt. fixed amount of steps}
+        \State \Return \label{alg:conj_grad:exit}
+      \EndIf
+      \State $\beta \gets \frac{\kappa}{\gamma}$
+      \State $\boldsymbol { p } \leftarrow \boldsymbol { r } + \beta \boldsymbol { p }$
+      \State $\gamma \gets \kappa$
+      \Until{false} \Comment{exit at \ref{alg:conj_grad:exit}}
     \EndProcedure
   \end{algorithmic}
 \end{algorithm}
@@ -1010,6 +1027,7 @@ decorator pattern
 Particle Activation: \cite{MPM:GPU}
 
 Sparse: \cite{OPENVDB} \cite{NVIDIA:GVDB_VOXELS}
+\clearpage
 \begin{appendices}
   \section{"Inertia Tensor" for Cubic Splines}\label{app:dp_proof}
   \begin{code}
