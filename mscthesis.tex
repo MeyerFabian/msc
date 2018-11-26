@@ -21,6 +21,8 @@
 \usepackage[toc,page]{appendix}
 \usepackage{minted}
 \addbibresource{mscthesis.bib}
+
+\DeclareMathOperator*{\argmin}{argmin}
 \makeatletter
 \def\ext@algorithm{lol}% algorithm captions will be written to the .lol file
 % share the list making commands and redefine the heading
@@ -903,7 +905,7 @@ The grid position $\boldsymbol{\hat{x}}_i^{n+1}$ does not correspond to an actua
   \boldsymbol{\hat{F}}^{n+1}_p(\boldsymbol{\hat{x}}_i^{n+1}) =  \left( \boldsymbol{I} + \sum_i (\boldsymbol{\hat{x}}_i^{n+1} - \boldsymbol{x}_i^{n})({\nabla w_{ip}})^T \right)\boldsymbol{F}^{n}_p.
 \end{equation}
 As part of the class of time integrators in use (\ref{eq:midpoint}) a function of $\boldsymbol{x}_i$ gets evaluated at an in-between point given by:
-\begin{equation}
+\begin{equation}\label{eq:midpoint_x}
   \boldsymbol{x}_i^{n+\lambda} = \lambda \boldsymbol{x}_i^{n+1} + (1-\lambda)\boldsymbol{x}_i^n.
 \end{equation}
 Plugging this point into \ref{eq:evol_def_grad_disc_x} leads to the following generalization:
@@ -916,7 +918,7 @@ This
 \cite{MPM:COURSE}
 \subsubsection{Grid nodal forces}
 The notion of a total elastic potential energy function $\Psi$ was introduced in chapter \ref{sec:cor_hyper}. The MPM approximation to this function can be defined by:
-\begin{equation}
+\begin{equation}\label{eq:energy_discr}
   e(\hat{\boldsymbol{x}}) = \sum_pV^0_p \Psi(\hat{\boldsymbol{F}}_{Ep}(\hat{\boldsymbol{x}})).
 \end{equation}
 The evolution of the deformation gradient \ref{eq:evol_def_grad_disc_x} for a general $\boldsymbol{\hat{x}}_i$  is necessary
@@ -950,19 +952,38 @@ Starting from the last update on the grid which is typically the position with e
 Due to \ref{eq:space_discr} a velocity update can be put together as:
 \begin{equation}\label{eq:force_midpoint}
 \boldsymbol{\hat{v}}^{n+1}_i
- = \boldsymbol{v}^n_i+ \frac{\Delta t}{m_i^n}\boldsymbol{f}_i^{n+\frac{1}{2}}.
+= \boldsymbol{v}^n_i+ \frac{\Delta t}{m_i^n}\boldsymbol{f}_i^{n+\frac{1}{2}}.
 \end{equation}
-The modified energy conserving implicit midpoint scheme from \cite{GONZALEZ} for the Material Point Method differs from this by the use of a trapezoidal approximation of $\boldsymbol{v}_i^{n+\frac{1}{2}}$:
+A variable of $n+\frac{1}{2}$ then gets evaluated at the midpoint (\ref{eq:midpoint_x}):
+\begin{equation}
+  \boldsymbol{f}^{n+\frac{1}{2}}_i =  \boldsymbol{f}_i\left(\frac{\boldsymbol{x}_i^n + \boldsymbol{\hat{x}}_i^{n+1}}{2}\right).
+\end{equation}
+The modified energy conserving implicit midpoint scheme from \cite{GONZALEZ} for the Material Point Method differs by the use of a trapezoidal approximation of $\boldsymbol{v}_i^{n+\frac{1}{2}}$:
 \begin{equation}\label{eq:trapezoidal}
   \boldsymbol{v}_i^{n+\frac{1}{2}} \approx \frac{\boldsymbol{\hat{v}}_i^{n+1} + \boldsymbol{v}_i^{n}}{2}.
 \end{equation}
-The trapezoidal rule has the same order of error $O(\Delta t^2)$ as the implicit midpoint scheme. This modification allows for a more direct one-step scheme as shown in the following. Plugging in eq. \ref{eq:vel_midpoint} into \ref{eq:force_midpoint}:
+The trapezoidal rule has the same order of error $O(\Delta t^2)$ as the implicit midpoint scheme. This modification allows for a more direct one-step scheme as shown in the following. Plugging $\boldsymbol{x}_i^{n+1}$ of eq. \ref{eq:vel_midpoint} into \ref{eq:force_midpoint}:
 \begin{equation}
-  m_i^n \frac{\boldsymbol{\hat{v}}^{n+1}-\boldsymbol{v}_i^n}{\Delta t} = \boldsymbol{f}_i \left( \frac{\boldsymbol{x_i}^n+\boldsymbol{x_i}^n + \Delta t \left( \frac{\boldsymbol{\hat{v}}_i^{n+1} + \boldsymbol{v}_i^{n}}{2}
-\right)
-    }{2}\right)
+  h(\boldsymbol{\hat{v}}_i^{n+1}) = m_i^n \frac{\boldsymbol{\hat{v}_i}^{n+1}-\boldsymbol{v}_i^n}{\Delta t} - \boldsymbol{f}_i\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{\hat{v}}_i^{n+1} + \boldsymbol{v}_i^{n})\right) = 0.
 \end{equation}
-\cite{MPM:APIC}
+And substituting
+One can recast this method back to an energy function by integrating:
+\begin{equation}
+  E(\boldsymbol{v}_i) = \sum_i \frac{m_i^n}{8} \|\boldsymbol{v}_i - \boldsymbol{v}_i^n\|^2_2 + e(\boldsymbol{x}_i^n + \frac{\Delta t}{4}(\boldsymbol{v}_i + \boldsymbol{v}_i^n)),
+\end{equation}
+where $e$ is just the discretized elastic potential energy out of \ref{eq:energy_discr}. In general this is a optimization objective that needs minimizing to solve for the updated velocities. Recasting allows solving in a general scheme by an optimization integrator.
+
+In general starting off with an energy description is a more physical approach of the problem. The first term can be identified clearly as the kinetic energy. Moreover it easily allows adding potential terms for gravity or collision \cite{MPM:OPTIMI_INTEGR}. Or modifying the energy function altogether based off for instance the fundamental state of matter: as an example the phase transition to and physics of a liquid \cite{MPM:PHASE_CHANGE}.
+The analysis of minimizing the objective is equivalent to finding the zero crossing of the derivative:
+\begin{equation}
+  \argmin_{\forall \boldsymbol{v}_i}(E(\boldsymbol{v}_i)) \Leftrightarrow g(\boldsymbol{v}_i) = \frac{\partial E}{\partial \boldsymbol{v}_i} = 0.
+\end{equation}
+Since the objective from the start was minimizing $\boldsymbol{E}$ to find $\boldsymbol{v}_i$ the scale of this function can be chosen arbitrarily, i.e. a zero crossing does not scale. The scaling here can be identified as:
+\begin{equation}
+  g(\boldsymbol{v}_i) = \frac{\Delta t}{4} h(\boldsymbol{v}_i) = m_i^n \frac{\boldsymbol{v_i}-\boldsymbol{v}_i^n}{4} -\frac{\Delta t}{4} \boldsymbol{f}_i\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}_i + \boldsymbol{v}_i^{n})\right).
+\end{equation}
+\cite{MPM:COURSE}\cite{MPM:APIC}
+
 \subsection{GPU memory}
 \subsubsection{Optimization opportunities}
 \cite{NVIDIA:BEST:PRACTICE}
