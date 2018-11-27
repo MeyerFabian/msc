@@ -930,7 +930,7 @@ $$
   \frac{\partial e}{\partial \hat{x}_{i\alpha}}(\hat{\boldsymbol{x}})
   = \sum_p V^0_p \frac{\partial \Psi}{\partial \hat{F}_{\omega\beta}}(\hat{\boldsymbol{F}}_{Ep})\frac{\partial \hat{F}_{\omega\beta}}{\partial \hat{x}_\alpha}
   $$
-\begin{equation}
+  \begin{equation}\label{eq:nodal_force}
   = \sum_p V^0_p P_{\alpha\beta}(\hat{\boldsymbol{F}}_{Ep})F_{\gamma\beta}\frac{\partial w_{ip}}{\partial x_\gamma} = -\hat{f}_{i\alpha}.
 \end{equation}
 The nodal force can be also described in terms of the Cauchy stress:
@@ -964,7 +964,7 @@ The modified energy conserving implicit midpoint scheme from \cite{GONZALEZ} for
 \end{equation}
 The trapezoidal rule has the same order of error $O(\Delta t^2)$ as the implicit midpoint scheme. This modification allows for a more direct one-step scheme as shown in the following. Plugging $\boldsymbol{x}_i^{n+1}$ of eq. \ref{eq:vel_midpoint} into \ref{eq:force_midpoint}:
 \begin{equation}
-  h(\boldsymbol{\hat{v}}_i^{n+1}) = m_i^n \frac{\boldsymbol{\hat{v}_i}^{n+1}-\boldsymbol{v}_i^n}{\Delta t} - \boldsymbol{f}_i\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{\hat{v}}_i^{n+1} + \boldsymbol{v}_i^{n})\right) = 0.
+  \boldsymbol{h}(\boldsymbol{\hat{v}}_i^{n+1}) = m_i^n \frac{\boldsymbol{\hat{v}_i}^{n+1}-\boldsymbol{v}_i^n}{\Delta t} - \boldsymbol{f}_i\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{\hat{v}}_i^{n+1} + \boldsymbol{v}_i^{n})\right) = 0.
 \end{equation}
 And substituting
 One can recast this method back to an energy function by integrating:
@@ -980,31 +980,23 @@ The analysis of minimizing the objective is equivalent to finding the zero cross
 \end{equation}
 Since the objective from the start was minimizing $\boldsymbol{E}$ to find $\boldsymbol{v}_i$ the scale of this function can be chosen arbitrarily, i.e. a zero crossing does not scale. The scaling here can be identified as:
 \begin{equation}
-  g(\boldsymbol{v}_i) = \frac{\Delta t}{4} h(\boldsymbol{v}_i) = m_i^n \frac{\boldsymbol{v_i}-\boldsymbol{v}_i^n}{4} -\frac{\Delta t}{4} \boldsymbol{f}_i\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}_i + \boldsymbol{v}_i^{n})\right).
+  \boldsymbol{g}(\boldsymbol{v}_i) = \frac{\Delta t}{4} h(\boldsymbol{v}_i) = m_i^n \frac{\boldsymbol{v_i}-\boldsymbol{v}_i^n}{4} -\frac{\Delta t}{4} \boldsymbol{f}_i\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}_i + \boldsymbol{v}_i^{n})\right).
 \end{equation}
 \cite{MPM:COURSE}\cite{MPM:APIC}
-
-\subsection{GPU memory}
-\subsubsection{Optimization opportunities}
-\cite{NVIDIA:BEST:PRACTICE}
-\cite{AMD:GPU_OPEN}
-\begin{itemize}
-  \item Minimize CPU-GPU transfers
-  \item Coalesced memory access
-  \item Bank conflicts
-\end{itemize}
-\subsubsection{SoA vs. AoS}
-\section{Implementation}
+\subsection{Newton's Method}
 \newcommand{\var}[1]{{\ttfamily#1}}% variable
 \begin{algorithm}[t]
   \caption{Conjugate gradient}\label{alg:conj_grad}
   \begin{algorithmic}[1]
-    \Procedure{CONJUGATE-GRADIENT}{$A,x,b$}
-    \State $\boldsymbol{r}\gets \boldsymbol{b} - \boldsymbol{Ax}$
+    \Procedure{CONJUGATE-GRADIENT}{$H,x,f$}
+    \State $\boldsymbol{x} \gets \Call{InitialGuess}$
+    \State $\boldsymbol{Hx} \gets \Call{ComputeHp}{x}$
+    \State $\boldsymbol{r}\gets \boldsymbol{f} - \boldsymbol{Hx}$
     \State $\boldsymbol{p}\gets \boldsymbol{r}$
     \State $\gamma \gets \langle \boldsymbol { r } , \boldsymbol { r } \rangle$
     \Repeat
-      \State $\boldsymbol { s } \gets \boldsymbol { A } \boldsymbol { p }$
+      \State $\boldsymbol{Hp} \gets \Call{ComputeHp}{p}$
+      \State $\boldsymbol { s } \gets \boldsymbol { H } \boldsymbol { p }$
       \State $\alpha \gets \frac { \gamma } { \langle \boldsymbol { p } , \boldsymbol { s } \rangle }$
       \State $\boldsymbol { x } \gets \boldsymbol { x } + \alpha \boldsymbol { p }$
       \State $\boldsymbol { r } \leftarrow \boldsymbol { r } - \alpha \boldsymbol { s }$
@@ -1019,6 +1011,55 @@ Since the objective from the start was minimizing $\boldsymbol{E}$ to find $\bol
     \EndProcedure
   \end{algorithmic}
 \end{algorithm}
+Many minimization and finding zero crossing algorithms are available. One of such is Newton's Method, which allows for rapid quadratic convergence in a near local neighborhood.
+\begin{equation}
+  \boldsymbol{v}_i^{(i+1)} = \boldsymbol{v}^{(i)}_i + \left[\frac{\partial \boldsymbol{g}}{\partial \boldsymbol{v}}\left(\boldsymbol{v}^{(i)}_i\right)\right]^{-1}\boldsymbol{g}\left(\boldsymbol{v}^{(i)}_i\right)
+\end{equation}
+Computing the inverse is numerically irresponsible. Instead the following linear system is solved $\left(\Delta \boldsymbol{v} = \boldsymbol{v}_i^{(i+1)} - \boldsymbol{v}^{(i)}_i\right)$:
+\begin{equation}\label{eq:linear_system}
+  \left[\frac{\partial \boldsymbol{g}}{\partial \boldsymbol{v}}\left(\boldsymbol{v}^{(i)}_i\right)\right] \Delta \boldsymbol{v} =  \boldsymbol{g}\left(\boldsymbol{v}^{(i)}_i\right)
+\end{equation}
+Using the Newton's Method however requires a computation of the Hessian of $E(\boldsymbol{v}_i)$:
+\begin{equation}
+  \frac{\partial \boldsymbol{g}_i}{\partial \boldsymbol{v}_j} = \frac{m_i^n}{4} - \frac{\Delta t^2}{16}\frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j}\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}_i + \boldsymbol{v}_i^{n})\right).
+\end{equation}
+Computing $\frac{\partial f_i}{\partial x_j}$ for every combination $ij$ would be quite memory-intensive. Instead immediately the matrix-vector product on an increment $\delta \boldsymbol{u}_j$ is solved:
+\begin{equation}\label{eq:hessian-matrix-vector}
+  \sum_j\frac{\partial \boldsymbol{g}_i}{\partial \boldsymbol{v}_j}\delta \boldsymbol{u}_j = \frac{m_i^n}{4}\delta \boldsymbol{u}_j - \frac{\Delta t^2}{16}\sum_j \frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j}\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}_i + \boldsymbol{v}_i^{n})\right) \delta \boldsymbol{u}_j.
+\end{equation}
+The linear system can be solved with the conjugate gradient method (Algorithm \ref{alg:conj_grad}) since $\frac{\partial g}{\partial v}$ is symmetric, positive definite. This is due to being the Hessian of the convex function $E$. There is to important things notice:
+\begin{enumerate}
+  \item Conservation of momentum on incomplete convergence is only fulfilled if \ref{eq:linear_system} is premultiplied by the inverse diagonal mass matrix $M^{-1}$. More in \cite{MPM:APIC}. Thus the equation becomes:
+    $$
+      \left(\frac{1}{4} - \frac{\Delta t^2}{16}\frac{1}{m_i^n}\frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j}\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}^{(i)}_i + \boldsymbol{v}_i^{n})\right)\right) \Delta v
+      $$
+    \begin{equation}
+      = \frac{\boldsymbol{v}_i^{(i)}-\boldsymbol{v}_i^n}{4} -\frac{\Delta t}{4}\frac{1}{m_i^n}\boldsymbol{f}_i\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}^{(i)}_i + \boldsymbol{v}_i^{n})\right).
+    \end{equation}
+  \item Due to \ref{eq:hessian-matrix-vector} the product of the Hessian with an increment ($\sum_j \frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j} \delta \boldsymbol{u}_j$) needs to be computed anew every step, since a pure matrix store is too costly.
+\end{enumerate}
+The Hessian increment can be computed with a two-stage process:
+\begin{enumerate}
+  \item Compute a particle quantity $\boldsymbol{A}_p$ with a grid to particle transfer:
+    \begin{equation}
+    \boldsymbol{A}_p = \frac { \partial ^ { 2 } \Psi } { \partial \boldsymbol { F } \partial \boldsymbol { F } } ( \hat { \boldsymbol { F } } _ { p } ( \hat { \boldsymbol { x } } )) : \left(\sum_j \delta \boldsymbol{u}_j (\nabla w_{jp}^n)^T \boldsymbol{F}^n_p\right).
+    \end{equation}
+  \item Compute the Hessian increment ($\delta \boldsymbol{f}_i$) with a particle to grid transfer:
+\begin{equation}
+  - \delta \boldsymbol{f}_i = - \sum_j \frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j} \delta \boldsymbol{u}_j = \sum_p V_p^0 \boldsymbol{A}_p(\boldsymbol{F}^n_p)^T \nabla w_{ip}^n.
+\end{equation}
+\end{enumerate}
+\subsection{GPU memory}
+\subsubsection{Optimization opportunities}
+\cite{NVIDIA:BEST:PRACTICE}
+\cite{AMD:GPU_OPEN}
+\begin{itemize}
+  \item Minimize CPU-GPU transfers
+  \item Coalesced memory access
+  \item Bank conflicts
+\end{itemize}
+\subsubsection{SoA vs. AoS}
+\section{Implementation}
 \subsection{Framework}
 decorator pattern
 \subsection{Parallel Reduction}
