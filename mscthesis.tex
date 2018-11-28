@@ -1,5 +1,4 @@
 \documentclass[m,times]{cgMA}
-
 \usepackage{listings}
 \usepackage{xurl}
 \urlstyle{sf}
@@ -20,6 +19,7 @@
 \usepackage{enumitem}
 \usepackage[toc,page]{appendix}
 \usepackage{minted}
+\usepackage{verbatim}
 \addbibresource{mscthesis.bib}
 
 \DeclareMathOperator*{\argmin}{argmin}
@@ -146,16 +146,13 @@
   numbers=left,
 }
 
-
 \newenvironment{code}{\captionsetup{type=algorithm}}{}
 \begin{document}
-
 \author{Fabian Meyer}
 \title{GPU-Beschleunigung der Material Point Method}
 \zweitgutachter{Bastian Krayer, M.Sc.}
 \zweitgutachterInfo{(Institut f{\"u}r Computervisualistik, AG Computergraphik)}
 % Umschalten der Sprache (fuer englische Rubrikbezeichnungen etc.)
-
 
 \pagenumbering{roman}
 \maketitle
@@ -183,11 +180,12 @@
 bib-test \cite{MPM:SNOW}
 $$ -  \int_{\pi/2}^{\pi} \frac{1}{\sqrt{u}} \frac{\lvert \cos{x} \rvert}{\cos{x}} du $$
 \section{Related Work}
-\cite{PIC:GPU} -> \cite{NVIDIA:NNSEARCH}
+\cite{PIC:GPU} -> \cite{NVIDIA:NNSEARCH}\\
+\cite{stantchev2008fast}\\
 benefits over radix sort /thrust sort-by-key -> counting sort
-\cite{NVIDIA:SHUFFLE}
-\cite{MPM:POLYPIC}
-\cite{MPM:GPU}
+\cite{NVIDIA:SHUFFLE}\\
+\cite{MPM:POLYPIC}\\
+\cite{MPM:GPU}\\
 %look again for MPM/PIC gpu impl
 %SPH, FEM methods
 \section{Notation}\label{sec:notation}
@@ -660,7 +658,6 @@ Its is very important that the two transfers as well as the grid solver are in c
 \subsubsection{Interpolation weights}
 The choice of interpolation weights is flexible. Nevertheless a kernel $w(\boldsymbol{x})$ requires some important properties to be qualified for MPM:
 \begin{enumerate}
-
   \item Partition of unity:
     \begin{equation}\label{eq:partition_unity}
       \sum _ { i } w \left(  { \boldsymbol{x} } -  { \boldsymbol{x} } _ { i } ^ { n } \right) & = 1.
@@ -672,7 +669,6 @@ The choice of interpolation weights is flexible. Nevertheless a kernel $w(\bolds
   \item $C^1$-continuity s.t. $\nabla w$ is continuous.
 \end{enumerate}
 As a reminder of chapter \ref{sec:notation}: $\boldsymbol{x}_p$ refers to a particle's position. $\boldsymbol{x}_i$ to a grid cell's position.
-\\
 Often dyadic products of one-dimensional interpolation functions suffice
 \begin{equation}
   w(\boldsymbol{x}-\boldsymbol{x}_i^n) = w_i^n(\boldsymbol{x}) = w\left(\frac{1}{h}\left(x-x_i^n\right)\right)w\left(\frac{1}{h}\left(y-y_i^n\right)\right)w\left(\frac{1}{h}\left(z-z_i^n\right)\right)
@@ -760,36 +756,35 @@ This motivates the velocity derivative to be equally defined by a similar relati
 \end{equation}
 The transfers of the $APIC$-scheme are then summarized:
 \begin{enumerate}
-\item Particle to grid:
-  \begin{equation}\label{eq:apic_mom_p2g}
+  \item Particle to grid:
+    \begin{equation}\label{eq:apic_mom_p2g}
     (m\boldsymbol{v})^n_i = \sum_p w^n_{ip}m_p (\boldsymbol { v } _ { p } ^ { n } + \boldsymbol { B } _ { p } ^ { n } ( \boldsymbol { D } _ { p } ^ { n } ) ^ { - 1 } ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } ) )
 \end{equation}
   \item Factoring out mass:
     \begin{equation}
       \boldsymbol{v}_i^n = \frac{(m\boldsymbol{v})_i^n}{m_i^n}.
     \end{equation}
-
   \item Grid to particle transfer (in a $PIC$-manner), where in contrast the new particle position $\boldsymbol{x}_p$ also needs to be interpolated:
     \begin{equation}
       \boldsymbol{x}_{p}^{n+1} = \sum_i w_{ip}\boldsymbol{x}_i^{n+1}
     \end{equation}
-
     \begin{equation}
       \boldsymbol{v}_{p}^{n+1} = \sum_i w_{ip}\boldsymbol{v}_i^{n+1}
     \end{equation}
-$$
-    \boldsymbol { B } _ { p } ^ { n + 1 } = \frac { 1 } { 2 } \sum _ { i } w _ { i p } ^ { n } (  { \boldsymbol { v } } _ { i } ^ { n + 1 } ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } +  { \boldsymbol { x } } _ { i } ^ { n + 1 } - \boldsymbol { x } _ { p } ^ { n + 1 } ) ^ { T }
     $$
-    \begin{equation}\label{eq:apic_mom_g2p}
-+ ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } -  { \boldsymbol { x } } _ { i } ^ { n + 1 } + \boldsymbol { x } _ { p } ^ { n + 1 } ) (  { \boldsymbol { v } } _ { i } ^ { n + 1 } ) ^ { T } ).
-    \end{equation}
+    {^-}\Delta \boldsymbol{x} = \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } +   \boldsymbol { x }_ { i } ^ { n + 1 } - \boldsymbol { x } _ { p } ^ { n + 1 },
+    \quad {^+}\Delta \boldsymbol{x} = \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } -  { \boldsymbol { x } } _ { i } ^ { n + 1 } + \boldsymbol { x } _ { p } ^ { n + 1 }
+    $$
+\begin{equation}\label{eq:apic_mom_g2p}
+  \boldsymbol { B } _ { p } ^ { n + 1 } = \frac { 1 } { 2 } \sum _ { i } w _ { i p } ^ { n } (\boldsymbol { v }_ { i } ^ { n + 1 } ({^-}\Delta \boldsymbol{x}) ^ { T }) {+}  {^+}\Delta \boldsymbol{x} ( { \boldsymbol { v } } _ { i } ^ { n + 1 } ) ^ { T }).
+\end{equation}
+
 \end{enumerate}
 For a full proof that these transfers preserve linear and angular momentum consult \cite{MPM:APIC}. For the choice of dyadic products of cubic b-splines (\ref{eq:cubic_weights}) $\boldsymbol{D}_p$ takes on the simple form:
 \begin{equation}
 \boldsymbol{D}_p^n = \frac { 1 } { 3 } h ^ { 2 } \boldsymbol { I }.
 \end{equation}
-A simple proof (Appendices: \ref{app:dp_proof}) cancelling out the numerous polynomials can be done for instance using \textbf{SymPy} (\cite{Sympy}).
-\cite{MPM:APIC}\cite{MPM:OLD_APIC}
+A simple proof (Appendices: \ref{app:dp_proof}) cancelling out the numerous polynomials can be done for instance using SymPy (\cite{Sympy}).\cite{MPM:APIC}\cite{MPM:OLD_APIC}
 \subsubsection{CFL condition}
 The CFL condition is prominent for FEM-like methods: For a stable integration a particle should not travel father than the grid spacing $h$ in a discrete time-step $\Delta t$. $\Delta t$ is thus limited by:
 \begin{equation}
@@ -1050,7 +1045,10 @@ The Hessian increment can be computed with a two-stage process:
 \end{equation}
 \end{enumerate}
 \subsection{GPU memory}
-\subsubsection{Optimization opportunities}
+\section{Implementation}
+\subsection{Framework}
+decorator pattern
+\subsection{Optimization opportunities}
 \cite{NVIDIA:BEST:PRACTICE}
 \cite{AMD:GPU_OPEN}
 \begin{itemize}
@@ -1059,9 +1057,6 @@ The Hessian increment can be computed with a two-stage process:
   \item Bank conflicts
 \end{itemize}
 \subsubsection{SoA vs. AoS}
-\section{Implementation}
-\subsection{Framework}
-decorator pattern
 \subsection{Parallel Reduction}
 \cite{NVIDIA:PARALLEL_REDUCTION}
 \subsection{Binning}
