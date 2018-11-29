@@ -22,7 +22,7 @@
 \usepackage{verbatim}
 \addbibresource{mscthesis.bib}
 
-\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmin}{arg min}
 \makeatletter
 \def\ext@algorithm{lol}% algorithm captions will be written to the .lol file
 % share the list making commands and redefine the heading
@@ -180,16 +180,30 @@
 bib-test \cite{MPM:SNOW}
 $$ -  \int_{\pi/2}^{\pi} \frac{1}{\sqrt{u}} \frac{\lvert \cos{x} \rvert}{\cos{x}} du $$
 \section{Related Work}
-\cite{PIC:GPU} -> \cite{NVIDIA:NNSEARCH}\\
-\cite{stantchev2008fast}\\
-benefits over radix sort /thrust sort-by-key -> counting sort
-\cite{NVIDIA:SHUFFLE}\\
-\cite{MPM:POLYPIC}\\
-\cite{MPM:GPU}\\
+\textbf{Material Point Method:}
+\cite{MPM:POLYPIC}
+\\
+\\
+There exist several implementations utilizing the GPU for Particle-in-Cell type techniques, which the Material point method is a part of:
+
+\textbf{Particle sorting:} \cite{PIC:GPU} studies different particle list sorting methods. After a particle position update becomes partially sorted. There exist methods like 'Message Passing Sort' and 'In Place Particle-QuickSort' to try to utilize the partial sorting and save time. \cite{PIC:GPU} also uses fixed bin-sizes which can be, depending on the extend of use, quite memory intensive. Fixed size binning certainly make the methods mentioned before easier to implement, which don't necessarily map well to the GPU due to its high dependence on coalescing. As a result they come to the conclusion to fall back to the CUDA library \texttt{thrust}. It provides the radix sort method \texttt{thrust::sort\_by\_key()}. Full or index sort can be done. A full sort reorders every variable of a particle. An index sort gives back an index with the offset in the particle list.
+\cite{NVIDIA:NNSEARCH} compare radix to counting sort utilizing a uniform grid and uses the latter for SPH-fluids. This master thesis implements counting sort.
+
+\textbf{Particle-Grid transfers:} The particle to grid transfer are generally done in two manners \cite{stantchev2008fast}:
+\begin{enumerate}
+  \item \textbf{Particle Push:} X particles in a local neighborhood of a grid point push their attributes onto it. Since this results in a race condition \texttt{atomicAdd(float f)}'s are in use.
+  \item \textbf{Particle Pull:} A grid point pulls the particles in its local neighborhood from a sorted particle list. This has the benefit of no race conditions being present.
+\end{enumerate}
+The grid to particle transfer in generally are easier since a particle already knows, due to its position, the grid points in its local neighborhood. The grid points in a uniform grid are 'sorted' by nature.
+
+Generally these methods are augmented by splitting the grid in 2D/3D tiles making use of the shared memory structure of the GPU \cite{PIC:GPU} \cite{honig2010generic} \cite{MPM:GPU}. Shared memory on GPUs typically ranges from 48-64KB.  The grid nodes reached by the support of the interpolation function on each side also have to be loaded into memory, typically called the halo of a tile. Since the number of particles per grid point in the MPM-method is generally between 4-10 only very limited tile-sizes are available \cite{MPM:SNOW}.
+An interesting prospect for filtering techniques is given by NVIDIA's new shuffle operations, which allows to 'share' register memory between threads of a warp \cite{NVIDIA:SHUFFLE}. They are however not supported on other architecture yet.
 %look again for MPM/PIC gpu impl
 %SPH, FEM methods
 \section{Notation}\label{sec:notation}
-Multi-component types are generally printed in bold letters $\boldsymbol{A}$, $\boldsymbol{a}$. Vectors furthermore use lower-case letters $\boldsymbol{v}$, while Matrices use upper-case letters $\boldsymbol{M}$. A variable in the Lagrangian form has a subscript 0 $ _0{\boldsymbol{x}}$, the Eulerian description will be written with an 'overline' $_t\boldsymbol{x}$ if distinction is needed. Occasionally notation may be omitted where it is apparent from context. Beginning from chapter \ref{sec:mat_point} variables defined on a particle will have subscript $p$ (e.g. $\boldsymbol{x}_p$). Grid cells will be assigned a subscript $i$ denoting the grid index (e.g. $\boldsymbol{x}_i$). This is not to be confused with the following Einstein-Notation. Therefore beginning with chapter \ref{sec:mat_point} Einstein-Notation for components will use greek letters ($\alpha,\beta$). Occasionally summation over grid index $i$ and particles $p$ may be implied. A variable of the $n$-th time step with associated time $t^n = \sum_{i=1}^{n} t^i$ will have a right superscript: $\boldsymbol{x}^n$.
+Multi-component types are generally printed in bold letters $\boldsymbol{A}$, $\boldsymbol{a}$. Vectors furthermore use lower-case letters $\boldsymbol{v}$, while Matrices use upper-case letters $\boldsymbol{M}$. A variable in the Lagrangian form has a subscript 0 $ _0{\boldsymbol{x}}$, the Eulerian description will be written with an 'overline' $_t\boldsymbol{x}$ if distinction is needed. Occasionally notation may be omitted where it is apparent from context.
+
+Beginning from chapter \ref{sec:mat_point} variables defined on a particle will have subscript $p$ (e.g. $\boldsymbol{x}_p$). Grid cells will be assigned a subscript $i$ or additionally $j$ denoting the grid index (e.g. $\boldsymbol{x}_i$). This is not to be confused with the following Einstein-Notation. Therefore beginning with chapter \ref{sec:mat_point} Einstein-Notation for components will use greek letters ($\alpha,\beta$). Occasionally summation over grid index $i$ and particles $p$ may be implied. A variable of the $n$-th time step with associated time $t^n = \sum_{i=1}^{n} t^i$ will have a right superscript: $\boldsymbol{x}^n$.
 \subsection{Einstein-Notation}
 Used throughout this thesis is at instances the Einstein-Notation when using tensors and vectors. Let $\boldsymbol{a}$ and $\boldsymbol{b}$ be vectors of dimension $n$ and  $\boldsymbol{A,B,D}$ $ { m \times n }$ tensors. Repeated indices that are also defined on the variable imply component-wise operations.
 $a _ { i } b _ { j }$ is multiplying component $i$ with component $j$ of vectors $\boldsymbol{a}$ and $\boldsymbol{b}$. Vector and tensor/matrix addition thus become:
@@ -246,11 +260,12 @@ A useful relation to the Kronecker-Delta is:
 \end{equation}
 \cite{MCGINTY:CONTINUUM}
 \section{Basics}
-\subsection{Reference and current configuration}
-Particles (or material points) in continuum mechanics are not what classically might be thought of as a particle. Rather the continuum assumption holds: each particle represents a continuous piece of material, s.t. a microscopic view does not need to be adopted. A particular body is composed of a set of particles and can adapt different configurations due to changes in shape. These changes are cause by external or internal effects (forces etc.) on it and deform the body over time. \cite{MIT:CONTINUUM_MECHANICS} \cite{MPM:COURSE}
+\subsection{Reference and current configuration}\label{sec:ref_corr_config}
+Particles (or material points) in continuum mechanics are not what classically might be thought of as a particle. Rather the continuum assumption holds: each particle represents a continuous piece of material, s.t. a microscopic view does not need to be adopted. A particular body is composed of a set of particles and can adapt different configurations due to changes in shape. These changes are caused by external or internal effects (forces etc.) on it and deform the body over time. \cite{MIT:CONTINUUM_MECHANICS} \cite{MPM:COURSE}
 
 
-When modelling solids changes of quantities from a initial reference configuration $_0\boldsymbol{x}$ to another current configuration $_t\boldsymbol{x}$ need to be measured. In the material point method the reference configuration $^0\boldsymbol{x}$ is just the initial configuration of the body (at time $t=0$). This is similar to the total Lagrangian formulation in finite element methods \cite{bathe2006finite}.
+When modelling solids changes of quantities from an initial reference configuration $_0\boldsymbol{x}$ to another current configuration $_t\boldsymbol{x}$ need to be measured. In the material point method the reference configuration $^0\boldsymbol{x}$ is just the initial configuration of the body (at time $t=0$). This is similar to the total Lagrangian formulation in finite element methods \cite{bathe2006finite}.
+
 Let $\Omega ^ { 0 } , \Omega ^ { t } \subset \mathbb { R } ^ {  { 3 } }$ be the set of (material) points in the reference and current configuration respectively.  Then one may define a function or mapping ${^t_0}\phi ( \cdot , t ) : \Omega ^ { 0 } \rightarrow \Omega ^ { t }$, which relates the reference configuration to the current configuration. If we assume for simplicity that $_0\boldsymbol{x}$ and $_t\boldsymbol{{x}}$ describe the position of the particle in their respective configurations, this mapping becomes the deformation of the body from the reference configuration $_0\boldsymbol{x}$:
 \begin{equation}
   _t\boldsymbol{x} =  {^t_0}\phi ( _0\boldsymbol{x} , \boldsymbol { t } )
@@ -268,7 +283,8 @@ and similarly the acceleration is defined
   _0\boldsymbol{a}(_0\boldsymbol{x},t) = \frac{\partial^2 {^t_0}\phi}{\partial t^2}(_0\boldsymbol{x},t) = \frac{\partial _0\boldsymbol{v}}{\partial t}(_0\boldsymbol{x},t).
 \end{equation}
 It is helpful to abstract away from the reference configuration and think of it as being defined in a different fixed material space. Physically this has the impact of moving with the particle in world space. Commonly known as the Lagrangian form. It is often easier in continuum mechanics to start with a Lagrangian description and switch to a Eulerian one if needed. The Eulerian description is static: Variables of particles that are moving by are measured while staying in a fixed position.
-These descriptions are different but they will yield the same measurements when related correctly. I.e. both configuration refer variables defined on them do the deformed state, but the position where we 'look up' that value is different. In the reference configuration we look up at the initial position of the particle. In the current configuration we look up at the particle's 'world position'. These relations for some particle quantity $f$ are called the (Lagrangian) pull back
+
+These descriptions are different but they will yield the same measurements when related correctly. I.e. both configuration refer variables defined on them to the deformed state, but the position where the 'look up' of that value happens is different. In the reference configuration we look up at the initial position of the particle. In the current configuration we look up at the particle's 'world position'. These relations for some particle quantity $f$ are called the (Lagrangian) pull back
 \begin{equation}
   _0f(_0\boldsymbol{x},t)= {_tf}({^t_0}\phi(_0\boldsymbol{x},t),t)
 \end{equation}
@@ -322,7 +338,7 @@ Let $b_i(t) = v_it$ be more generally a translation:
 \begin{equation}
   ^t_0F_{ij} = \frac{\partial{_tx_i}}{\partial_0x_j} = \frac{\partial (R_{ik}(t)_0x_k+b_i(t))}{\partial _0x_j} = R_{ik}(t) \delta_{kj} = R_{ij}(t)
 \end{equation}
-As can be seen the deformation gradient contains a rigid rotation. For strain measures this is not beneficial as an assumption of the stiffness tensor requires no net-rotation. I.e. the deformation gradient has two components a constant rotation and the actual distortion or strain. There is two ways to deal with this:
+As can be seen the deformation gradient contains a rigid rotation. For strain measures this is not beneficial as an assumption of the stiffness tensor requires no net-rotation (more in chapter \ref{sec:linear_elasticty}). I.e. the deformation gradient has two components a constant rotation and the actual distortion or strain. There is two ways to deal with this:
 \begin{enumerate}
   \item  Use a strain measure that cancels out the rotation. An example for this would be the Green-strain with quadratic components:
     \begin{equation}\label{eq:green}
@@ -343,19 +359,22 @@ is already computed, where $\boldsymbol{U}$,$\boldsymbol{V}$ are orthogonal matr
   \boldsymbol{R} = \boldsymbol{V} \boldsymbol{W} ^ { T }, \quad \boldsymbol{S} = \boldsymbol{W} \boldsymbol{\Sigma} \boldsymbol{W} ^ { T }.
 \end{equation}
 Since singular values are positive, it is straightforward to see that the properties for $\boldsymbol{R}$ and $\boldsymbol{S}$ hold.
-The components of the singular value decomposition are important to gain an intuition: The columns of $\boldsymbol{U}$ and $\boldsymbol{V}$ span bases for the row and column spaces of $\boldsymbol{F}$ using the left and right singular vectors $\boldsymbol{u}_i,\boldsymbol{v}_i$, respectively \cite{MIT:SVD}. For illustrating purposes imagine the manipulation of $\boldsymbol{v}_1$ due to $\boldsymbol{U\Sigma V}^T$:
+The components of the singular value decomposition are important to gain an intuition for its usefulness: The columns of $\boldsymbol{U}$ and $\boldsymbol{V}$ span bases for the row and column spaces of $\boldsymbol{F}$ using the left and right singular vectors $\boldsymbol{u}_i,\boldsymbol{v}_i$, respectively \cite{MIT:SVD}. For illustrating purposes imagine the manipulation of $\boldsymbol{v}_1$ due to $\boldsymbol{U\Sigma V}^T$:
 \begin{enumerate}
   \item Transform from the right singular vector space to standard basis space: $\boldsymbol{V}^T\boldsymbol{v}_1 = \boldsymbol{e}_1$
   \item Scale by singular values to transform to principal stretch space: $\boldsymbol{\Sigma} \boldsymbol{e}_1 = \sigma_1 \boldsymbol{e}_1$
   \item \label{it:tr_sing_vect} Transform to left singular vector space: $\boldsymbol{U}\sigma_1\boldsymbol{e}_1 = \sigma_1 \boldsymbol{u}_{1}$
 \end{enumerate}
 For a positive definite matrix the singular value decomposition becomes even easier as $\boldsymbol{U}=\boldsymbol{V}$. Item \ref{it:tr_sing_vect} then effectively just becomes a transform 'back'.
-Following is a summary of the $3 \times 3$ singular value decomposition as in \cite{SVD:3x3}. The proposed singular value decomposition is also called 'Polar SVD' and follows a specific convention.
-\begin{itemize}\label{ref:itemize_conv}
-  \item $\boldsymbol{U}$,$\boldsymbol{V}$ are reflection-free corresponding to true rotation matrices, i.e. both $\text{det}(U), \text{det}(V) = 1$.
-  \item As a result if $\text{det}(\boldsymbol{F}) = -1$ the negative sign needs to move on to $\boldsymbol{\Sigma}$: The lowest singular value in magnitude will get a negative sign attached.
-\end{itemize}
+
+In the following a summary of the $3 \times 3$ singular value decomposition as in \cite{SVD:3x3} is given. The proposed singular value decomposition is also called the 'Polar SVD' and follows a specific convention.
+\begin{enumerate}\label{ref:itemize_conv}
+  \item\label{item:refl_free} $\boldsymbol{U}$,$\boldsymbol{V}$ are reflection-free corresponding to true rotation matrices, i.e. both $\text{det}(U), \text{det}(V) = 1$ hold.
+  \item If $\text{det}(\boldsymbol{F}) = -1$ the negative sign needs to move on to $\boldsymbol{\Sigma}$ as a result of item \ref{item:refl_free}. The lowest singular value in magnitude will get a negative sign attached.
+  \end{enumerate}
 This convention does not change the existence or uniqueness of the singular value or polar decomposition, although strictly speaking $\boldsymbol{S}$ in the Polar decomposition is not positive definite anymore.
+\\
+The algorithm proceeds as follows:
 \begin{enumerate}
   \item \label{it:eig} \textbf{Symmetric eigenanalysis:} A Jacobi eigenvalue algorithm begins with the symmetric positive definite matrix $\boldsymbol { S } ^{(0)}= \boldsymbol { A } ^ { T } \boldsymbol { A } = \boldsymbol { V } \boldsymbol { \Sigma } ^ { 2 } \boldsymbol { V } ^ { T }$.
     \begin{enumerate}[label*=\arabic*.]
@@ -382,13 +401,11 @@ Due to inherent normalization, fast multiplication and storage efficiency quater
 \cite{MPM:OPTIMI_INTEGR} %Opimization Methods, BDF-Semi-Impl-Midpoint rule
 $$\boldsymbol{F}_E \boldsymbol{F}_P$$ \cite{ochsner2014elasto}
 \subsubsection{Linear Elasticity}\label{sec:linear_elasticty}
-The first aim will be to find the strain energy density $\Psi(\boldsymbol{\epsilon})$ of the strain $\bm{\epsilon}$.
-For an (hyper-)elastic material the Cauchy stress may be defined in terms of $\Psi$ as:
-The most general linear stress-strain relationship is given by Hooke's Law in three dimensions
+The first aim will be to find the strain energy density $\Psi(\boldsymbol{\epsilon})$ of the strain $\bm{\epsilon}$. The most general linear stress-strain relationship is given by Hooke's Law in three dimensions:
 \begin{equation}\label{eq:hook}
   \sigma_{ij} = C_{ijkl} \epsilon_{kl},
 \end{equation}
-where $\boldsymbol{\sigma}$ and $\bm{\epsilon}$ are second-order tensors with (3x3) = 9 elements. $C_{ijkl}$ is a fourth-order tensor with (3x3)x(3x3) = 81 elements.
+where $\boldsymbol{\sigma}$ and $\bm{\epsilon}$ are second-order tensors with (3x3) = 9 elements. $C_{ijkl}$ is a fourth-order stiffness-tensor with (3x3)x(3x3) = 81 elements.
 Assuming following symmetries reduces the tensors to 6 and 21 unique elements respectively:
 \begin{enumerate}
   \item Conservation of angular momentum: $\sigma_{ij} = \sigma_{ji} \Rightarrow C_{ijkl} = C_{jikl} $
@@ -427,7 +444,7 @@ if such a $\Psi$ is given. An isotropic (direction-independent) linear elastic m
       {\gamma_{23}}\\
       {\gamma_{13}}\\
       {\gamma_{12}}\\
-  \end{array} \right]
+  \end{array} \right].
 \end{equation}
 Experimental results of Hooke's law commonly give
 \begin{equation}
@@ -580,7 +597,7 @@ $$
 \begin{equation}\label{eq:surface_ang_mom}
   = \int _ {_tB _ {\epsilon  } } \varepsilon_{ijk} \left(\delta_{jm} \sigma_{mk}+ x_j\frac{ \partial \sigma_{mk}}{\partial x_m}\right) d_t\boldsymbol{x}.
 \end{equation}
-The conservation of momentum (eq. \ref{eq:eul_transport}) can then be applied to the result of plugging \ref{eq:surface_ang_mom} into \ref{eq:gen_ang_mom} leaving only:
+The conservation of momentum (eq. \ref{eq:eul_transport}) can then be applied to the result of plugging \ref{eq:surface_ang_mom} back into \ref{eq:gen_ang_mom} leaving only:
 \begin{equation}
   \int _ {_tB _ {\epsilon  } } \varepsilon_{ijk} \sigma_{jk} d_t\boldsymbol{x} = 0.
 \end{equation}
@@ -590,9 +607,11 @@ Leaving out the integral and multiplying by ${\varepsilon_{irs}}$ enables equati
 \end{equation}
 as assumed before. Note that $\boldsymbol{P}$ however is not constrained to be symmetric.
 \subsubsection{Weak formulation}\label{sec:weak}
-Before deriving the weak form an explanation of what it achieves is in order. The previous presented governing equations are written in the strong form: a solution to the equation needs to be exact on the whole domain (and is as such influenced by the whole domain in general). Such a solution can be found for simplified models analytically. These act as a ground truth to numerical methods like the material point method. Analytical methods of today can't handle complex problems: Numerical solutions try to overcome that hurdle.
+Before deriving the weak form an explanation of what it achieves is in order.
 
-The complete mathematical description of the weak formulation is beyond this thesis. Numeric books that discuess finite element methods will provide one (\cite{bathe2006finite}, \cite{dahmen2008numerik}). For simplicity: The weak formulation combined with Galerkin discretization restricts the globalility of the strong method due to so called 'test functions': $_0\boldsymbol{q}_h$ . A 'test function' generally only has limited support ($ _0\boldsymbol{q}_h\neq 0$ on a very small subset of the whole domain $\Omega^0$). This is mostly used to gather information on a local neighborhood.
+The previous presented governing equations are written in the strong form: a solution to the equation needs to be exact on the whole domain (and is as such influenced by the whole domain in general). Such a solution can be found for simplified models analytically. These act as a ground truth to numerical methods like the material point method. Analytical methods of today can't handle complex problems: Numerical solutions try to overcome that hurdle.
+
+The complete mathematical description of the weak formulation is beyond this thesis. Numeric books that discuss finite element methods will provide one (\cite{bathe2006finite}, \cite{dahmen2008numerik}). For simplicity: The weak formulation combined with Galerkin discretization restricts the globality of the strong method due to so called 'test functions': $_0\boldsymbol{q}_h$ . A 'test function' generally only has limited support, i.e. $ _0\boldsymbol{q}_h\neq 0$ on a very small subset of the whole domain $\Omega^0$. This is mostly used to gather information on a local neighborhood.
 
 The weak formulation requires an observation of the dot product. Consider the conservation of momentum in the strong form as formulated before (\ref{eq:lagr_mom}) as
 \begin{equation}\label{eq:strong}
@@ -606,8 +625,7 @@ $$
 \begin{equation}
   =\int _ { \Omega ^ { 0 } } _0q _ { i } ( _0\boldsymbol { x } , t ) \frac{\partial P _ {ij}}{\partial x_j} ( _0\boldsymbol{x} , t ) d_0\boldsymbol{x}.
 \end{equation}
-With the help of partial integration in multiple dimension the derivative moves over to the test-function.
-Reducing the order of derivatives by moving a derivative to the test function is the main motive of the weak form:
+With the help of partial integration in multiple dimension the derivative moves over to the test-function. Balancing out the order of derivatives, by moving a derivative to the test function, is the main motive of the weak form:
 $$
 \int _ { \Omega ^ { 0 } } \frac{\partial (_0q _ { i } ( _0\boldsymbol { x } , t ) P _ {ij} ( _0\boldsymbol{x} , t ))}{\partial _0x_j}
 - \frac{\partial _0q _ { i }}{\partial _0x_j} ( _0\boldsymbol { x } , t ) P _ {ij}( _0\boldsymbol{x} , t )
@@ -630,7 +648,7 @@ $$
   -\int _ { \Omega ^ { 0 } }  \frac{\partial _0q _ { i }}{\partial _0x_j} ( _0\boldsymbol { x } , t ) P _ {ij}( _0\boldsymbol{x} , t )
   d_0\boldsymbol{x}.
 \end{equation}
-In the material point method stress computations are more naturally done in the current configuration. Pushing the equation forward to Eulerian view with the push forward $_t\boldsymbol{q}:\Omega^t \rightarrow \mathbb{R}^d$ of $_0\boldsymbol{q}$ is only a problem for the last term:
+In the material point method stress computations are more naturally done in the current configuration, or equally in terms of the Cauchy stress as seen in chapter \ref{sec:linear_elasticty}. Pushing the equation forward to Eulerian view with the push forward $_t\boldsymbol{q}:\Omega^t \rightarrow \mathbb{R}^d$ of $_0\boldsymbol{q}$ is only a problem for the last term:
 $$
 \int _ { \Omega ^ { 0 } }  \frac{\partial _0q _ { i }}{\partial _0x_j} ( _0\boldsymbol { x } , t ) P _ {ij} d_0\boldsymbol{x}
 \stackrel{\text{\ref{eq:piola}, \ref{eq:volume_integral}}}{=}
@@ -957,11 +975,10 @@ The modified energy conserving implicit midpoint scheme from \cite{GONZALEZ} for
 \begin{equation}\label{eq:trapezoidal}
   \boldsymbol{v}_i^{n+\frac{1}{2}} \approx \frac{\boldsymbol{\hat{v}}_i^{n+1} + \boldsymbol{v}_i^{n}}{2}.
 \end{equation}
-The trapezoidal rule has the same order of error $O(\Delta t^2)$ as the implicit midpoint scheme. This modification allows for a more direct one-step scheme as shown in the following. Plugging $\boldsymbol{x}_i^{n+1}$ of eq. \ref{eq:vel_midpoint} into \ref{eq:force_midpoint}:
+The trapezoidal rule has the same order of error $O(\Delta t^2)$ as the implicit midpoint scheme. This modification allows for a more direct one-step scheme as shown in the following. Plugging $\boldsymbol{x}_i^{n+1}$ of eq. \ref{eq:vel_midpoint} into \ref{eq:force_midpoint} leads to the discretized momentum equation:
 \begin{equation}
   \boldsymbol{h}(\boldsymbol{\hat{v}}_i^{n+1}) = m_i^n \frac{\boldsymbol{\hat{v}_i}^{n+1}-\boldsymbol{v}_i^n}{\Delta t} - \boldsymbol{f}_i\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{\hat{v}}_i^{n+1} + \boldsymbol{v}_i^{n})\right) = 0.
 \end{equation}
-And substituting
 One can recast this method back to an energy function by integrating:
 \begin{equation}
   E(\boldsymbol{v}_i) = \sum_i \frac{m_i^n}{8} \|\boldsymbol{v}_i - \boldsymbol{v}_i^n\|^2_2 + e(\boldsymbol{x}_i^n + \frac{\Delta t}{4}(\boldsymbol{v}_i + \boldsymbol{v}_i^n)),
@@ -973,7 +990,7 @@ The analysis of minimizing the objective is equivalent to finding the zero cross
 \begin{equation}
   \argmin_{\forall \boldsymbol{v}_i}(E(\boldsymbol{v}_i)) \Leftrightarrow g(\boldsymbol{v}_i) = \frac{\partial E}{\partial \boldsymbol{v}_i} = 0.
 \end{equation}
-Since the objective from the start was minimizing $\boldsymbol{E}$ to find $\boldsymbol{v}_i$ the scale of this function can be chosen arbitrarily, i.e. a zero crossing does not scale. The scaling here can be identified as:
+Since the objective is minimizing the scale of $\boldsymbol{E}$ can be chosen arbitrarily, i.e. a zero crossing does not scale. The scaling here can be identified as:
 \begin{equation}
   \boldsymbol{g}(\boldsymbol{v}_i) = \frac{\Delta t}{4} h(\boldsymbol{v}_i) = m_i^n \frac{\boldsymbol{v_i}-\boldsymbol{v}_i^n}{4} -\frac{\Delta t}{4} \boldsymbol{f}_i\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}_i + \boldsymbol{v}_i^{n})\right).
 \end{equation}
@@ -1022,7 +1039,7 @@ Computing $\frac{\partial f_i}{\partial x_j}$ for every combination $ij$ would b
 \begin{equation}\label{eq:hessian-matrix-vector}
   \sum_j\frac{\partial \boldsymbol{g}_i}{\partial \boldsymbol{v}_j}\delta \boldsymbol{u}_j = \frac{m_i^n}{4}\delta \boldsymbol{u}_j - \frac{\Delta t^2}{16}\sum_j \frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j}\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}_i + \boldsymbol{v}_i^{n})\right) \delta \boldsymbol{u}_j.
 \end{equation}
-The linear system can be solved with the conjugate gradient method (Algorithm \ref{alg:conj_grad}) since $\frac{\partial g}{\partial v}$ is symmetric, positive definite. This is due to being the Hessian of the convex function $E$. There is to important things notice:
+The linear system of eq. \ref{eq:linear_system} can be solved with the conjugate gradient method (Algorithm \ref{alg:conj_grad}) since $\frac{\partial g}{\partial v}$ is symmetric, positive definite. This is due it being the Hessian of a convex function $E$. There is to important things notice:
 \begin{enumerate}
   \item Conservation of momentum on incomplete convergence is only fulfilled if \ref{eq:linear_system} is premultiplied by the inverse diagonal mass matrix $M^{-1}$. More in \cite{MPM:APIC}. Thus the equation becomes:
     $$
