@@ -177,14 +177,29 @@
 
 
 \section{Introduction} \label{intro}
-bib-test \cite{MPM:SNOW}
-$$ -  \int_{\pi/2}^{\pi} \frac{1}{\sqrt{u}} \frac{\lvert \cos{x} \rvert}{\cos{x}} du $$
 \section{Related Work}
-\textbf{Material Point Method:}
-\cite{MPM:POLYPIC}
-\\
-\\
-There exist several implementations utilizing the GPU for Particle-in-Cell type techniques, which the Material point method is a part of:
+\textbf{Particle-in-Cell (PIC):} PIC techniques were developed initially for hydrodynamics
+\cite{evans1957particle}. They are also widely used in plasma simulations to solve Maxwell's equations. Their key steps are identical to the MPM-method:
+\begin{enumerate}
+  \item Transfer particle data to a grid.
+  \item Solve the governing partial differential equations on the grid using numerical methods.
+  \item Transfer back grid data to particles.
+\end{enumerate}
+Based on PIC to reduce dampening and momentum conservation Fluid-Implicit-Particle (FLIP) was developed for fluid simulations and is still widely in use for large simulations. Their counterpart being the empirical Smoothed Particle Hydrodynamics (SPH) \cite{gingold1977smoothed}.
+
+For that matter APIC was developed as an improvement to PIC and FLIP solvers. Due to the definition of a local affine velocity field around each particle (instead of a single vector), APIC conserves angular momentum, reduces damping (of the underlying numerics) and improves stability over PIC and FLIP, more in chapter \ref{sec:apic}. \cite{MPM:APIC} \cite{MPM:OLD_APIC}
+
+A step further goes PolyPIC giving the velocity field even more freedom by adding polynomial modes of increasing order to the description. \cite{MPM:POLYPIC}
+
+\textbf{Material Point Method:} The MPM-Method is like the PIC-Method very general in that it uses analysis and numerics to be derived without the need for empirical assumptions. Originally it was developed by \cite{sulsky1995application} with a focus on the dynamics of solids. \cite{MPM:SNOW} brought the method into computer graphics for their animation film \textit{Frozen}. In rapid succession a variety materials and effects got modeled by the MPM-Method. Since MPM is based on discretizing governing equations and using constitutive models covered by the different literature its fast rate of expenditure is not a surprise. To give a short summary of the developments in computer graphics:
+\cite{MPM:DRUCKER} %Sand Plasticity
+\cite{MPM:MULTI} %Sand+Water
+\cite{MPM:INVERT} %Neo-Hookean
+\cite{MPM:OLROYDB} %Viscoelastic Foam,Sponge
+\cite{MPM:SHELLS} %Thin Shells
+\cite{MPM:PHASE_CHANGE} %Heat-Model
+
+There exist several implementations utilizing the GPU for Particle-in-Cell type techniques, which the Material Point Method is a part of:
 
 \textbf{Particle sorting:} \cite{PIC:GPU} studies different particle list sorting methods. After a particle position update becomes partially sorted. There exist methods like 'Message Passing Sort' and 'In Place Particle-QuickSort' to try to utilize the partial sorting and save time. \cite{PIC:GPU} also uses fixed bin-sizes which can be, depending on the extend of use, quite memory intensive. Fixed size binning certainly make the methods mentioned before easier to implement, which don't necessarily map well to the GPU due to its high dependence on coalescing. As a result they come to the conclusion to fall back to the CUDA library \texttt{thrust}. It provides the radix sort method \texttt{thrust::sort\_by\_key()}. Full or index sort can be done. A full sort reorders every variable of a particle. An index sort gives back an index with the offset in the particle list.
 \cite{NVIDIA:NNSEARCH} compare radix to counting sort utilizing a uniform grid and uses the latter for SPH-fluids. This master thesis implements counting sort.
@@ -194,12 +209,26 @@ There exist several implementations utilizing the GPU for Particle-in-Cell type 
   \item \textbf{Particle Push:} X particles in a local neighborhood of a grid point push their attributes onto it. Since this results in a race condition \texttt{atomicAdd(float f)}'s are in use.
   \item \textbf{Particle Pull:} A grid point pulls the particles in its local neighborhood from a sorted particle list. This has the benefit of no race conditions being present.
 \end{enumerate}
-The grid to particle transfer in generally are easier since a particle already knows, due to its position, the grid points in its local neighborhood. The grid points in a uniform grid are 'sorted' by nature.
+A grid to particle transfer is in general easier since a particle already knows, due to its position, the grid points in its local neighborhood. The grid points in a uniform grid are 'sorted' by nature.
 
-Generally these methods are augmented by splitting the grid in 2D/3D tiles making use of the shared memory structure of the GPU \cite{PIC:GPU} \cite{honig2010generic} \cite{MPM:GPU}. Shared memory on GPUs typically ranges from 48-64KB.  The grid nodes reached by the support of the interpolation function on each side also have to be loaded into memory, typically called the halo of a tile. Since the number of particles per grid point in the MPM-method is generally between 4-10 only very limited tile-sizes are available \cite{MPM:SNOW}.
-An interesting prospect for filtering techniques is given by NVIDIA's new shuffle operations, which allows to 'share' register memory between threads of a warp \cite{NVIDIA:SHUFFLE}. They are however not supported on other architecture yet.
+Generally these methods are augmented by splitting the grid in 2D/3D blocks making use of the shared memory structure of the GPU \cite{PIC:GPU} \cite{honig2010generic} \cite{MPM:GPU}, often called domain decomposition. Shared memory on GPUs typically ranges from 48-64KB.  The grid nodes reached by the support of the interpolation function on each side also have to be loaded into memory, typically called the halo of a block. Since the number of particles per grid point in the MPM-method is generally between 4-10 only very limited block sizes are available \cite{MPM:SNOW}.
+
+Alternatively one may also compute the partial sum of the transfer on the halo. Two different techniques exist to get the data between blocks coherent again:
+\begin{enumerate}
+\item Atomically add up the values of the halo. This results in two atomic adds on a side node, four on an edge node and eight on a corner-node; If the block extend is bigger than half the halo extend.
+\item Have every halo of every block correspond to actual global memory and do add steps along each of the three axes. This is infeasible for large supports. \cite{crassin2011interactive}
+\end{enumerate}
+Stencil computations and filtering techniques underlie a very similar process to MPM-transfers. Although these techniques employ a one-to-one grid relationship, since no particles are involved, it is worth taking a look at them.
+
+Widely used is a 2.5D blocking: A domain (of the domain decomposition) is split into 2D-planes along one axis. Data reuse of shared memory is maximized by a cyclic-queue strategy: Start a thread for each grid node in the first plane and load the halo along the axis into shared memory. Then each thread iterates along the axis over the 2D-planes synchronously, discarding the oldest plane in memory while loading the next plane (along the axis) into shared memory. Thus there are no z-dimension halos. \cite{brandvik2010sblock} \cite{williams2007scientific} \cite{krotkiewski2013efficient}
+
+An interesting prospect for filtering techniques on the GPU is given by NVI\-DIA's new shuffle operations. Shuffle allows to 'share' register memory between threads of a warp \cite{NVIDIA:SHUFFLE}. They are however not supported on other architecture, yet.
+
+\textbf{Particle Activation:} If a particle is under a user-defined velocity threshold a particle becomes deactivated. It does not get recognized by any particle to grid transfer (nor any grid transfer not affected by the velocity transfer). They may of course be reactivated if the back transfer of the velocity exceeds that threshold again or they collide. Dividing the particles up can be realized with stream compaction algorithms: One implementation would be to compute a scan (based on the discussed condition) followed up by a modified reorder shader discussed in chapter \ref{sec:implementation}. The modified reorder shader would then be coalesced. \cite{MPM:GPU}
+
 %look again for MPM/PIC gpu impl
 %SPH, FEM methods
+\clearpage
 \section{Notation}\label{sec:notation}
 Multi-component types are generally printed in bold letters $\boldsymbol{A}$, $\boldsymbol{a}$. Vectors furthermore use lower-case letters $\boldsymbol{v}$, while Matrices use upper-case letters $\boldsymbol{M}$. A variable in the Lagrangian form has a subscript 0 $ _0{\boldsymbol{x}}$, the Eulerian description will be written with an 'overline' $_t\boldsymbol{x}$ if distinction is needed. Occasionally notation may be omitted where it is apparent from context.
 
@@ -259,6 +288,7 @@ A useful relation to the Kronecker-Delta is:
   \varepsilon _ { i j k } \varepsilon _ { i m n } = \delta _ { j m } \delta _ { k n } - \delta _ { j n } \delta _ { k m }.
 \end{equation}
 \cite{MCGINTY:CONTINUUM}
+\clearpage
 \section{Basics}
 \subsection{Reference and current configuration}\label{sec:ref_corr_config}
 Particles (or material points) in continuum mechanics are not what classically might be thought of as a particle. Rather the continuum assumption holds: each particle represents a continuous piece of material, s.t. a microscopic view does not need to be adopted. A particular body is composed of a set of particles and can adapt different configurations due to changes in shape. These changes are caused by external or internal effects (forces etc.) on it and deform the body over time. \cite{MIT:CONTINUUM_MECHANICS} \cite{MPM:COURSE}
@@ -392,13 +422,6 @@ Due to inherent normalization, fast multiplication and storage efficiency quater
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \subsection{Constitutive Models}\label{seq:constitutive_models}
-\cite{MPM:DRUCKER} %Sand Plasticity
-\cite{MPM:MULTI} %Sand+Water
-\cite{MPM:INVERT} %Neo-Hookean
-\cite{MPM:OLROYDB} %Viscoelastic Foam,Sponge
-\cite{MPM:SHELLS} %Thin Shells
-\cite{MPM:PHASE_CHANGE} %Heat-Model
-\cite{MPM:OPTIMI_INTEGR} %Opimization Methods, BDF-Semi-Impl-Midpoint rule
 $$\boldsymbol{F}_E \boldsymbol{F}_P$$ \cite{ochsner2014elasto}
 \subsubsection{Linear Elasticity}\label{sec:linear_elasticty}
 The first aim will be to find the strain energy density $\Psi(\boldsymbol{\epsilon})$ of the strain $\bm{\epsilon}$. The most general linear stress-strain relationship is given by Hooke's Law in three dimensions:
@@ -724,7 +747,7 @@ $\sum_i m_i =\sum_p m_p$ is a complete prove this fulfills the conservation of m
   \sum_p m_p
 \end{equation}
 \cite{MPM:APIC}\cite{MPM:COURSE}
-\subsubsection{APIC transfers}
+\subsubsection{APIC transfers}\label{sec:apic}
 The momentum transfer round trip could be defined as:
 \begin{enumerate}
   \item Particle to grid momentum transfer:
@@ -1061,8 +1084,9 @@ The Hessian increment can be computed with a two-stage process:
   - \delta \boldsymbol{f}_i = - \sum_j \frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j} \delta \boldsymbol{u}_j = \sum_p V_p^0 \boldsymbol{A}_p(\boldsymbol{F}^n_p)^T \nabla w_{ip}^n.
 \end{equation}
 \end{enumerate}
+\clearpage
 \subsection{GPU memory}
-\section{Implementation}
+\section{Implementation}\label{sec:implementation}
 \subsection{Framework}
 decorator pattern
 \subsection{Optimization opportunities}
