@@ -182,29 +182,32 @@
 \cite{evans1957particle}. They are also widely used in plasma simulations to solve Maxwell's equations. Their key steps are identical to the MPM-method:
 \begin{enumerate}
   \item Transfer particle data to a grid.
-  \item Solve the governing partial differential equations on the grid using numerical methods.
-  \item Transfer back grid data to particles.
+\item \label{it:solve_gov_eq}Solve the governing partial differential equations on the grid to move forward in time.
+  \item Transfer grid data back to particles.
 \end{enumerate}
-Based on PIC to reduce dampening and momentum conservation Fluid-Implicit-Particle (FLIP) was developed for fluid simulations and is still widely in use for large simulations. Their counterpart being the empirical Smoothed Particle Hydrodynamics (SPH) \cite{gingold1977smoothed}.
+In general the grid is regarded as a scratch-pad since its only a temporary storage for the means of computing item \ref{it:solve_gov_eq}. Based on PIC to reduce dampening and momentum conservation Fluid-Implicit-Particle (FLIP) was developed for fluid simulations and is still widely in use for large simulations. Their counterpart being the empirical Smoothed Particle Hydrodynamics (SPH) \cite{gingold1977smoothed}.
 
-For that matter APIC was developed as an improvement to PIC and FLIP solvers. Due to the definition of a local affine velocity field around each particle (instead of a single vector), APIC conserves angular momentum, reduces damping (of the underlying numerics) and improves stability over PIC and FLIP, more in chapter \ref{sec:apic}. \cite{MPM:APIC} \cite{MPM:OLD_APIC}
+For that matter APIC was developed as an improvement to PIC and FLIP solvers. Due to the definition of a local affine velocity field around each particle (instead of a single vector) APIC conserves angular momentum, reduces damping and improves stability over PIC and FLIP, more in chapter \ref{sec:apic}. \cite{MPM:APIC} \cite{MPM:OLD_APIC}
 
 A step further goes PolyPIC giving the velocity field even more freedom by adding polynomial modes of increasing order to the description. \cite{MPM:POLYPIC}
 
-\textbf{Material Point Method:} The MPM-Method is like the PIC-Method very general in that it uses analysis and numerics to be derived without the need for empirical assumptions. Originally it was developed by \cite{sulsky1995application} with a focus on the dynamics of solids. \cite{MPM:SNOW} brought the method into computer graphics for their animation film \textit{Frozen}. In rapid succession a variety materials and effects got modeled by the MPM-Method. Since MPM is based on discretizing governing equations and using constitutive models covered by the different literature its fast rate of expenditure is not a surprise. To give a short summary of the developments in computer graphics:
-\cite{MPM:DRUCKER} %Sand Plasticity
-\cite{MPM:MULTI} %Sand+Water
-\cite{MPM:INVERT} %Neo-Hookean
-\cite{MPM:OLROYDB} %Viscoelastic Foam,Sponge
-\cite{MPM:SHELLS} %Thin Shells
-\cite{MPM:PHASE_CHANGE} %Heat-Model
+\textbf{Material Point Method:} The MPM-Method is like the PIC-Method mathematical and physical in that it uses analysis and numerics to be derived without the need for empirical assumptions. Originally it was developed by \cite{sulsky1995application} with a focus on the dynamics of solids. \cite{MPM:SNOW} brought the method into computer graphics for their animation film \textit{Frozen}. In rapid succession a variety materials and effects got modeled by the MPM-Method. Since MPM is based on discretizing governing equations and using constitutive models covered by the different literature its fast rate of expenditure is not a surprise.
+
+The simulation of(hyper-)elastic material can be done with a number of different models utilizing fixed Linear strain \ref{sec:cor_hyper}, left Cauchy-Green strain \ref{sec:svd} or Hencky-strain(logarithmic) \cite{MPM:SHELLS} for the different requirements of small to large strains. Inserting these into the different energy density $\boldsymbol{\Psi}(\boldsymbol{\epsilon})$ models can already result in a constitutive model. Plasticity in general requires extra modeling in terms of a flow rule, yield-condition and a hardening rule which are not discussed here \cite{ochsner2014elasto}. To give a short impression of the developments in computer graphics:
+
+\cite{MPM:PHASE_CHANGE} model phase transition (melting) to a liquid with the fixed corotational hyperelasticity (\ref{sec:cor_hyper}) and discretizing the heat equation. \cite{MPM:OLROYDB} use an Olroyd-B model with Cauchy-Green strain to handle elasticity and plasticity for viscoelastic fluids, foams and sponges. \cite{MPM:DRUCKER} uses Hencky-strain in combination with a St. Venant-Kirchhoff model and Drucker-Prager elastoplascity to model sand.
+\cite{MPM:MULTI} combine particles of different species (sand and water) by one grid for each species and relating them with a heuristic momentum exchange. \cite{MPM:SHELLS} simulates thin shells (cloths,cups etc.) with a Kirchhoff-Love model using Hencky-strains.
+\\
 
 There exist several implementations utilizing the GPU for Particle-in-Cell type techniques, which the Material Point Method is a part of:
 
-\textbf{Particle sorting:} \cite{PIC:GPU} studies different particle list sorting methods. After a particle position update becomes partially sorted. There exist methods like 'Message Passing Sort' and 'In Place Particle-QuickSort' to try to utilize the partial sorting and save time. \cite{PIC:GPU} also uses fixed bin-sizes which can be, depending on the extend of use, quite memory intensive. Fixed size binning certainly make the methods mentioned before easier to implement, which don't necessarily map well to the GPU due to its high dependence on coalescing. As a result they come to the conclusion to fall back to the CUDA library \texttt{thrust}. It provides the radix sort method \texttt{thrust::sort\_by\_key()}. Full or index sort can be done. A full sort reorders every variable of a particle. An index sort gives back an index with the offset in the particle list.
-\cite{NVIDIA:NNSEARCH} compare radix to counting sort utilizing a uniform grid and uses the latter for SPH-fluids. This master thesis implements counting sort.
+\textbf{Particle sorting:} \cite{PIC:GPU} studies different particle list sorting methods. Methods like 'Message Passing Sort' \cite{kong2011particle} \cite{decyk2011adaptable}, 'In Place Particle-QuickSort' \cite{stantchev2008fast} and 'Linked List Ordering' \cite{burau2010picongpu} try to utilize the partial sorting and only update particles that need to be moved within the list. These methods often rely on the assumption that only a small number of particles change their grid node, where in contrast MPM can be quite dynamic. Those that do move, move at most to one neighboring grid-node or stay in the same node due to the CFL-condition, chapter \ref{sec:cfl}. These methods often use fixed bin-sizes which can be quite memory intensive and add additional memory management. Fixed size binning make the methods mentioned before easier to implement, which don't necessarily map well to the GPU due to their high complexity and uncoalesced accesses. As a result \cite{PIC:GPU} come to the conclusion to fall back to the CUDA library \texttt{thrust}, although they do note that the aforementioned methods can perform faster for particles that move only a limited amount of grid nodes. \texttt{thrust} provides the radix sort method \texttt{thrust::sort\_by\_key()}, where one sorts by grid index as key.
 
-\textbf{Particle-Grid transfers:} The particle to grid transfer are generally done in two manners \cite{stantchev2008fast}:
+In general full or index sorts can be done. A full sort reorders every variable of a particle. An index sort gives back an index with an offset to access the particle variable.
+
+\cite{NVIDIA:NNSEARCH} compare radix to counting sort utilizing a uniform grid and use the latter for SPH-fluids.
+
+\textbf{Particle-Grid transfers:} The particle to grid transfer is generally done in two manners \cite{stantchev2008fast}:
 \begin{enumerate}
   \item \textbf{Particle Push:} X particles in a local neighborhood of a grid point push their attributes onto it. Since this results in a race condition \texttt{atomicAdd(float f)}'s are in use.
   \item \textbf{Particle Pull:} A grid point pulls the particles in its local neighborhood from a sorted particle list. This has the benefit of no race conditions being present.
@@ -224,15 +227,24 @@ Widely used is a 2.5D blocking: A domain (of the domain decomposition) is split 
 
 An interesting prospect for filtering techniques on the GPU is given by NVI\-DIA's new shuffle operations. Shuffle allows to 'share' register memory between threads of a warp \cite{NVIDIA:SHUFFLE}. They are however not supported on other architecture, yet.
 
-\textbf{Particle Activation:} If a particle is under a user-defined velocity threshold a particle becomes deactivated. It does not get recognized by any particle to grid transfer (nor any grid transfer not affected by the velocity transfer). They may of course be reactivated if the back transfer of the velocity exceeds that threshold again or they collide. Dividing the particles up can be realized with stream compaction algorithms: One implementation would be to compute a scan (based on the discussed condition) followed up by a modified reorder shader discussed in chapter \ref{sec:implementation}. The modified reorder shader would then be coalesced. \cite{MPM:GPU}
+\textbf{Particle Activation:} If a particle is under a user-defined velocity threshold a particle becomes deactivated. It does not get recognized by any particle to grid transfer (nor any grid transfer not affected by the velocity transfer). They may of course be reactivated if the back transfer of the velocity exceeds that threshold again or they collide. \cite{MPM:GPU}
 
+Dividing the particles up can be realized with stream compaction algorithms: One implementation would be to compute a scan (based on the discussed condition) followed up by a modified reorder shader discussed in chapter \ref{sec:implementation}. The modified reorder shader would then be coalesced.
+
+\textbf{Particle Resampling:} A method that could alleviate pressure off fixed bin sizes and could make the partial sorting methods as well as the shared-memory restrictions less of a factor is particle resampling. Their intention mostly is to fill numerical gaps in the material at large deformations. Split and merge methods can directly control how many particles in a cell are allowed and accordingly increase or reduce them.
+
+A simple \textit{Split} method divides one particle into eight with a distance of half the diagonal length of a grid cell from the original particle. The eight particles span a cube that can be randomly rotated if desired. Mass and volume get equally distributed; Velocity and deformation gradient get copied. Refer to chapter \ref{sec:mat_point} for conservation of mass and momentum in MPM. \cite{gao2017adaptive}
+
+A \textit{Merge} method looks for the closest neighbors and creates the new merged particle at the geometric center. Mass and volume are accumulated. Velocity is computed from a mass-weighted average of the participating particles. The deformation gradient is accordingly to chapter \ref{sec:svd} decomposed into $\boldsymbol{F} = \boldsymbol{U\SigmaV}^T$. The quaternion average of $\boldsymbol{U}$ and $\boldsymbol{V}$ leads to an average rotation $\overline{\boldsymbol{U}}$ and $\overline{\boldsymbol{V}}$, respectively. The principal strains $\boldsymbol{\Sigma}$ are just averaged component-wise $\overline{\boldsymbol{\Sigma}}$. One can compose them in the same fashion $\overline{\boldsymbol{F}} = \overline{\boldsymbol{U}}\overline{\boldsymbol{\Sigma}}\overline{\boldsymbol{V}}^T$.\cite{gao2017adaptive}
+
+Unconditionally keeping particles on a fixed size is not desirable due to fracture requiring that gaps will be created. \cite{gao2017adaptive} produce a signed distance field to identify interior points. Since fracture typically starts at a surface point desired behavior is accomplished again. Furthermore the signed distance field can be used to adapt the grid size depending on the distance to the surface. This allows coarser levels with increasing distance from the surface.
 %look again for MPM/PIC gpu impl
 %SPH, FEM methods
 \clearpage
 \section{Notation}\label{sec:notation}
 Multi-component types are generally printed in bold letters $\boldsymbol{A}$, $\boldsymbol{a}$. Vectors furthermore use lower-case letters $\boldsymbol{v}$, while Matrices use upper-case letters $\boldsymbol{M}$. A variable in the Lagrangian form has a subscript 0 $ _0{\boldsymbol{x}}$, the Eulerian description will be written with an 'overline' $_t\boldsymbol{x}$ if distinction is needed. Occasionally notation may be omitted where it is apparent from context.
 
-Beginning from chapter \ref{sec:mat_point} variables defined on a particle will have subscript $p$ (e.g. $\boldsymbol{x}_p$). Grid cells will be assigned a subscript $i$ or additionally $j$ denoting the grid index (e.g. $\boldsymbol{x}_i$). This is not to be confused with the following Einstein-Notation. Therefore beginning with chapter \ref{sec:mat_point} Einstein-Notation for components will use greek letters ($\alpha,\beta$). Occasionally summation over grid index $i$ and particles $p$ may be implied. A variable of the $n$-th time step with associated time $t^n = \sum_{i=1}^{n} t^i$ will have a right superscript: $\boldsymbol{x}^n$.
+Beginning from chapter \ref{sec:mat_point} variables defined on a particle will have subscript $p$ (e.g. $\boldsymbol{x}_p$). Grid cells will be assigned a subscript $i$ or additionally $j$ denoting the grid index (e.g. $\boldsymbol{x}_i$). This is not to be confused with the following Einstein-Notation. Therefore beginning with chapter \ref{sec:mat_point} Einstein-Notation for components will use greek letters ($\alpha,\beta$). Occasionally summation over grid index $i$ and particles $p$ may be implied. A variable of the $n$-th time step with associated time $t^n = \sum_{i=1}^{n} \Delta t^i$ will have a right superscript: $\boldsymbol{x}^n$.
 \subsection{Einstein-Notation}
 Used throughout this thesis is at instances the Einstein-Notation when using tensors and vectors. Let $\boldsymbol{a}$ and $\boldsymbol{b}$ be vectors of dimension $n$ and  $\boldsymbol{A,B,D}$ $ { m \times n }$ tensors. Repeated indices that are also defined on the variable imply component-wise operations.
 $a _ { i } b _ { j }$ is multiplying component $i$ with component $j$ of vectors $\boldsymbol{a}$ and $\boldsymbol{b}$. Vector and tensor/matrix addition thus become:
@@ -362,7 +374,7 @@ A surface integral may then be transformed to reference configuration by
 where $_0\boldsymbol{h} = \boldsymbol{h}(_0\boldsymbol{x},\cdot)$ is the pull back of $_t\boldsymbol{h} = \boldsymbol{h}(_t\boldsymbol{x},\cdot)$. $d_0\boldsymbol{A}$,$d_t\boldsymbol{A}$ point in the direction of the surface normal of $\partial {_0B}(_0\boldsymbol{x})$, $\partial {_tB}(_t\boldsymbol{x})$, respectively.
 \cite{MIT:CONTINUUM_MECHANICS}
 \cite{MPM:COURSE}
-\subsection{Polar- and Singular Value Decomposition}
+\subsection{Polar- and Singular Value Decomposition}\label{sec:svd}
 The target is to define strain measures in terms of the deformation gradient: $\boldsymbol{\epsilon}(\boldsymbol{F})$. In equation \ref{eq:rigid} a rigid body movement was introduced. A problem arises when calculating the deformation gradient of this equation.
 Let $b_i(t) = v_it$ be more generally a translation:
 \begin{equation}
@@ -399,7 +411,7 @@ For a positive definite matrix the singular value decomposition becomes even eas
 
 In the following a summary of the $3 \times 3$ singular value decomposition as in \cite{SVD:3x3} is given. The proposed singular value decomposition is also called the 'Polar SVD' and follows a specific convention.
 \begin{enumerate}\label{ref:itemize_conv}
-  \item\label{item:refl_free} $\boldsymbol{U}$,$\boldsymbol{V}$ are reflection-free corresponding to true rotation matrices, i.e. both $\text{det}(U), \text{det}(V) = 1$ hold.
+  \item\label{item:refl_free} $\boldsymbol{U}$,$\boldsymbol{V}$ are reflection-free corresponding to true rotation matrices, i.e. both $\text{det}(\boldsymbol{U}), \text{det}(\boldsymbol{V}) = 1$ hold.
   \item If $\text{det}(\boldsymbol{F}) = -1$ the negative sign needs to move on to $\boldsymbol{\Sigma}$ as a result of item \ref{item:refl_free}. The lowest singular value in magnitude will get a negative sign attached.
   \end{enumerate}
 This convention does not change the existence or uniqueness of the singular value or polar decomposition, although strictly speaking $\boldsymbol{S}$ in the Polar decomposition is not positive definite anymore.
@@ -415,14 +427,14 @@ The algorithm proceeds as follows:
   \item \textbf{Sorting singular values:} Compute $\boldsymbol{B} := \boldsymbol{AV}$, where $\boldsymbol{V} = \boldsymbol{V}^{(3m)}$. Acquire $\boldsymbol{\Sigma}$ by $\|\boldsymbol{b}_i \|_2 = \|\boldsymbol{u}_i\sigma_i\|_2 = |\sigma_i|$, where also $\boldsymbol{B=U\Sigma}$ holds. Permute the singular values by sorting them in decreasing order. Apply the same permutation to the columns of $\boldsymbol{B}$ and $\boldsymbol{V}$, where switches in $\boldsymbol{V}$ also cause a sign change. Enforce the convention mentioned above.
   \item \label{item:qr} \textbf{QR-Factorization:} Compute $\boldsymbol{U}$ using a $\boldsymbol{QR}$-Factorization with Givens Rotations, where $\boldsymbol{B}=\boldsymbol{QR}=\boldsymbol{U\Sigma}$. The $\boldsymbol{QR}$-Factorization is done once in the same fashion as in item \ref{item:sk} - \ref{item:sii}.
 \end{enumerate}
-Due to inherent normalization, fast multiplication and storage efficiency quaternions are preferred over actual rotation matrices. In item \ref{item:qr} a $\boldsymbol{QR}$-Factorization is preferred over a column normalization of $\boldsymbol{\Sigma U}$ due to its inaccuracy at near-zero singular values.
+Due to inherent normalization, fast multiplication and storage efficiency quaternions are preferred over actual rotation matrices. In item \ref{item:qr} a $\boldsymbol{QR}$-Factorization is preferred over a column normalization of $\boldsymbol{\Sigma U}$ due to its inaccuracy at near-zero singular values. In general $\boldsymbol{R}$ is an upper triangular matrix. In item \ref{item:qr} it reduces to being diagonal.
 \cite{MPM:COURSE}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                         Constitutive Models                         %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \subsection{Constitutive Models}\label{seq:constitutive_models}
-$$\boldsymbol{F}_E \boldsymbol{F}_P$$ \cite{ochsner2014elasto}
+It is common practice in elastoplascity theory to decompose the deformation gradient in its elastic and plastic parts $\boldsymbol{F} = \boldsymbol{F}_E \boldsymbol{F}_P$. The elastic part is recoverable. The plastic part is irreversibly lost. Plastic models are not covered here. They extend the energy densities discussed here with additional terms $\Psi(\boldsymbol{F}_E,\boldsymbol{F}_P)$. For more information refer to the literature \cite{ochsner2014elasto}.
 \subsubsection{Linear Elasticity}\label{sec:linear_elasticty}
 The first aim will be to find the strain energy density $\Psi(\boldsymbol{\epsilon})$ of the strain $\bm{\epsilon}$. The most general linear stress-strain relationship is given by Hooke's Law in three dimensions:
 \begin{equation}\label{eq:hook}
@@ -510,16 +522,23 @@ $$\Rightarrow \| \boldsymbol{S}_E\boldsymbol{-I} \| _ { F }^2 = \|\boldsymbol{S}
 Equation \ref{eq:corot_sing} uses the diagonal matrix $\boldsymbol{\Sigma}_E$ containing the principal stretches typically acquired by the singular value decomposition $\boldsymbol{F}_E \boldsymbol{= U \Sigma}_E\boldsymbol{ V ^T }.$ Since the energy density in \ref{eq:corot_sing} is a function of only three (singular) values, which describe stretch/compression of the material, isotropy of the material is underlined.
 \cite{ADAMS:ELASTICITY}
 \subsubsection{Fixed Corotated Hyperelasticity}
-Numerical Stepping algorithms\\
--> Newton Raphson scheme\\
--> Problem: Bad Primary contour\\
-Benefit: Easier description in terms of Invariants\\
+Numerical implicit stepping algorithms mostly rely on using the first and second derivative of $\Psi$, chapter \ref{sec:newton}. Furthermore one may describe an isotropic elastic model due to their principal stretches $\sigma_1,\sigma_2,\sigma_3$, chapter \ref{sec:svd}. The rest configuration is reached, when $\sigma_1,\sigma_2,\sigma_3 = 1$. I.e. no elastic forces will be exerted, because the material is completely relaxed (again).
+
+Under material relaxation these stepping algorithms are attracted to a material-dependent primary contour. For instance for a model that aims for high volume preservation (Poisson ratio $\nu =0.5$) the primary contour is primarily enforcing volume-preservation ($ J_E = \sigma_1\sigma_2\sigma_3 \approx 1$). Reaching the rest configuration is only the secondary goal.
+
+The primary contour can be formalized as $\boldsymbol{v}\cdot \boldsymbol{g} = 0$ of the gradient $g_i = \frac{\partial \Psi}{\partial \sigma_i}$ and the eigenvector with the largest-magnitude eigenvalue $\boldsymbol{v}$ of the Hessian $H_{ij} = \frac{\partial \Psi}{\partial \sigma_i \sigma_j}$. Problems arise in $\Psi_{CH}$ as the primary contour can easily cross into the inverted region ($\sigma_3 < 0$) leading to inverted configurations while relaxing. This is undesired behavior. Furthermore the primary contour can lead into energy kinks at extreme stretches leading to oscillations.
+
+Therefore they propose to use the Fixed Corotated Hyperelasticity energy density:
+\begin{equation}
+  \Psi_{FCH} = \mu \|\boldsymbol{\Sigma}_E - \boldsymbol{I}\|^2_F + \frac{\lambda}{2}(J_E-1)^2.
+\end{equation}
+This leads to the primary contour $J=1$, which does not cross the inverted region as only one singular value may be negative.
 \cite{MPM:INVERT}
 \subsection{Governing equations}
 deriving the weak form
 \subsubsection{Conservation of mass}
 Let the Eulerian mass density be $_t\rho(_t\boldsymbol{x},t)$ and its (Lagrangian) pull back be $_0\rho(_0\boldsymbol{x},t)$.
-After \ref{eq:pull_back_vol} they are related as:
+After \ref{eq:volume_integral} they are related as:
 \begin{equation} \label{eq:density_pull_back}
   \int _ {_tB _ { \epsilon }}_t\rho(_t\boldsymbol{x},t)d_t\boldsymbol{x} =   \int _ {_0B _ { \epsilon }} {^t_0J}_0\rho(_0\boldsymbol{x},t) d_0\boldsymbol{x}
 \end{equation}
@@ -707,10 +726,12 @@ The choice of interpolation weights is flexible. Nevertheless a kernel $w(\bolds
     \begin{equation}
       \sum _ { i }  { \boldsymbol{x} } _ { i } ^ { n } w \left(  { \boldsymbol{x} } -  {\boldsymbol{ x} } _ { i } ^ { n } \right) & =  { \boldsymbol{x} }.
     \end{equation}
+  \item Non-negativity: $w \geq 0$. Negative weights can cause severe instability or non-physical behavior. \cite{gao2017adaptive}
+  \item Limited local support to reduce the number of discretizations, chapter \ref{sec:discretization}.
   \item $C^1$-continuity s.t. $\nabla w$ is continuous.
 \end{enumerate}
 As a reminder of chapter \ref{sec:notation}: $\boldsymbol{x}_p$ refers to a particle's position. $\boldsymbol{x}_i$ to a grid cell's position.
-Often dyadic products of one-dimensional interpolation functions suffice
+For a more general discussion refer to \cite{gao2017adaptive}. Often dyadic products of one-dimensional interpolation functions suffice
 \begin{equation}
   w(\boldsymbol{x}-\boldsymbol{x}_i^n) = w_i^n(\boldsymbol{x}) = w\left(\frac{1}{h}\left(x-x_i^n\right)\right)w\left(\frac{1}{h}\left(y-y_i^n\right)\right)w\left(\frac{1}{h}\left(z-z_i^n\right)\right)
 \end{equation}
@@ -730,7 +751,7 @@ where $h$ is the grid spacing (of a uniform grid). An interpolation function oft
   w(x) = \left\{ \begin{array} { l l } { \frac { 1 } { 2 } | x | ^ { 3 } - | x | ^ { 2 } + \frac { 2 } { 3 } } & { 0 \leqslant | x | < 1 } \\ { \frac { 1 } { 6 } ( 2 - | x | ) ^ { 3 } } & { 1 \leqslant | x | < 2 } \\ { 0 } & { 2 \leqslant | x | } \end{array} \right. .
 \end{equation}
 Since these function are used to weight (or filter) particles a shortening in notation may be employed as $ w_{ip}^n = w(\boldsymbol{x}_p^n-\boldsymbol{x}_i^n)$.
-\cite{MPM:APIC}\cite{MPM:COURSE}
+\cite{MPM:APIC}\cite{MPM:COURSE}\cite{steffen2008analysis}\cite{gao2017adaptive}
 \subsubsection{Mass transfer}
 Each material point will be assigned an initial volume $_0V_p$ as well as a initial mass $_0m_p$. The volume the material point occupies may change in time due to eq. \ref{eq:j}: ${^t_0}J _0V_p = {_tV_p}$. But due to conservation of mass \ref{eq:lagr_mass} it will have a constant, initial mass associated with it. I.e. there will only be a transfer to the grid and no transfer back.
 A transfer of mass to the grid may then be expressed as:
@@ -826,7 +847,7 @@ For a full proof that these transfers preserve linear and angular momentum consu
 \boldsymbol{D}_p^n = \frac { 1 } { 3 } h ^ { 2 } \boldsymbol { I }.
 \end{equation}
 A simple proof (Appendices: \ref{app:dp_proof}) cancelling out the numerous polynomials can be done for instance using SymPy (\cite{Sympy}).\cite{MPM:APIC}\cite{MPM:OLD_APIC}
-\subsubsection{CFL condition}
+\subsubsection{CFL condition} \label{sec:cfl}
 The CFL condition is prominent for FEM-like methods: For a stable integration a particle should not travel father than the grid spacing $h$ in a discrete time-step $\Delta t$. $\Delta t$ is thus limited by:
 \begin{equation}
   \Delta t \leq \frac{h}{\|\boldsymbol{v}^n_i\|_2}.
@@ -840,7 +861,7 @@ $$
 \leq \max _ { p } ( \| \boldsymbol { v } _ { p } ^ { n } \|_2 + \frac { \kappa } { k } \Delta x \| \boldsymbol { B } _ { p } ^ { n } \| _ { F } )
 \end{equation}
 \cite{MPM:APIC}
-\subsection{Discretization}
+\subsection{Discretization}\label{sec:discretization}
 The weak form of the force-balance in (\ref{eq:lagr_force_bal},\ref{eq:eul_force_bal}) implies the following for MPM preferable description:
 \begin{equation} \label{eq:weak_mpm}
   \int _ { \Omega ^ { 0 } } (_0q _ \alpha) (_0\rho_0) (_0a _\alpha)  d _0\boldsymbol{x}= \int _ { \partial \Omega ^ { t^n } } _tq _ \alpha \sigma _ {\alpha\beta} d_tA_\beta(_t\boldsymbol{x}) -  \int _ { \Omega ^ { t^n} } \frac{\partial _tq _ \alpha}{\partial _tx_\beta} \sigma _ {\alpha\beta} d_t\boldsymbol{x}.
@@ -958,9 +979,12 @@ The notion of a total elastic potential energy function $\Psi$ was introduced in
   e(\hat{\boldsymbol{x}}) = \sum_pV^0_p \Psi(\hat{\boldsymbol{F}}_{Ep}(\hat{\boldsymbol{x}})).
 \end{equation}
 The evolution of the deformation gradient \ref{eq:evol_def_grad_disc_x} for a general $\boldsymbol{\hat{x}}_i$  is necessary
-$$\frac{\partial \hat{F}_{\omega\beta}}{\partial \hat{x}_\alpha}
+\begin{equation}\label{eq:partial_def_grad}
+\frac{\partial \hat{F}_{\omega\beta}}{\partial \hat{x}_\alpha}
 = \delta_{\omega \alpha}
-\frac{\partial w_{ip}}{\partial x_\gamma}F_{\gamma\beta} = \delta_{\omega \alpha}F_{\gamma\beta} \frac{\partial{w_{ip}}}{\partial x_\gamma}$$
+\frac{\partial w_{ip}}{\partial x_\gamma}F_{\gamma\beta} = \delta_{\omega \alpha}F_{\gamma\beta} \frac{\partial{w_{ip}}}{\partial x_\gamma}
+\end{equation}
+
 for the spatial derivative of the potential $e(\boldsymbol{\hat{x}})$. This is just the force created by elastic stresses out of eq. \ref{eq:force_disc}:
 $$
   \frac{\partial e}{\partial \hat{x}_{i\alpha}}(\hat{\boldsymbol{x}})
@@ -1018,7 +1042,7 @@ Since the objective is minimizing the scale of $\boldsymbol{E}$ can be chosen ar
   \boldsymbol{g}(\boldsymbol{v}_i) = \frac{\Delta t}{4} h(\boldsymbol{v}_i) = m_i^n \frac{\boldsymbol{v_i}-\boldsymbol{v}_i^n}{4} -\frac{\Delta t}{4} \boldsymbol{f}_i\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}_i + \boldsymbol{v}_i^{n})\right).
 \end{equation}
 \cite{MPM:COURSE}\cite{MPM:APIC}
-\subsection{Newton's Method}
+\subsection{Newton's Method}\label{sec:newton}
 \newcommand{\var}[1]{{\ttfamily#1}}% variable
 \begin{algorithm}[t]
   \caption{Conjugate gradient}\label{alg:conj_grad}
@@ -1064,7 +1088,7 @@ Computing $\frac{\partial f_i}{\partial x_j}$ for every combination $ij$ would b
 \end{equation}
 The linear system of eq. \ref{eq:linear_system} can be solved with the conjugate gradient method (Algorithm \ref{alg:conj_grad}) since $\frac{\partial g}{\partial v}$ is symmetric, positive definite. This is due it being the Hessian of a convex function $E$. There is to important things notice:
 \begin{enumerate}
-  \item Conservation of momentum on incomplete convergence is only fulfilled if \ref{eq:linear_system} is premultiplied by the inverse diagonal mass matrix $M^{-1}$. More in \cite{MPM:APIC}. Thus the equation becomes:
+  \item  One may want to use a preconditioner $\boldsymbol{P}^{-1}$ to reduce iteration times. However conservation of momentum on incomplete convergence is fulfilled if \ref{eq:linear_system} is premultiplied by the inverse diagonal mass matrix $\boldsymbol{M}^{-1}$ \cite{MPM:APIC}. Thus the equation becomes:
     $$
       \left(\frac{1}{4} - \frac{\Delta t^2}{16}\frac{1}{m_i^n}\frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j}\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}^{(i)}_i + \boldsymbol{v}_i^{n})\right)\right) \Delta v
       $$
@@ -1073,6 +1097,11 @@ The linear system of eq. \ref{eq:linear_system} can be solved with the conjugate
     \end{equation}
   \item Due to \ref{eq:hessian-matrix-vector} the product of the Hessian with an increment ($\sum_j \frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j} \delta \boldsymbol{u}_j$) needs to be computed anew every step, since a pure matrix store is too costly.
 \end{enumerate}
+The Hessian is derived following \ref{eq:partial_def_grad} and \ref{eq:nodal_force}:
+\begin{equation}
+  \frac{\partial e}{\partial {x}_{i\alpha} \partial x_{j\tau}}
+= \sum_p V^0_p\frac { \partial ^ { 2 } \Psi } { \partial  { F}_{\alpha \beta} \partial { F } _{\tau \sigma}}  (F^n_p)_{\omega \sigma}\frac{\partial w_{jp}}{\partial x_\omega} (F^n_p)_{\gamma\beta}\frac{\partial w_{ip}}{\partial x_\gamma} = -\frac{\partial {f}_{i\alpha}}{\partial x_{j\tau}}.
+\end{equation}
 The Hessian increment can be computed with a two-stage process:
 \begin{enumerate}
   \item Compute a particle quantity $\boldsymbol{A}_p$ with a grid to particle transfer:
@@ -1084,11 +1113,13 @@ The Hessian increment can be computed with a two-stage process:
   - \delta \boldsymbol{f}_i = - \sum_j \frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j} \delta \boldsymbol{u}_j = \sum_p V_p^0 \boldsymbol{A}_p(\boldsymbol{F}^n_p)^T \nabla w_{ip}^n.
 \end{equation}
 \end{enumerate}
+%Optimally one would also try to derive a model-dependent preconditioner $\boldsymbol{P}$ for $\frac{\partial \boldsymbol{g}_i}{\partial \boldsymbol{v}_j}$ to reduce iterations of the conjugate gradient method:
+%\begin{equation}
+%\boldsymbol{P}^{-1}\boldsymbol{M}^{-1}\left[\frac{\partial \boldsymbol{g}}{\partial \boldsymbol{v}}\left(\boldsymbol{v}^{(i)}_i\right)\right] \Delta \boldsymbol{v} = \boldsymbol{P}^{-1} \boldsymbol{M}^{-1}\boldsymbol{g}\left(\boldsymbol{v}^{(i)}_i\right).
+%\end{equation}
+%One of those is the Jacobi (diagonal) preconditioner: $\boldsymbol{P} = \text{diag}\left( \boldsymbol{M}^{-1}\left[\frac{\partial \boldsymbol{g}}{\partial \boldsymbol{v}}\left(\boldsymbol{v}^{(i)}_i\right)\right] \right)$.
 \clearpage
-\subsection{GPU memory}
 \section{Implementation}\label{sec:implementation}
-\subsection{Framework}
-decorator pattern
 \subsection{Optimization opportunities}
 \cite{NVIDIA:BEST:PRACTICE}
 \cite{AMD:GPU_OPEN}
@@ -1097,24 +1128,32 @@ decorator pattern
   \item Coalesced memory access
   \item Bank conflicts
 \end{itemize}
-\subsubsection{SoA vs. AoS}
+\subsection{Framework}
+decorator pattern soa vs aos\\
+magic\_get reflection\\
+single + double\\
+GL\_EXT\_TIMER + NVIDIA Nsight\\
 \subsection{Parallel Reduction}
 \cite{NVIDIA:PARALLEL_REDUCTION}
-\subsection{Binning}
-\cite{NVIDIA:BINNING}
-\subsection{Scanning}
-\cite{NVIDIA:SCAN}
-\cite{NVIDIA:SCAN_MODERN}
-\subsection{Affine particle-in-cell}
-\cite{MPM:APIC}
-\subsection{Iterative solvers for linear systems}
-%GMRES, Conjugate Gradients
+\subsection{Counting sort}
+Map (Reset) \\
+\subsubsection{Bin}
+Binning\cite{NVIDIA:BINNING} (coalesced, uncoalesced)\\
+\subsubsection{Scan}
+Scan\cite{NVIDIA:SCAN}\\
+Scan(Raking) \cite{NVIDIA:SCAN_MODERN}
+\subsubsection{Reordering}
+Coalesced, Uncoalesced
+\subsection{MPM-Transfers}
+Conjugate gradient method
+\subsubsection{Particle to grid transfers}
+\subsubsection{Grid to particle transfers}
 \subsection{Verifying Simulation}
 \begin{itemize}
   \item Conservation equations
     \cite{MPM:APIC}
   \item Singular Value Decomposition
-  \item Parallel Reduction
+  \item Conjugate gradient
 \end{itemize}
 \section{Evaluation}
 \cite{NVIDIA:PEAK_PERFORMANCE}
