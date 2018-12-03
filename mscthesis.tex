@@ -20,8 +20,10 @@
 \usepackage[toc,page]{appendix}
 \usepackage{minted}
 \usepackage{verbatim}
+\usepackage{blindtext}
 \addbibresource{mscthesis.bib}
 
+\captionsetup{justification=raggedright,singlelinecheck=false}
 \DeclareMathOperator*{\argmin}{arg min}
 \makeatletter
 \def\ext@algorithm{lol}% algorithm captions will be written to the .lol file
@@ -193,7 +195,7 @@ A step further goes PolyPIC giving the velocity field even more freedom by addin
 
 \textbf{Material Point Method:} The MPM-Method is like the PIC-Method mathematical and physical in that it uses analysis and numerics to be derived without the need for empirical assumptions. Originally it was developed by \cite{sulsky1995application} with a focus on the dynamics of solids. \cite{MPM:SNOW} brought the method into computer graphics for their animation film \textit{Frozen}. In rapid succession a variety materials and effects got modeled by the MPM-Method. Since MPM is based on discretizing governing equations and using constitutive models covered by the different literature its fast rate of expenditure is not a surprise.
 
-The simulation of(hyper-)elastic material can be done with a number of different models utilizing fixed Linear strain \ref{sec:cor_hyper}, left Cauchy-Green strain \ref{sec:svd} or Hencky-strain(logarithmic) \cite{MPM:SHELLS} for the different requirements of small to large strains. Inserting these into the different energy density $\boldsymbol{\Psi}(\boldsymbol{\epsilon})$ models can already result in a constitutive model. Plasticity in general requires extra modeling in terms of a flow rule, yield-condition and a hardening rule which are not discussed here \cite{ochsner2014elasto}. To give a short impression of the developments in computer graphics:
+The simulation of (hyper-)elastic material can be done with a number of different models utilizing fixed Linear strain \ref{sec:cor_hyper}, left Cauchy-Green strain \ref{sec:svd} or Hencky-strain(logarithmic) \cite{MPM:SHELLS} for the different requirements of small to large strains. Inserting these into the different energy density $\boldsymbol{\Psi}(\boldsymbol{\epsilon})$ models can already result in a constitutive model. Plasticity in general requires extra modeling in terms of a flow rule, yield-condition and a hardening rule which are not discussed here \cite{ochsner2014elasto}. To give a short impression of the developments in computer graphics:
 
 \cite{MPM:PHASE_CHANGE} model phase transition (melting) to a liquid with the fixed corotational hyperelasticity (\ref{sec:cor_hyper}) and discretizing the heat equation. \cite{MPM:OLROYDB} use an Olroyd-B model with Cauchy-Green strain to handle elasticity and plasticity for viscoelastic fluids, foams and sponges. \cite{MPM:DRUCKER} uses Hencky-strain in combination with a St. Venant-Kirchhoff model and Drucker-Prager elastoplascity to model sand.
 \cite{MPM:MULTI} combine particles of different species (sand and water) by one grid for each species and relating them with a heuristic momentum exchange. \cite{MPM:SHELLS} simulates thin shells (cloths,cups etc.) with a Kirchhoff-Love model using Hencky-strains.
@@ -249,27 +251,27 @@ Beginning from chapter \ref{sec:mat_point} variables defined on a particle will 
 Used throughout this thesis is at instances the Einstein-Notation when using tensors and vectors. Let $\boldsymbol{a}$ and $\boldsymbol{b}$ be vectors of dimension $n$ and  $\boldsymbol{A,B,D}$ $ { m \times n }$ tensors. Repeated indices that are also defined on the variable imply component-wise operations.
 $a _ { i } b _ { j }$ is multiplying component $i$ with component $j$ of vectors $\boldsymbol{a}$ and $\boldsymbol{b}$. Vector and tensor/matrix addition thus become:
 \begin{equation} \label{EINSTEIN:ADD}
-  c _ { i } = a _ { i } + b _ { i } \quad \text { and } \quad D _ { i j } = A _ { i j } + B _ { i j }
+  c _ { i } = a _ { i } + b _ { i } \quad \text { and } \quad D _ { i j } = A _ { i j } + B _ { i j }.
 \end{equation}
 A transpose operator swaps the indices:
 \begin{equation}
-  D^T _ { i j }  =D_{ji}
+  D^T _ { i j }  =D_{ji}.
 \end{equation}
 Repeated indices that are not otherwise defined however imply summation on that index. The vector dot product becomes:
 \begin{equation}
-  a _ { i } b _ { i } \equiv \sum _ { i = 1 } ^ { n } a _ { i } b _ { i }
+  a _ { i } b _ { i } \equiv \sum _ { i = 1 } ^ { n } a _ { i } b _ { i }.
 \end{equation}
 Following this notation the Frobenius inner product between two second-order tensors is (also called Frobenius scalar product):
 \begin{equation} \label{EINSTEIN:FROBENIUS1}
-  \boldsymbol { A } : \boldsymbol { B } \equiv A _ { i j } B _ { i j } \equiv \sum _ { i = 1 } ^ { n } \sum _ { j = 1 } ^ { m } A _ { ij } B _ { ij }
+  \boldsymbol { A } : \boldsymbol { B } \equiv A _ { i j } B _ { i j } \equiv \sum _ { i = 1 } ^ { n } \sum _ { j = 1 } ^ { m } A _ { ij } B _ { ij }.
 \end{equation}
 The Frobenius inner product between a ${r \times s \times m \times n }$ fourth-order tensor $\boldsymbol{C}$  and second-order tensor creates a second order tensor combining the ideas of \ref{EINSTEIN:ADD} and \ref{EINSTEIN:FROBENIUS1}:
 \begin{equation}
-  \boldsymbol { A } = A_ {ij} =  \boldsymbol {C} : \boldsymbol { B } = C _ {i j k l} B _ { k l  } = \sum _ { k = 1 } ^ { m } \sum _ { l = 1 } ^ { n } C _ { ijkl } B _ { kl }
+  \boldsymbol { A } = A_ {ij} =  \boldsymbol {C} : \boldsymbol { B } = C _ {i j k l} B _ { k l  } = \sum _ { k = 1 } ^ { m } \sum _ { l = 1 } ^ { n } C _ { ijkl } B _ { kl }.
 \end{equation}
 Matrix-Vector and Matrix-Matrix multiplication can be expressed this way as:
 \begin{equation}
-  b_i = A_{i j} a_j \quad D _ { i j } = A _ { i k } B _ { k j }
+  b_i = A_{i j} a_j \quad D _ { i j } = A _ { i k } B _ { k j }.
 \end{equation}
 The definition of the Kronecker Delta is as follows:
 \begin{equation}
@@ -281,11 +283,11 @@ The definition of the Kronecker Delta is as follows:
 \end{equation}
 The Kronecker Delta as an operator is most efficiently described as a substitution:
 \begin{equation}
-  a _ { i } \delta _ { i j } = a _ { j }
+  a _ { i } \delta _ { i j } = a _ { j }.
 \end{equation}
 I.e. this component is only evaluated if $i = j$. In this case it becomes equivalent to the identity matrix $\boldsymbol{I}$. The Kronecker Delta comes up in differentiating a variable by itself with different indexing:
 \begin{equation}
-  \frac{\partial{x_0}}{\partial{x_1}}=0, \frac{\partial{x_0}}{\partial{x_0}}=1  \Rightarrow \frac{\partial{x_i}}{\partial{x_j}} = \delta_{ij}
+  \frac{\partial{x_0}}{\partial{x_1}}=0, \frac{\partial{x_0}}{\partial{x_0}}=1  \Rightarrow \frac{\partial{x_i}}{\partial{x_j}} = \delta_{ij}.
 \end{equation}
 The alternating tensor or Levi-Civita symbol
 \begin{equation}
@@ -1070,13 +1072,13 @@ Since the objective is minimizing the scale of $\boldsymbol{E}$ can be chosen ar
     \EndProcedure
   \end{algorithmic}
 \end{algorithm}
-Many minimization and finding zero crossing algorithms are available. One of such is Newton's Method, which allows for rapid quadratic convergence in a near local neighborhood.
+Many minimization and root finding algorithms are available. One of such is Newton's Method, which allows for rapid quadratic convergence in a near local neighborhood.
 \begin{equation}
   \boldsymbol{v}_i^{(i+1)} = \boldsymbol{v}^{(i)}_i + \left[\frac{\partial \boldsymbol{g}}{\partial \boldsymbol{v}}\left(\boldsymbol{v}^{(i)}_i\right)\right]^{-1}\boldsymbol{g}\left(\boldsymbol{v}^{(i)}_i\right)
 \end{equation}
 Computing the inverse is numerically irresponsible. Instead the following linear system is solved $\left(\Delta \boldsymbol{v} = \boldsymbol{v}_i^{(i+1)} - \boldsymbol{v}^{(i)}_i\right)$:
 \begin{equation}\label{eq:linear_system}
-  \left[\frac{\partial \boldsymbol{g}}{\partial \boldsymbol{v}}\left(\boldsymbol{v}^{(i)}_i\right)\right] \Delta \boldsymbol{v} =  \boldsymbol{g}\left(\boldsymbol{v}^{(i)}_i\right)
+  \left[\frac{\partial \boldsymbol{g}}{\partial \boldsymbol{v}}\left(\boldsymbol{v}^{(i)}_i\right)\right] \Delta \boldsymbol{v} =  \boldsymbol{g}\left(\boldsymbol{v}^{(i)}_i\right).
 \end{equation}
 Using the Newton's Method however requires a computation of the Hessian of $E(\boldsymbol{v}_i)$:
 \begin{equation}
@@ -1086,7 +1088,8 @@ Computing $\frac{\partial f_i}{\partial x_j}$ for every combination $ij$ would b
 \begin{equation}\label{eq:hessian-matrix-vector}
   \sum_j\frac{\partial \boldsymbol{g}_i}{\partial \boldsymbol{v}_j}\delta \boldsymbol{u}_j = \frac{m_i^n}{4}\delta \boldsymbol{u}_j - \frac{\Delta t^2}{16}\sum_j \frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j}\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}_i + \boldsymbol{v}_i^{n})\right) \delta \boldsymbol{u}_j.
 \end{equation}
-The linear system of eq. \ref{eq:linear_system} can be solved with the conjugate gradient method (Algorithm \ref{alg:conj_grad}) since $\frac{\partial g}{\partial v}$ is symmetric, positive definite. This is due it being the Hessian of a convex function $E$. There is to important things notice:
+$\frac{\partial \boldsymbol{g}}{\partial \boldsymbol{v}}$ is symmetric, positive definite due it being the Hessian of a convex energy function $E$ with a hyper-elastic material.
+The linear system of eq. \ref{eq:linear_system} can be solved with the conjugate gradient method (Algorithm \ref{alg:conj_grad}). There is to important things notice:
 \begin{enumerate}
   \item  One may want to use a preconditioner $\boldsymbol{P}^{-1}$ to reduce iteration times. However conservation of momentum on incomplete convergence is fulfilled if \ref{eq:linear_system} is premultiplied by the inverse diagonal mass matrix $\boldsymbol{M}^{-1}$ \cite{MPM:APIC}. Thus the equation becomes:
     $$
@@ -1121,14 +1124,92 @@ The Hessian increment can be computed with a two-stage process:
 \clearpage
 \section{Implementation}\label{sec:implementation}
 \subsection{Optimization opportunities}
-\cite{NVIDIA:BEST:PRACTICE}
-\cite{AMD:GPU_OPEN}
-\begin{itemize}
-  \item Minimize CPU-GPU transfers
-  \item Coalesced memory access
-  \item Bank conflicts
-\end{itemize}
-\subsection{Framework}
+\begin{center}
+  \begin{tabular}{ | l | l | l | l | l |}
+    \hline
+    Memory       &Location on/off chip   &Cached   &Scope                &Lifetime   \\\hline
+    Register     &On                     &n/a      &1 thread(no shuffle) &thread     \\\hline
+    Local        &Off                    &L2       &1 thread             &thread     \\\hline
+    Shared       &On                     &n/a      &block                &block      \\\hline
+    Global       &Off                    &L2       &all threads+host     &host alloc \\
+    \hline
+  \end{tabular}
+\end{center}
+\begin{flushright}\cite{NVIDIA:BEST:PRACTICE}\end{flushright}
+The speed of these memory types is given in the following starting with the fastest:
+Register > Shared Memory > Local, Global. Therefore one should prefer register memory for intra-thread caching. Shared-memory should be used for extra caching memory(to reduce register spilling) or inter-thread communication within a block. Global memory should be mostly used at the start and end of a shader.
+
+\textbf{Register spilling:} It follows that one should avoid local memory. Local memory is created due to register spilling and stored off chip like global memory, though it is L2-cached. One can calculate the available number of registers per thread with the CUDA Occupancy calculator \cite{NVIDIA:OCCUPANCY}. If the shader uses more registers the register spills.
+
+To our knowledge there is no way to find out the exact number of registers an OpenGL shader uses. The program object assembly output of \textit{nvemulate} \cite{NVIDIA:EMULATE} may give an indicator. It will output an intermediate language of one the families of \textit{NV\_gpu\_programX} (where $X$ stands for the version). One can identify TEMP variables as registers. Since \textit{NV\_gpu\_programX} is a family of intermediate languages there is however no guarentees this is not  further optimized. All other metrics discussed are readily availabe for OpenGL.
+
+\textbf{Host communication:} A common performance bottleneck is stalling the GPU with CPU-GPU transfers. The attainable bandwidth for PCIe x16 3.0 between host and device is roughly 12GB/s. While the communication between device and GPU is 224GB/s (GTX 970). This includes doing calculations on the GPU that may run faster on the CPU. The API may also stall if the CPU is not issuing instructions to the GPU. This may be due to calculations on the CPU, or even worse calculations depending on GPU results. In this thesis the physics already runs on the GPU. Additionally we try to avoid transfers wherever possible.
+
+\textbf{Memory coalescing:} Between a block of threads and a single thread another important entity exists. NVIDIA GPUs group 32 threads into a synchronous warp, respectively AMD groups 64 threads as a wavefront. Memory operations are issued per warp/wavefront. A memory access uses the L2 caching behavior. A L2-cache-line is 32 Bytes long. Thus eight (u)int/floats, two single-precision vectors or a single double-precision vector fit into one cache-line.
+
+If all threads of a warp access memory within this cache-line only one memory request of 32 bytes needs to be made. In contrast if a warp accesses N different cache-lines, N*32 bytes need to be loaded (assuming a cache miss). It does not matter in which order the cache-line is accessed by the warp. I.e. random or reversed access on a single cache-line are also coalesced. On a global level the easiest to control access pattern thus becomes consecutive or reversed memory accesses. L2 is a write-back cache thus this assessment also qualifies for global memory writes. \cite{NVIDIA:MEMORY_BAND}
+
+\noindent\begin{minipage}{0.45\textwidth}
+\begin{lstlisting}[caption={AoS Layout},language={GLSL},style={GL}]
+struct Particle {
+  vec4 position;
+  vec4 velocity;
+} Particles[n];
+\end{lstlisting}
+\end{minipage}
+\hfill\noindent\begin{minipage}{0.45\textwidth}
+\begin{lstlisting}[caption={SoA Layout},label={llst:soa},language={GLSL},style={GL}]
+struct Container{
+  vec4 positions[n];
+  vec4 velocities[n];
+} Particles;
+\end{lstlisting}
+\end{minipage}
+
+Coalescing leads to the motivation of using structure of array layouts over arrays of struct layouts. The latter is the more commonly taught approach, while high performance CPU code may also prefer SoA or the more advanced entity component systems. This opens up the field of data-oriented design which is too big too cover and not main part of this thesis.
+
+In short one might not access every variable of a particle in a shader. I.e. in physics one has a pipeline of different passes each requiring another subset of variables. Assume for instance one shader only requires the position then it is more favorable for consecutive threads to load consecutive position vectors. The cache-line is then filled with position vectors, which all will get used. In contrast in an AoS layout the cache-line will have a position and a velocity loaded, but the shader never uses the velocity, halfing the bandwidth.
+\noindent\begin{wrapfigure}{R}{0.5\textwidth}
+\hfill\begin{minipage}{0.45\textwidth}
+\begin{lstlisting}[caption={OpenGL Layout},label={llst:opengl},language={GLSL},style={GL}]
+//if SoA
+#define Particle PREC_VEC_TYPE
+#define Particle_position 0
+#define Particle_velocity 1
+#define Particle_size 2
+//if AoS
+struct Particle{
+  PREC_VEC_TYPE position;
+  PREC_VEC_TYPE velocity;
+};
+buffer Container{
+  Particle variables [ ];
+};
+\end{lstlisting}
+\end{minipage}
+\end{wrapfigure}
+
+Due to this we motivate the C++-library \textit{magic\_get} \cite{APOLUKHIN:MAGIC_GET} for basic reflection. Our code manipulates AoS layouts into SoA layouts and back using reflection. The MSVC-Compiler has a hard coded stack limit for these kind of operations. A struct may be not bigger than 256 Bytes before throwing a compiler error. With the optional use of double-precision this limit is quite restrictive towards that compiler.
+
+Furthermore we experienced that for sizes starting with 256 KB the NVIDIA-Compiler could not link the OpenGL program using the SoA Layout as in Listing \ref{llst:soa}. As an alternative we had to provide meta information in the style of reflection macros and collapse the container, Listing \ref{llst:opengl}. We can then access SoA by memory offset and AoS by variable or by memory offset for a more abstract view of the memory. We also share the AoS setup between C++ and OpenGL code. One could also build a shader using the abstract layout to convert from SoA to AoS.
+To name a few more cases that macros handle for us:
+\begin{enumerate}
+  \item Multiple buffering, e.g. double buffer for unsorted and sorted particles.
+  \item Single and double precision (PREC\_VEC\_TYPE in listing \ref{llst:opengl}).
+  \item A decorator pattern allows to add buffer information to existing buffer information: For instance index sort needs an extra buffer containing the indices. Full sort requires a double buffer. Thus a sorted buffer gets an attachment(decoration) to contain these information as well as signaling which sort was used in the first place for further operations down the pipeline.
+  \item Generalize methods to use variants of the same shader with different operations:
+
+    \texttt{\#define unary\_op(x) length(x)}
+
+    \texttt{\#define binary\_op(x,y) x+y}
+\end{enumerate}
+For debugging we output the shader with all processed includes and let the gcc-preprocessor assemble the shader with options: \texttt{gcc -E -x c -P}. Except for the ommission of the glsl version or extension macros, we did not find any problems in this process.
+
+\textbf{Shared Memory Bank conflicts:}
+
+\textbf{Multiple elements per thread and block size:}
+
+\cite{NVIDIA:BEST:PRACTICE} \cite{AMD:GPU_OPEN}
 decorator pattern soa vs aos\\
 magic\_get reflection\\
 single + double\\
