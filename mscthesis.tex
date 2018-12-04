@@ -216,7 +216,7 @@ In general full or index sorts can be done. A full sort reorders every variable 
 \end{enumerate}
 A grid to particle transfer is in general easier since a particle already knows, due to its position, the grid points in its local neighborhood. The grid points in a uniform grid are 'sorted' by nature.
 
-Generally these methods are augmented by splitting the grid in 2D/3D blocks making use of the shared memory structure of the GPU \cite{PIC:GPU} \cite{honig2010generic} \cite{MPM:GPU}, often called domain decomposition. Shared memory on GPUs typically ranges from 48-64KB.  The grid nodes reached by the support of the interpolation function on each side also have to be loaded into memory, typically called the halo of a block. Since the number of particles per grid point in the MPM-method is generally between 4-10 only very limited block sizes are available \cite{MPM:SNOW}.
+Generally these methods are augmented by splitting the grid in 2D/3D blocks making use of the shared memory structure of the GPU \cite{PIC:GPU} \cite{honig2010generic} \cite{MPM:GPU}, often called domain decomposition. Shared memory is however limited per GPU (GTX 970, 48KB per block).The grid nodes reached by the support of the interpolation function on each side also have to be loaded into memory, typically called the halo of a block. Since the number of particles per grid point in the MPM-method is generally between 4-10 only very limited block sizes are available \cite{MPM:SNOW}.
 
 Alternatively one may also compute the partial sum of the transfer on the halo. Two different techniques exist to get the data between blocks coherent again:
 \begin{enumerate}
@@ -1044,7 +1044,7 @@ Since the objective is minimizing the scale of $\boldsymbol{E}$ can be chosen ar
   \boldsymbol{g}(\boldsymbol{v}_i) = \frac{\Delta t}{4} h(\boldsymbol{v}_i) = m_i^n \frac{\boldsymbol{v_i}-\boldsymbol{v}_i^n}{4} -\frac{\Delta t}{4} \boldsymbol{f}_i\left(\boldsymbol{x}_i^n + \frac{\Delta t}{4} (\boldsymbol{v}_i + \boldsymbol{v}_i^{n})\right).
 \end{equation}
 \cite{MPM:COURSE}\cite{MPM:APIC}
-\subsection{Newton's Method}\label{sec:newton}
+\subsubsection{Newton's Method}\label{sec:newton}
 \newcommand{\var}[1]{{\ttfamily#1}}% variable
 \begin{algorithm}[t]
   \caption{Conjugate gradient}\label{alg:conj_grad}
@@ -1121,9 +1121,8 @@ The Hessian increment can be computed with a two-stage process:
 %\boldsymbol{P}^{-1}\boldsymbol{M}^{-1}\left[\frac{\partial \boldsymbol{g}}{\partial \boldsymbol{v}}\left(\boldsymbol{v}^{(i)}_i\right)\right] \Delta \boldsymbol{v} = \boldsymbol{P}^{-1} \boldsymbol{M}^{-1}\boldsymbol{g}\left(\boldsymbol{v}^{(i)}_i\right).
 %\end{equation}
 %One of those is the Jacobi (diagonal) preconditioner: $\boldsymbol{P} = \text{diag}\left( \boldsymbol{M}^{-1}\left[\frac{\partial \boldsymbol{g}}{\partial \boldsymbol{v}}\left(\boldsymbol{v}^{(i)}_i\right)\right] \right)$.
-\clearpage
-\section{Implementation}\label{sec:implementation}
-\subsection{Optimization opportunities}
+\subsection{General-purpose computing on graphics processing units}
+\subsubsection{Optimization Opportunies}
 \begin{center}
   \begin{tabular}{ | l | l | l | l | l |}
     \hline
@@ -1137,18 +1136,49 @@ The Hessian increment can be computed with a two-stage process:
 \end{center}
 \begin{flushright}\cite{NVIDIA:BEST:PRACTICE}\end{flushright}
 The speed of these memory types is given in the following starting with the fastest:
-Register > Shared Memory > Local, Global. Therefore one should prefer register memory for intra-thread caching. Shared-memory should be used for extra caching memory(to reduce register spilling) or inter-thread communication within a block. Global memory should be mostly used at the start and end of a shader.
+Register > Shared Memory > Local, Global.
 
-\textbf{Register spilling:} It follows that one should avoid local memory. Local memory is created due to register spilling and stored off chip like global memory, though it is L2-cached. One can calculate the available number of registers per thread with the CUDA Occupancy calculator \cite{NVIDIA:OCCUPANCY}. If the shader uses more registers the register spills.
-
-To our knowledge there is no way to find out the exact number of registers an OpenGL shader uses. The program object assembly output of \textit{nvemulate} \cite{NVIDIA:EMULATE} may give an indicator. It will output an intermediate language of one the families of \textit{NV\_gpu\_programX} (where $X$ stands for the version). One can identify TEMP variables as registers. Since \textit{NV\_gpu\_programX} is a family of intermediate languages there is however no guarentees this is not  further optimized. All other metrics discussed are readily availabe for OpenGL.
+Therefore one should prefer register memory for intra-thread caching. Shared-memory should be used for extra caching memory(to reduce register spilling) or inter-thread communication within a block. Global memory should be mostly used at the start and end of a shader.
 
 \textbf{Host communication:} A common performance bottleneck is stalling the GPU with CPU-GPU transfers. The attainable bandwidth for PCIe x16 3.0 between host and device is roughly 12GB/s. While the communication between device and GPU is 224GB/s (GTX 970). This includes doing calculations on the GPU that may run faster on the CPU. The API may also stall if the CPU is not issuing instructions to the GPU. This may be due to calculations on the CPU, or even worse calculations depending on GPU results. In this thesis the physics already runs on the GPU. Additionally we try to avoid transfers wherever possible.
 
-\textbf{Memory coalescing:} Between a block of threads and a single thread another important entity exists. NVIDIA GPUs group 32 threads into a synchronous warp, respectively AMD groups 64 threads as a wavefront. Memory operations are issued per warp/wavefront. A memory access uses the L2 caching behavior. A L2-cache-line is 32 Bytes long. Thus eight (u)int/floats, two single-precision vectors or a single double-precision vector fit into one cache-line.
+\textbf{Memory coalescing:} Between a single thread and a block of threads another important entity exists. NVIDIA GPUs group 32 threads into a synchronous warp, respectively AMD groups 64 threads as a wavefront. (Memory) operations are issued per warp/wavefront. A memory access uses the L2 caching behavior. A L2-cache-line is 32 Bytes long. Thus eight (u)int/floats, two single-precision vectors or a single double-precision vector fit into one cache-line.
 
 If all threads of a warp access memory within this cache-line only one memory request of 32 bytes needs to be made. In contrast if a warp accesses N different cache-lines, N*32 bytes need to be loaded (assuming a cache miss). It does not matter in which order the cache-line is accessed by the warp. I.e. random or reversed access on a single cache-line are also coalesced. On a global level the easiest to control access pattern thus becomes consecutive or reversed memory accesses. L2 is a write-back cache thus this assessment also qualifies for global memory writes. \cite{NVIDIA:MEMORY_BAND}
 
+
+\textbf{Shared Memory bank conflicts:} Shared memory is split into 32 banks of 4 bytes. The hardware groups together unique memory accesses on these banks. E.g. if two threads within a warp access bank 17 a bank conflict occurs and the access needs to be split into two groups. The one exception is a broadcast: all threads within a warp access the same bank. The number of banks is equal to the warp size, s.t. throughput is maximized if every thread does a unique bank access. \cite{NVIDIA:BEST:PRACTICE}
+
+
+\textbf{Register spilling:} One should avoid local memory. Local memory is created due to register spilling and stored off chip like global memory, though it is L2-cached. One can calculate the available number of registers per thread with the CUDA Occupancy calculator \cite{NVIDIA:OCCUPANCY}. If the occupancy falls off to 0\% register spilling occurs. The occupancy is the amount of active warps divided by the possible maximum amount of warps on a Streaming Multiprocessor. It allows the SM to schedule between warps: If the current warp can not continue (memory latency, barrier etc.) it will switch to another. Occupancy is mostly affected due to resource limits on an SM (shared memory, register) as can be seen in the occupancy calculator. Non-optimal occupancy might not have any performance impact at all. \cite{NVIDIA:ACHIEVED_OCCUPANCY}
+
+To our knowledge there is no way to find out the exact number of registers an OpenGL shader uses. The program object assembly output of \textit{nvemulate} \cite{NVIDIA:EMULATE} may give an indicator. It will output an intermediate language of one the families of \textit{NV\_gpu\_programX} (where $X$ stands for the version). One can identify TEMP variables as registers. Since \textit{NV\_gpu\_programX} is a family of intermediate languages there is however no guarentees this is not further optimized. All other metrics discussed are readily availabe for OpenGL.
+
+\textbf{Block size:} In general the block size should be chosen as small as possible to not hit resource limits. Though we in general had better experiences starting with a block size of 64 as can be seen in the Occupancy calculator. Increasing the block size is useful in combination with shared memory usage. Shared memory access is typically 100x faster than uncached global memory accesses. The more threads of a block can reuse shared memory data the faster the memory throughput will be. Therefore operators which involve filtering (also MPM transfers) can use this behavior.
+
+\textbf{Multiple elements per thread:} Merging threads and simultaneously reducing block size can reduce register pressure if the algorithm allows it. Otherwise merging sequential and parallel work (in shared memory) can improve performance heavily for instruction-limited shaders. Since the block size is limited by the GPU large amounts of data need to be split in tree structures to process in parallel. One can not avoid an indirection of writing-back and loading again from global memory. Therefore algorithms often can improve much further from more sequential work to avoid this indirection.
+\begin{flushright}\cite{AMD:GPU_OPEN}\cite{NVIDIA:BEST:PRACTICE}\end{flushright}
+\subsubsection{GPU Metrics}
+The GPU metric topping all others is the raw (averaged) time spend on a shader: $\Delta t_c$. The following factors matter to set $\Delta t_c$ into perspective:
+\begin{enumerate}
+  \item For the GPU most interesting is the scalability with increasing input data sizes.
+  \item Numerical algorithms may spend additional time computing (implicit) quantities to allow for larger physical time steps: $\Delta t_p$. Therefore one might be interested how long the GPU needs to calculate one physical second:
+    \begin{equation}
+    \Delta t^c_{1s} = \frac{\Delta t_c}{\Delta t_p}.
+    \end{equation}
+    Otherwise one would calculate the speedup of procedure 1 over procedure 2 for a direct comparision:
+
+    \begin{equation}
+      \text{Speedup of Procedure 1} = \frac{\Delta t_{c1}}{\Delta t_{p1}} \frac{\Delta t_{p2}}{\Delta t_{c2}}.
+    \end{equation}
+\end{enumerate}
+  \begin{tabular}{ | l | l | l | l | l |l|}
+    \hline
+    $\Delta t_c$ & VRAM SOL\% & SM SOL\%  & L2 SOL\%& Tex SOL\% &Lifetime   \\
+    \hline
+  \end{tabular}
+\clearpage
+\section{Implementation}\label{sec:implementation}
 \noindent\begin{minipage}{0.45\textwidth}
 \begin{lstlisting}[caption={AoS Layout},language={GLSL},style={GL}]
 struct Particle {
@@ -1203,13 +1233,8 @@ To name a few more cases that macros handle for us:
 
     \texttt{\#define binary\_op(x,y) x+y}
 \end{enumerate}
-For debugging we output the shader with all processed includes and let the gcc-preprocessor assemble the shader with options: \texttt{gcc -E -x c -P}. Except for the ommission of the glsl version or extension macros, we did not find any problems in this process.
+For debugging we output the shader with all processed includes and let the gcc-preprocessor assemble the shader with options: \texttt{gcc -E -x c -P}. Except for the omission of the glsl version or extension macros, we did not find any problems in this process.
 
-\textbf{Shared Memory Bank conflicts:}
-
-\textbf{Multiple elements per thread and block size:}
-
-\cite{NVIDIA:BEST:PRACTICE} \cite{AMD:GPU_OPEN}
 decorator pattern soa vs aos\\
 magic\_get reflection\\
 single + double\\
