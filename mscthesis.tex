@@ -1200,7 +1200,7 @@ None of these metrics necessarily have a correlation to computing time. However 
 Aiming to get shaders memory-bandwidth limited while minimizing the amount of needed accesses for any given workload is the top-priority for our shaders. Achieving memory-bandwidth limit is equal to bringing the VRAM SOL\% between 60\% < top SOL\% < 80\%. The metrics Read Active\%, Write Active\% and Long Scoreboard\% will simultaneously increase by following that aim.
 \clearpage
 \section{Implementation}\label{sec:implementation}
-GL\_EXT\_TIMER + NVIDIA Nsight\\
+The computing time $\Delta t_c$ of shaders is gained by OpenGL timer queries \cite{KHRONOS:TIMER_QUERY}. A small benchmarker takes care of queuing timer queries and resolving them a frame later. This is done to not stall the GPU pipeline waiting on those queries. At the end of testing data is gathered and statistical quantities are written into a log file.
 \subsection{GPU memory layout}
 \noindent\begin{minipage}{0.45\textwidth}
 \begin{lstlisting}[caption={AoS Layout},language={GLSL},style={GL}]
