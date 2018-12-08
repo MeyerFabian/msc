@@ -20,7 +20,9 @@
 \usepackage[toc,page]{appendix}
 \usepackage{minted}
 \usepackage{verbatim}
+\usepackage{graphicx}
 \usepackage{blindtext}
+\usepackage{svg}
 \addbibresource{mscthesis.bib}
 
 \captionsetup{justification=raggedright,singlelinecheck=false}
@@ -1187,8 +1189,9 @@ The GPU metric topping all others is the raw computing time spend on a shader: $
     Write Active\%    & 100                   & \% of time spend on VRAM writes\\\hline
     \multicolumn{3}{|l|}{\textbf{Warp Stall Reasons:}}\\\hline
     Long Scoreboard\% & 100                   & memory latency\\\hline
-    Barrier\%         & 100                   & block synchronization \\
+    Barrier\%         & 100                   & block synchronization \\\hline
     %No Instructions\% & 100                   & \\
+    Drain\%           & 100                   & memory wait before warp exit \\
     \hline
   \end{tabular}
 \caption{GPU Performance Metrics}\label{table:metric}
@@ -1221,7 +1224,8 @@ struct Container{
 
 Coalescing leads to the motivation of using structure of arrays(SoA) over arrays of structures(AoS) memory layouts. The latter is the more commonly taught approach, while high performance CPU code may also prefer SoA or the more advanced entity component systems. This opens up the field of data-oriented design which is too big too cover and not main part of this thesis.
 
-In short one might not access every variable of a particle in a shader. I.e. in physics one has a pipeline of different passes each requiring another subset of variables. Assume for instance one shader only requires the position then it is more favorable for consecutive threads to load consecutive position vectors. The cache-line is then filled with position vectors, which all will get used. In contrast in an AoS layout the cache-line will have a position and a velocity loaded, but the shader never uses the velocity, halfing the bandwidth.
+In short one might not access every variable of a particle in a shader. I.e. in physics one has a pipeline of different passes each requiring another subset of variables. Assume for instance one shader only requires the position then it is more favorable for consecutive threads to load consecutive position vectors. The cache-line is then filled with position vectors, which all will get used. In contrast in an AoS layout the cache-line will have a position and a velocity loaded, but the shader never uses the velocity, halfing the throughput. Chapter \ref{sec:eval}.
+
 \noindent\begin{wrapfigure}{R}{0.5\textwidth}
 \hfill\begin{minipage}{0.45\textwidth}
 \begin{lstlisting}[caption={OpenGL Layout},label={llst:opengl},language={GLSL},style={GL}]
@@ -1280,9 +1284,46 @@ Conjugate gradient method
   \item Singular Value Decomposition
   \item Conjugate gradient
 \end{itemize}
+\clearpage
 \section{Evaluation}
-\cite{NVIDIA:PEAK_PERFORMANCE}
-\cite{KHRONOS:TIMER_QUERY}
+\textbf{SoA vs. AoS}:
+
+\begin{table}
+  \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
+    Description &  $\Delta t_c (\mu s)$ & Speedup &VRAM     & SM     & L2     & Tex \\\hline
+    AoS         & 278                   & -       &77.7\%   & 7.3\%  & 30.3\% & 14.7\% \\\hline
+    SoA         & 122                   & 2.26x   &75.4\%   & 14.3\% & 29.4\% & 17.9\% \\
+    \hline
+  \end{tabular}
+  \caption{Map operation with one instruction of form \texttt{float x = length2( (vec4) y)} on $1024 \times 1024$ \texttt{vec4}.}\label{table:map_1}
+\end{table}
+
+\begin{table}
+  \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
+    Description &  $\Delta t_c (\mu s)$ & Speedup &VRAM   & SM     & L2     & Tex \\\hline
+    AoS         & 292                   & -       &61.3\% & 11.4\% & 41.8\% & 20.4\% \\\hline
+    SoA         & 252                   & 1.16x   &75.4\% & 14.3\% & 29.4\% & 17.9\% \\
+    \hline
+  \end{tabular}
+  \begin{tabular}{ | l | l | l | l | }    \hline
+    Description &  L2-Hit & Read Active \\\hline
+    AoS   & 53.8\%        & 48.9\%      \\\hline
+    SoA   & 20.0\%          & 62.3\%      \\
+    \hline
+  \end{tabular}
+  \caption{Map operation with two instructions of form \texttt{float x = length2( (vec4) y)} on $1024 \times 1024 \times 2$ \texttt{vec4}.}\label{table:map_2}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includesvg[svgpath =images/,width=\textwidth]{soa}
+  \caption{SoA-Layout in practive. The first instruction is shown in orange, the second instruction in green. If green is left out throughput is still maximized}
+\end{figure}
+\begin{figure}[htbp]
+  \centering
+  \includesvg[svgpath =images/,width=\textwidth]{aos}
+  \caption{AoS-Layout in practice. The first instruction is shown in orange, the second instruction in green. Orange already loads both cache-lines. If green is left out throughput is halved. Also green is an L2-cache lookup requiring additional overhead over the direct SoA way.}
+\end{figure}
 \section{Conclusion}
 \subsection{Review}
 \subsection{Future Work}
