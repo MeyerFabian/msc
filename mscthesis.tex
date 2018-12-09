@@ -756,7 +756,7 @@ where $h$ is the grid spacing (of a uniform grid). An interpolation function oft
 \end{equation}
 Since these function are used to weight (or filter) particles a shortening in notation may be employed as $ w_{ip}^n = w(\boldsymbol{x}_p^n-\boldsymbol{x}_i^n)$.
 \cite{MPM:APIC}\cite{MPM:COURSE}\cite{steffen2008analysis}\cite{gao2017adaptive}
-\subsubsection{Mass transfer}
+\subsubsection{Mass transfer}\label{sec:mass}
 Each material point will be assigned an initial volume $_0V_p$ as well as a initial mass $_0m_p$. The volume the material point occupies may change in time due to eq. \ref{eq:j}: ${^t_0}J _0V_p = {_tV_p}$. But due to conservation of mass \ref{eq:lagr_mass} it will have a constant, initial mass associated with it. I.e. there will only be a transfer to the grid and no transfer back.
 A transfer of mass to the grid may then be expressed as:
 \begin{equation}\label{eq:mpm:mass}
@@ -1224,7 +1224,7 @@ struct Container{
 
 Coalescing leads to the motivation of using structure of arrays(SoA) over arrays of structures(AoS) memory layouts. The latter is the more commonly taught approach, while high performance CPU code may also prefer SoA or the more advanced entity component systems. This opens up the field of data-oriented design which is too big too cover and not main part of this thesis.
 
-In short one might not access every variable of a particle in a shader. I.e. in physics one has a pipeline of different passes each requiring another subset of variables. Assume for instance one shader only requires the position then it is more favorable for consecutive threads to load consecutive position vectors. The cache-line is then filled with position vectors, which all will get used. In contrast in an AoS layout the cache-line will have a position and a velocity loaded, but the shader never uses the velocity, halfing the throughput. Chapter \ref{sec:eval}.
+In short one might not access every variable of a particle in a shader. I.e. in physics one has a pipeline of different passes each requiring another subset of variables. Assume for instance one shader only requires the position then it is more favorable for consecutive threads to load consecutive position vectors. The cache-line is then filled with position vectors, which all will get used. In contrast in an AoS layout the cache-line will have a position and a velocity loaded, but the shader never uses the velocity, halfing the throughput. This process is show in Figure \ref{fig:soa} and \ref{fig:aos}.
 
 \noindent\begin{wrapfigure}{R}{0.5\textwidth}
 \hfill\begin{minipage}{0.45\textwidth}
@@ -1249,6 +1249,19 @@ buffer Container{
 Due to this we motivate the C++-library \textit{magic\_get} \cite{APOLUKHIN:MAGIC_GET} for basic reflection. Our code manipulates AoS layouts into SoA layouts and back using reflection. The MSVC-Compiler has a hard coded stack limit for these kind of operations. A struct may be not bigger than 256 Bytes before throwing a compiler error. With the optional use of double-precision this limit is quite restrictive towards that compiler.
 
 Furthermore we experienced that for sizes starting with 256 KB the NVIDIA-Compiler could not link the OpenGL program using the SoA Layout as in Listing \ref{llst:soa}. As an alternative we had to provide meta information in the style of reflection macros and collapse the container, Listing \ref{llst:opengl}. We can then access SoA by memory offset and AoS by variable or by memory offset for a more abstract view of the memory. We also share the AoS setup between C++ and OpenGL code. One could also build a shader using the abstract layout to convert from SoA to AoS.
+
+\begin{figure}[htbp]
+  \centering
+  \includesvg[svgpath =images/,width=\textwidth]{soa}
+  \caption{SoA-Layout in practive. The first instruction is shown in orange, the second instruction in green. If green is left out throughput is still maximized}
+\label{fig:soa}
+\end{figure}
+\begin{figure}[htbp]  \centering
+  \includesvg[svgpath =images/,width=\textwidth]{aos}
+  \caption{AoS-Layout in practice. The first instruction is shown in orange, the second instruction in green. Orange already loads both cache-lines. If green is left out throughput is halved. Also green is an L2-cache lookup requiring additional overhead over the direct SoA way.}
+\label{fig:aos}
+\end{figure}
+
 To name a few more cases that macros handle for us:
 \begin{enumerate}
   \item Multiple buffering, e.g. double buffer for unsorted and sorted particles.
@@ -1262,17 +1275,76 @@ To name a few more cases that macros handle for us:
 \end{enumerate}
 For debugging we output the shader with all processed includes and let the gcc-preprocessor assemble the shader with options: \texttt{gcc -E -x c -P}. Except for the omission of the glsl version or extension macros, we did not find any problems in this process.
 
-\subsection{Parallel Reduction}
-\cite{NVIDIA:PARALLEL_REDUCTION}
+\subsection{Parallel Reduction \& Scan}
+The schemes presented in the following are a result of the optimization opportunities discussed in \ref{sec:optim}.
+
+\textbf{Parallel Reduction}: Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ and an array of values $\left[a_0,a_1, ... ,a_n\right]$, parallel reduction computes:
+\begin{equation}
+  r = a_0 \circ a_1 \circ ... \circ a_n.
+\end{equation}
+Our OpenGL parallel reduction implementation uses \cite{NVIDIA:PARALLEL_REDUCTION} as a reference. To avoid memory padding in shared memory the addressing scheme is given by the sequential addressing scheme in Figure \ref{fig:sequential}.
+\begin{figure}[htbp]
+    \centering
+  \includesvg[svgpath =images/,width=\textwidth]{sequential}
+  \caption{Sequential addressing for \texttt{vec4}s. Even threads are blue, odd are yellow. Shared-memory banks per instruction are colored: The banks of the first instruction are green and red numbers. The second instruction is only green. The first and all following instructions can be handled fully concurrently. No memory padding required.}
+\label{fig:sequential}
+\end{figure}
+
+Parallel reduction schemes using shuffle-operations require interleaved addressing due to memory locality restrictions, Figure \ref{fig:interleaved}. They use registers instead of shared memory and thus do not need memory padding. \cite{NVIDIA:SHUFFLE}
+
+\cite{NVIDIA:PARALLEL_REDUCTION} also makes heavy use of combining parallel and sequential work. Every thread adds a multiple of two sequential adds into shared memory. After this the thread does its parallel work. Therefore the reduction factor one invocation does is multiple times higher and allows higher input data sizes without losing any performance, refer to chapter \ref{sec:eval}.
+
+Parallel reduction solves assuming a \texttt{unary\_op(x)} directly after memory load:
+\begin{itemize}
+  \item CFL-condition of chapter \ref{sec:cfl} with operators
+  \begin{itemize}
+  \item \texttt{unary\_op(x) := length2(x)} and
+  \item \texttt{binary\_op(x,y) := max(x,y)}.
+  \end{itemize}
+\item Discretized conservation of governing equations between time steps or transfers in chapter \ref{sec:mass} and \ref{sec:apic} with
+\begin{itemize}
+  \item \texttt{unary\_op(x) := length2(x)} and
+  \item \texttt{binary\_op(x,y) := x + y}.
+  \end{itemize}
+\end{itemize}
+
+\textbf{Scan:}  Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ , a neutral element $e$ of the \texttt{binary\_op} and an array of values $\left[a_0,a_1, ... ,a_n\right]$, an exclusive scan computes the array:
+\begin{equation}
+  \left[e , a_0 , \left(a_0 \circ a_1\right), \left(a_0 \circ a_1 \circ a_2\right), \ ... \ ,\left(a_0\circ a_1 \circ a_2 \circ ...\circ a_{n-1}\right)\right].
+\end{equation}
+The scan uses an interleaved addressing pattern, Figure \ref{fig:interleaved}. The interleaved addressing pattern has the benefit over the sequential one of already computing the
+\begin{wrapfigure}[15]{r}{0.20\textwidth}
+ \includesvg[svgpath =images/,width=0.20\textwidth]{scan}
+  \caption{Scan for addition.}
+  \label{fig:scan}
+\end{wrapfigure}
+partial scans for all odd indices (although misaligned). Note that the reduction needs to reduce to the right achieved by writing into the right element instead of the left in Figure \ref{fig:scan}. A full scan is then computed as \cite{NVIDIA:SCAN}:
+\begin{enumerate}
+  \item \label{it:up-sweep} Upsweep-Phase: Top-to-Bottom reduction to the right of the array.
+  \item Inserting the neutral element into the last element of the array.
+  \item Downsweep-Phase: Reverse execution order of item \ref{it:up-sweep} (inverted tree), and an additional right to left element swap.
+\end{enumerate}
+Again, sequential work can be combined with parallel work. \cite{NVIDIA:SCAN_MODERN} name this process Raking: Instead of loading one element per thread, one thread loads n elements and computes a sequential partial scan in register memory. The reduced last value of the array is written into shared memory and the parallel scan begins. Afterwards the parallel scan result is spread out with the sequential partial scan.\cite{NVIDIA:SCAN_MODERN}
+\begin{figure}[htbp]
+  \includesvg[svgpath =images/,width=\textwidth]{interleaved}
+  \caption{Interleaved addressing \texttt{vec4}s. Even threads are blue, odd are yellow. Shared-memory banks per instruction are colored: The banks of the first instruction are green and red numbers. The second instruction is only green. Memory padding needs to be done for concurrent shared-memory access. The first and all following instructions can be handled fully concurrently.}
+\label{fig:interleaved}
+\end{figure}
+As mentioned, the interleaved addressing requires a memory padding for conflict-free addresses. For block sizes of 32 - 512 this becomes:
+\begin{equation}\label{eq:bank}
+  p = u + (u << \log_2(n)), \text{ or }   p = u + \frac{u}{n}
+\end{equation}
+where $p$ is the padded memory offset, $u$ is the unpadded memory offset and $n$ is the number of banks.
+For a block size of 1024 one would need additional padding for a full conflict-free access:
+\begin{equation}\label{eq:bank_1024}
+  p = u + (u << \log_2(n)) + (u << (2 * \log_2(n))), \text{ or }   p = u + \frac{u}{n} + \frac{u}{n*n}.
+\end{equation}
+However the added computation time does not outweigh the bank-conflicts. So one reverts to eq. \ref{eq:bank}. Note that this is a correction to \cite{NVIDIA:SCAN} where C++ Operator Precedence of $+$ over $<<$ is not recognized and additionally incorrectly $ u << n$ is used in the first part of eq. \ref{eq:bank_1024}.
 \subsection{Counting sort}
 Map (Reset) \\
-\subsubsection{Bin}
+\textbf{Bin}
 Binning\cite{NVIDIA:BINNING} (coalesced, uncoalesced)\\
-\subsubsection{Scan}
-Scan\cite{NVIDIA:SCAN}\\
-Scan(Raking) \cite{NVIDIA:SCAN_MODERN}
-\subsubsection{Reordering}
-Coalesced, Uncoalesced
+\textbf{Reordering}
 \subsection{MPM-Transfers}
 Conjugate gradient method
 \subsubsection{Particle to grid transfers}
@@ -1285,7 +1357,7 @@ Conjugate gradient method
   \item Conjugate gradient
 \end{itemize}
 \clearpage
-\section{Evaluation}
+\section{Evaluation}\label{sec:eval}
 \textbf{SoA vs. AoS}:
 
 \begin{table}
@@ -1314,16 +1386,6 @@ Conjugate gradient method
   \caption{Map operation with two instructions of form \texttt{float x = length2( (vec4) y)} on $1024 \times 1024 \times 2$ \texttt{vec4}.}\label{table:map_2}
 \end{table}
 
-\begin{figure}[htbp]
-  \centering
-  \includesvg[svgpath =images/,width=\textwidth]{soa}
-  \caption{SoA-Layout in practive. The first instruction is shown in orange, the second instruction in green. If green is left out throughput is still maximized}
-\end{figure}
-\begin{figure}[htbp]
-  \centering
-  \includesvg[svgpath =images/,width=\textwidth]{aos}
-  \caption{AoS-Layout in practice. The first instruction is shown in orange, the second instruction in green. Orange already loads both cache-lines. If green is left out throughput is halved. Also green is an L2-cache lookup requiring additional overhead over the direct SoA way.}
-\end{figure}
 \section{Conclusion}
 \subsection{Review}
 \subsection{Future Work}
