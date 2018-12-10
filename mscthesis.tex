@@ -1324,7 +1324,7 @@ partial scans for all odd indices (although misaligned). Note that the reduction
   \item Inserting the neutral element into the last element of the array.
   \item Downsweep-Phase: Reverse execution order of item \ref{it:up-sweep} (inverted tree), and an additional right to left element swap.
 \end{enumerate}
-Again, sequential work can be combined with parallel work. \cite{NVIDIA:SCAN_MODERN} name this process Raking: Instead of loading one element per thread, one thread loads n elements and computes a sequential partial scan in register memory. The reduced last value of the array is written into shared memory and the parallel scan begins. Afterwards the parallel scan result is spread out with the sequential partial scan.\cite{NVIDIA:SCAN_MODERN}
+Again, sequential work can be combined with parallel work. \cite{NVIDIA:SCAN_MODERN} name this process: Raking. Instead of loading one element per thread, one thread loads n elements and computes a sequential partial scan in register memory. The reduced last value of the array is written into shared memory and the parallel scan begins. Afterwards the parallel scan result is spread out with the sequential partial scan.\cite{NVIDIA:SCAN_MODERN}
 \begin{figure}[htbp]
   \includesvg[svgpath =images/,width=\textwidth]{interleaved}
   \caption{Interleaved addressing \texttt{vec4}s. Even threads are blue, odd are yellow. Shared-memory banks per instruction are colored: The banks of the first instruction are green and red numbers. The second instruction is only green. Memory padding needs to be done for concurrent shared-memory access. The first and all following instructions can be handled fully concurrently.}
@@ -1340,6 +1340,79 @@ For a block size of 1024 one would need additional padding for a full conflict-f
   p = u + (u << \log_2(n)) + (u << (2 * \log_2(n))), \text{ or }   p = u + \frac{u}{n} + \frac{u}{n*n}.
 \end{equation}
 However the added computation time does not outweigh the bank-conflicts. So one reverts to eq. \ref{eq:bank}. Note that this is a correction to \cite{NVIDIA:SCAN} where C++ Operator Precedence of $+$ over $<<$ is not recognized and additionally incorrectly $ u << n$ is used in the first part of eq. \ref{eq:bank_1024}.
+A scan is used to calculate the memory offsets of the by grid node sorted particles.
+
+\textbf{A Block Scan:} Assume we have already computed a global scan on a n-dimensional uniform grid and now want to compute the local scan of an n-dimensional tile/block in that grid. This again forms a uniform grid. For simplicity assume two dimensions:
+
+\noindent Given the initial two-dimensional pre-scan array:
+\begin{equation}
+  \boldsymbol{G}=
+  \left[
+  \begin{array} {c c c c }
+    a_{00} & a_{01} &  ... & a_{0n}\\
+
+    a_{10} & a_{11} &  ... & a_{1n}\\
+    ...    & ...    &  ... & ...   \\
+    a_{m0} & a_{m1} &  ... & a_{mn}\\
+\end{array}
+\right].
+\end{equation}
+We can identify a block with $i,j,k,l\geq 0$, $i+k<m$ and $j+l<n$ as:
+\begin{equation}
+  \boldsymbol{L}=
+  \left[
+  \begin{array} {c c c c }
+    a_{ij} & a_{(i)(j+1)} &  ... & a_{(i)(n-l)}\\
+
+    a_{(i+1)(j)} & a_{(i+1)(j+1)} &  ... & a_{(i+1)(n-l)}\\
+    ...    & ...    &  ... & ...   \\
+    a_{(m-k)(j)} & a_{(m-k)(j+1)} &  ... & a_{(m-k)(n-l)}\\
+\end{array}
+\right].
+\end{equation}
+We use the $\Sigma$-Notation for sums although any associative binary operator would hold. The global scan is computed as all previous rows + the current row to the current element:
+\begin{equation}
+  S^G_{st} = \sum_{q,r=0}^{s-1,n} a_{qr} + \sum_{r=0}^{(t-1)} a_{sr}
+\end{equation}
+with $0 \leq s,t \leq m,n$.
+The local scan is computed similiar:
+\begin{equation}
+  S^L_{bc} = \sum_{q,r=i,j}^{(b-1),(n-l)} a_{qr} + \sum_{r=j}^{(c-1)} a_{br}.
+\end{equation}
+This however requires a full scan of $\boldsymbol{S}^L$, where $i,j \leq b,c \leq (m-k),(n-l)$.
+We can alternatively compute the local scan from the global scan with the following five steps:
+\begin{enumerate}
+\item Subtract the global scan's first element of every row-element and limit your view to indices $b,c$ then:
+  $$
+  T_{st} = S^G_{st} - \left(\sum_{q,r=0}^{s-1,n} a_{qr} + \sum_{r=0}^{(j-1)} a_{sr}\right)
+  $$
+\begin{equation}
+  \Rightarrow T_{bc} = \sum_{r=j}^{(c-1)} a_{br}
+\end{equation}
+\item Add the last value of $\boldsymbol{L}$ of the previous row (if it exists) to the current row.
+  \begin{equation}
+    \Rightarrow T^2_{bc} = a_{(b-1)(n-l)} + \sum_{r=j}^{(c-1)} a_{br}
+  \end{equation}
+\item Extract the last column $c =(n-l)$:
+  \begin{equation}
+    t_b = a_{(b-1)(n-l)} + \sum_{r=j}^{(n-l-1)} a_{br}.
+  \end{equation}
+\item Compute the in dimensionality-by-one reduced exclusive scan (of the last column):
+  \begin{equation}
+    s_{b} = \sum_{q=i}^{(b-1)}\left(a_{(q-1)(n-l)} + \sum_{r=j}^{(n-l-1)} a_{qr}\right).
+\end{equation}
+\item Row-wise add back:
+  $$T_{bc} + s_{b} = \sum_{q=i}^{(b-1)}\left(a_{(q)(n-l)} + \sum_{r=j}^{(n-l-1)} a_{qr}\right) + \sum_{r=j}^{(c-1)} a_{br}$$
+  \begin{equation}
+    = \sum_{q=i}^{(b-1)}\sum_{r=j}^{(n-l)} a_{qr} + \sum_{r=j}^{(c-1)} a_{br} = S^L_{bc}.
+  \end{equation}
+\end{enumerate}
+\begin{wrapfigure}{r}{0.53\textwidth}
+  \includesvg[svgpath =images/,width=0.53\textwidth]{tile_scan}
+  \caption{.}
+  \label{fig:tile_scan}
+\end{wrapfigure}
+For a simpler understanding of this process Figure \ref{fig:tile_scan} shows the process with the same numbering.
 \subsection{Counting sort}
 Map (Reset) \\
 \textbf{Bin}
