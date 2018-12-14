@@ -1303,7 +1303,7 @@ Parallel reduction solves assuming a \texttt{unary\_op(x)} directly after memory
   \end{itemize}
 \item Discretized conservation of governing equations between time steps or transfers in chapter \ref{sec:mass} and \ref{sec:apic} with
 \begin{itemize}
-  \item \texttt{unary\_op(x) := length2(x)} and
+  \item \texttt{unary\_op(x) := x} and
   \item \texttt{binary\_op(x,y) := x + y}.
   \end{itemize}
 \end{itemize}
@@ -1413,15 +1413,17 @@ We can alternatively compute the local scan from the global scan with the follow
   \label{fig:tile_scan}
 \end{wrapfigure}
 For a simpler understanding of this process Figure \ref{fig:tile_scan} shows the process with the same numbering.
-\subsection{Counting sort}
-Map (Reset) \\
-\textbf{Bin}
+\subsection{Counting Sort}
+\textbf{Initial Binning}
+\subsection{Reordering}
 Binning\cite{NVIDIA:BINNING} (coalesced, uncoalesced)\\
 \textbf{Reordering}
 \subsection{MPM-Transfers}
 Conjugate gradient method
 \subsubsection{Particle to grid transfers}
+
 \subsubsection{Grid to particle transfers}
+
 \subsection{Verifying Simulation}
 \begin{itemize}
   \item Conservation equations
