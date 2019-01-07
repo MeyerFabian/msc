@@ -1308,11 +1308,11 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.4142136"
-     inkscape:cx="344.72747"
-     inkscape:cy="139.14014"
+     inkscape:zoom="2.0000001"
+     inkscape:cx="350.50595"
+     inkscape:cy="115.61233"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="layer2"
      showgrid="false"
      inkscape:measure-start="0,0"
      inkscape:measure-end="0,0"
@@ -1986,7 +1986,7 @@
          id="tspan7849"
          x="46.397987"
          y="34.51564"
-         style="stroke-width:0.26458332">Per Block Parallel Reduction (max)</tspan></text>
+         style="stroke-width:0.26458332">per-block parallel reduction (max)</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:4.23333311px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
@@ -2087,7 +2087,7 @@
          id="tspan7871-2"
          x="46.957619"
          y="72.120476"
-         style="stroke-width:0.26458332">Stream Compaction of Block Indices</tspan></text>
+         style="stroke-width:0.26458332">Stream compaction of block indices</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:4.23333311px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
@@ -2098,7 +2098,7 @@
          id="tspan7932"
          x="111.31775"
          y="54.550861"
-         style="stroke-width:0.26458332">Indirect Dispatch Buffer</tspan></text>
+         style="stroke-width:0.26458332">Indirect dispatch buffer</tspan></text>
     <rect
        style="display:inline;opacity:1;fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.23403062;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        id="rect4708-6-9-4-7"
