@@ -213,17 +213,17 @@ In general full or index sorts can be done. A full sort reorders every variable 
 
 \textbf{Particle-Grid transfers:} The particle to grid transfer is generally done in two manners \cite{stantchev2008fast}:
 \begin{enumerate}
-  \item \textbf{Particle Push:} X particles in a local neighborhood of a grid point push their attributes onto it. Since this results in a race condition \texttt{atomicAdd(float f)}'s are in use.
+  \item \textbf{Particle Push:} X particles in a local neighborhood of a grid point push their attributes onto it. Since this relationship results in a race condition \texttt{atomicAdd(float f)}s or explicit synchronization is necessary.
   \item \textbf{Particle Pull:} A grid point pulls the particles in its local neighborhood from a sorted particle list. This has the benefit of no race conditions being present.
 \end{enumerate}
 A grid to particle transfer is in general easier since a particle already knows, due to its position, the grid points in its local neighborhood. The grid points in a uniform grid are 'sorted' by nature.
 
 Generally these methods are augmented by splitting the grid in 2D/3D blocks making use of the shared memory structure of the GPU \cite{PIC:GPU} \cite{honig2010generic} \cite{MPM:GPU}, often called domain decomposition. Shared memory is however limited per GPU (GTX 970, 48KB per block).The grid nodes reached by the support of the interpolation function on each side also have to be loaded into memory, typically called the halo of a block. Since the number of particles per grid point in the MPM-method is generally between 4-10 only very limited block sizes are available \cite{MPM:SNOW}.
 
-Alternatively one may also compute the partial sum of the transfer on the halo. Two different techniques exist to get the data between blocks coherent again:
+In Particle Push methods partial sums are also computed on the halo. Two different techniques exist to get the data between blocks coherent again:
 \begin{enumerate}
 \item Atomically add up the values of the halo. This results in two atomic adds on a side node, four on an edge node and eight on a corner-node; If the block extend is bigger than half the halo extend.
-\item Have every halo of every block correspond to actual global memory and do add steps along each of the three axes. This is infeasible for large supports. \cite{crassin2011interactive}
+\item Have every halo of every block correspond to actual global memory and do add steps along each of the three axes. This is infeasible for large supports due to the added memory requirements. \cite{crassin2011interactive}
 \end{enumerate}
 Stencil computations and filtering techniques underlie a very similar process to MPM-transfers. Although these techniques employ a one-to-one grid relationship, since no particles are involved, it is worth taking a look at them.
 
@@ -1153,7 +1153,7 @@ The unified L1/texture cache acts as a coalescing buffer for threads of a warp (
 
 \textbf{Register spilling:} One should avoid local memory. Local memory is created due to register spilling and stored off chip like global memory, though it is L2-cached. The available number of registers per thread is calculable with the CUDA Occupancy calculator \cite{NVIDIA:OCCUPANCY}. If the occupancy falls off to 0\% register spilling occurs. The occupancy is the amount of active warps divided by the possible maximum amount of warps on a Streaming Multiprocessor. It allows the SM to schedule between warps: If the current warp can not continue (memory latency, barrier etc.) it will switch to another; this is called a warp stall, table \ref{table:metric}. Occupancy is mostly affected due to resource limits on an SM (shared memory, register) as can be seen in the occupancy calculator. Non-optimal occupancy might not have any performance impact at all. \cite{NVIDIA:ACHIEVED_OCCUPANCY}
 
-To our knowledge there is no way to find out the exact number of registers an OpenGL shader uses. The program object assembly output of \textit{nvemulate} \cite{NVIDIA:EMULATE} may give an indicator. It will output an intermediate language of one the families of \textit{NV\_gpu\_programX} (where $X$ stands for the version). TEMP variables are registers. Since \textit{NV\_gpu\_programX} is a family of intermediate languages there is however no guarentees there are not further optimized. All other metrics discussed are readily availabe for OpenGL.
+To our knowledge there is no way to find out the exact number of registers an OpenGL shader uses. The program object assembly output of \textit{nvemulate} \cite{NVIDIA:EMULATE} may give an indicator. It will output an intermediate language of one the families of \textit{NV\_gpu\_programX} (where $X$ stands for the version). TEMP variables are registers. Since \textit{NV\_gpu\_programX} is a family of intermediate languages there is however no guarentees these are not further optimized. All other metrics discussed are readily available for OpenGL.
 
 \textbf{Block size:} In general the block size should be chosen as small as possible to not hit resource limits. Though we in general had better experiences starting with a block size of 64 as can be seen in the Occupancy calculator. Increasing the block size is useful in combination with shared memory usage. Shared memory access is typically 100x faster than uncached global memory accesses. The more threads of a block reuse shared memory data the faster the memory throughput will be. Therefore operators which involve filtering (also MPM-transfers) can use this behavior.
 
@@ -1306,6 +1306,11 @@ Parallel reduction solves assuming a \texttt{unary\_op(x)} directly after memory
   \item \texttt{unary\_op(x) := x} and
   \item \texttt{binary\_op(x,y) := x + y}.
   \end{itemize}
+\item Calculate the maximum count of particles of all grid nodes within a block (\textit{per-block parallel reduction} \ref{sec:active_blocks}):
+\begin{itemize}
+  \item \texttt{unary\_op(x) := x} and
+  \item \texttt{binary\_op(x,y) := max(x,y)}.
+\end{itemize}
 \end{itemize}
 
 \textbf{Scan:}  Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ , a neutral element $e$ of the \texttt{binary\_op} and an array of values $\left[a_0,a_1, ... ,a_n\right]$, an exclusive scan computes the array:
@@ -1340,89 +1345,36 @@ For a block size of 1024 one would need additional padding for a full conflict-f
   p = u + (u << \log_2(n)) + (u << (2 * \log_2(n))), \text{ or }   p = u + \frac{u}{n} + \frac{u}{n*n}.
 \end{equation}
 However the added computation time does not outweigh the bank-conflicts. So one reverts to eq. \ref{eq:bank}. Note that this is a correction to \cite{NVIDIA:SCAN} where C++ Operator Precedence of $+$ over $<<$ is not recognized and additionally incorrectly $ u << n$ is used in the first part of eq. \ref{eq:bank_1024}.
-A scan is used to calculate the memory offsets of the by grid node sorted particles.
 
-\textbf{A Block Scan:} Assume we have already computed a global scan on a n-dimensional uniform grid and now want to compute the local scan of an n-dimensional tile/block in that grid. This again forms a uniform grid. For simplicity assume two dimensions:
 
-\noindent Given the initial two-dimensional pre-scan array:
-\begin{equation}
-  \boldsymbol{G}=
-  \left[
-  \begin{array} {c c c c }
-    a_{00} & a_{01} &  ... & a_{0n}\\
+A scan is used to calculate memory offsets for stream compaction or sorting algorithms.
 
-    a_{10} & a_{11} &  ... & a_{1n}\\
-    ...    & ...    &  ... & ...   \\
-    a_{m0} & a_{m1} &  ... & a_{mn}\\
-\end{array}
-\right].
-\end{equation}
-We can identify a block with $i,j,k,l\geq 0$, $i+k<m$ and $j+l<n$ as:
-\begin{equation}
-  \boldsymbol{L}=
-  \left[
-  \begin{array} {c c c c }
-    a_{ij} & a_{(i)(j+1)} &  ... & a_{(i)(n-l)}\\
-
-    a_{(i+1)(j)} & a_{(i+1)(j+1)} &  ... & a_{(i+1)(n-l)}\\
-    ...    & ...    &  ... & ...   \\
-    a_{(m-k)(j)} & a_{(m-k)(j+1)} &  ... & a_{(m-k)(n-l)}\\
-\end{array}
-\right].
-\end{equation}
-We use the $\Sigma$-Notation for sums although any associative binary operator would hold. The global scan is computed as all previous rows + the current row to the current element:
-\begin{equation}
-  S^G_{st} = \sum_{q,r=0}^{s-1,n} a_{qr} + \sum_{r=0}^{(t-1)} a_{sr}
-\end{equation}
-with $0 \leq s,t \leq m,n$.
-The local scan is computed similiar:
-\begin{equation}
-  S^L_{bc} = \sum_{q,r=i,j}^{(b-1),(n-l)} a_{qr} + \sum_{r=j}^{(c-1)} a_{br}.
-\end{equation}
-This however requires a full scan of $\boldsymbol{S}^L$, where $i,j \leq b,c \leq (m-k),(n-l)$.
-We can alternatively compute the local scan from the global scan with the following five steps:
-\begin{enumerate}
-\item Subtract the global scan's first element of every row-element and limit your view to indices $b,c$ then:
-  $$
-  T_{st} = S^G_{st} - \left(\sum_{q,r=0}^{s-1,n} a_{qr} + \sum_{r=0}^{(j-1)} a_{sr}\right)
-  $$
-\begin{equation}
-  \Rightarrow T_{bc} = \sum_{r=j}^{(c-1)} a_{br}
-\end{equation}
-\item Add the last value of $\boldsymbol{L}$ of the previous row (if it exists) to the current row.
-  \begin{equation}
-    \Rightarrow T^2_{bc} = a_{(b-1)(n-l)} + \sum_{r=j}^{(c-1)} a_{br}
-  \end{equation}
-\item Extract the last column $c =(n-l)$:
-  \begin{equation}
-    t_b = a_{(b-1)(n-l)} + \sum_{r=j}^{(n-l-1)} a_{br}.
-  \end{equation}
-\item Compute the in dimensionality-by-one reduced exclusive scan (of the last column):
-  \begin{equation}
-    s_{b} = \sum_{q=i}^{(b-1)}\left(a_{(q-1)(n-l)} + \sum_{r=j}^{(n-l-1)} a_{qr}\right).
-\end{equation}
-\item Row-wise add back:
-  $$T_{bc} + s_{b} = \sum_{q=i}^{(b-1)}\left(a_{(q)(n-l)} + \sum_{r=j}^{(n-l-1)} a_{qr}\right) + \sum_{r=j}^{(c-1)} a_{br}$$
-  \begin{equation}
-    = \sum_{q=i}^{(b-1)}\sum_{r=j}^{(n-l)} a_{qr} + \sum_{r=j}^{(c-1)} a_{br} = S^L_{bc}.
-  \end{equation}
-\end{enumerate}
-\begin{wrapfigure}{r}{0.53\textwidth}
-  \includesvg[svgpath =images/,width=0.53\textwidth]{tile_scan}
-  \caption{.}
-  \label{fig:tile_scan}
-\end{wrapfigure}
-For a simpler understanding of this process Figure \ref{fig:tile_scan} shows the process with the same numbering.
+One can also calculate a per block scan (with halo) without doing a full scan for every block (Appendices \ref{sec:block_scan}). We did not end up using this more closely related approach to \cite{NVIDIA:NNSEARCH} since loading more particles does not improve performance for the implemented transfers (see chapter \ref{sec:eval}).
 \subsection{Counting Sort}
-\textbf{Initial Binning}
-\subsection{Reordering}
-Binning\cite{NVIDIA:BINNING} (coalesced, uncoalesced)\\
+\textbf{Binning}\cite{NVIDIA:BINNING} (coalesced, uncoalesced)\\
 \textbf{Reordering}
 \subsection{MPM-Transfers}
 Conjugate gradient method
 \subsubsection{Particle to grid transfers}
-
+\begin{figure}[htbp]
+    \centering
+  \includesvg[svgpath =images/,width=\textwidth]{block_transfer_par}
+  \caption{dwad}
+  \label{fig:p2g_transfer}
+\end{figure}
 \subsubsection{Grid to particle transfers}
+
+\begin{wrapfigure}{r}{0.55\textwidth}
+  \includesvg[svgpath =images/,width=0.55\textwidth]{block_transfer_inv_par}
+  \caption{dwad}
+  \label{fig:g2p_transfer}
+\end{figure}
+\subsubsection{Active Blocks /& Maximum Block Count:}\label{sec:active_blocks}
+\begin{figure}[htbp]
+  \includesvg[svgpath =images/,width=\textwidth]{indirect_dispatch}
+  \caption{dwad}
+  \label{fig:active_block}
+\end{figure}
 
 \subsection{Verifying Simulation}
 \begin{itemize}
@@ -1431,6 +1383,7 @@ Conjugate gradient method
   \item Singular Value Decomposition
   \item Conjugate gradient
 \end{itemize}
+
 \clearpage
 \section{Evaluation}\label{sec:eval}
 \textbf{SoA vs. AoS}:
@@ -1543,6 +1496,79 @@ for i,D_row in enumerate(D_temp):
       0.         &0.         &0.33333333\\
   \end{array}\right]= \frac{\boldsymbol{D}_p}{h^2}
   $$
+\section{Block Scan}\label{sec:block_scan}
+
+\textbf{A Block Scan:} Assume we have already computed a global scan on a n-dimensional uniform grid and now want to compute the local scan of an n-dimensional tile/block in that grid. This again forms a uniform grid. For simplicity assume two dimensions:
+
+\noindent Given the initial two-dimensional pre-scan array:
+\begin{equation}
+  \boldsymbol{G}=
+  \left[
+  \begin{array} {c c c c }
+    a_{00} & a_{01} &  ... & a_{0n}\\
+
+    a_{10} & a_{11} &  ... & a_{1n}\\
+    ...    & ...    &  ... & ...   \\
+    a_{m0} & a_{m1} &  ... & a_{mn}\\
+\end{array}
+\right].
+\end{equation}
+We can identify a block with $i,j,k,l\geq 0$, $i+k<m$ and $j+l<n$ as:
+\begin{equation}
+  \boldsymbol{L}=
+  \left[
+  \begin{array} {c c c c }
+    a_{ij} & a_{(i)(j+1)} &  ... & a_{(i)(n-l)}\\
+
+    a_{(i+1)(j)} & a_{(i+1)(j+1)} &  ... & a_{(i+1)(n-l)}\\
+    ...    & ...    &  ... & ...   \\
+    a_{(m-k)(j)} & a_{(m-k)(j+1)} &  ... & a_{(m-k)(n-l)}\\
+\end{array}
+\right].
+\end{equation}
+We use the $\Sigma$-Notation for sums although any associative binary operator would hold. The global scan is computed as all previous rows + the current row to the current element:
+\begin{equation}
+  S^G_{st} = \sum_{q,r=0}^{s-1,n} a_{qr} + \sum_{r=0}^{(t-1)} a_{sr}
+\end{equation}
+with $0 \leq s,t \leq m,n$.
+The local scan is computed similiar:
+\begin{equation}
+  S^L_{bc} = \sum_{q,r=i,j}^{(b-1),(n-l)} a_{qr} + \sum_{r=j}^{(c-1)} a_{br}.
+\end{equation}
+This however requires a full scan of $\boldsymbol{S}^L$, where $i,j \leq b,c \leq (m-k),(n-l)$.
+We can alternatively compute the local scan from the global scan with the following five steps:
+\begin{enumerate}
+\item Subtract the global scan's first element of every row-element and limit your view to indices $b,c$ then:
+  $$
+  T_{st} = S^G_{st} - \left(\sum_{q,r=0}^{s-1,n} a_{qr} + \sum_{r=0}^{(j-1)} a_{sr}\right)
+  $$
+\begin{equation}
+  \Rightarrow T_{bc} = \sum_{r=j}^{(c-1)} a_{br}
+\end{equation}
+\item Add the last value of $\boldsymbol{L}$ of the previous row (if it exists) to the current row.
+  \begin{equation}
+    \Rightarrow T^2_{bc} = a_{(b-1)(n-l)} + \sum_{r=j}^{(c-1)} a_{br}
+  \end{equation}
+\item Extract the last column $c =(n-l)$:
+  \begin{equation}
+    t_b = a_{(b-1)(n-l)} + \sum_{r=j}^{(n-l-1)} a_{br}.
+  \end{equation}
+\item Compute the in dimensionality-by-one reduced exclusive scan (of the last column):
+  \begin{equation}
+    s_{b} = \sum_{q=i}^{(b-1)}\left(a_{(q-1)(n-l)} + \sum_{r=j}^{(n-l-1)} a_{qr}\right).
+\end{equation}
+\item Row-wise add back:
+  $$T_{bc} + s_{b} = \sum_{q=i}^{(b-1)}\left(a_{(q)(n-l)} + \sum_{r=j}^{(n-l-1)} a_{qr}\right) + \sum_{r=j}^{(c-1)} a_{br}$$
+  \begin{equation}
+    = \sum_{q=i}^{(b-1)}\sum_{r=j}^{(n-l)} a_{qr} + \sum_{r=j}^{(c-1)} a_{br} = S^L_{bc}.
+  \end{equation}
+\end{enumerate}
+For a simpler understanding of this process Figure \ref{fig:tile_scan} shows the process with the same numbering:
+\begin{figure}[htbp]
+  \includesvg[svgpath =images/,width=0.53\textwidth]{tile_scan}
+  \caption{A per block scan following the above enumeration.}
+  \label{fig:tile_scan}
+\end{figure}
 \end{appendices}
 \clearpage
 \listoffigures
