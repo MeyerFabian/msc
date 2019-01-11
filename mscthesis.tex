@@ -1275,7 +1275,7 @@ To name a few more cases that macros handle for us:
 \end{enumerate}
 For debugging we output the shader with all processed includes and let the gcc-preprocessor assemble the shader with options: \texttt{gcc -E -x c -P}. Except for the omission of the glsl version or extension macros, we did not find any problems in this process.
 
-\subsection{Parallel Reduction \& Scan}
+\subsection{Parallel Reduction \& Scan} \label{sec:red_scan}
 The schemes presented in the following are a result of the optimization opportunities discussed in \ref{sec:optim}.
 
 \textbf{Parallel Reduction}: Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ and an array of values $\left[a_0,a_1, ... ,a_n\right]$, parallel reduction computes:
@@ -1317,13 +1317,13 @@ Parallel reduction solves assuming a \texttt{unary\_op(x)} directly after memory
 \begin{equation}
   \left[e , a_0 , \left(a_0 \circ a_1\right), \left(a_0 \circ a_1 \circ a_2\right), \ ... \ ,\left(a_0\circ a_1 \circ a_2 \circ ...\circ a_{n-1}\right)\right].
 \end{equation}
-The scan uses an interleaved addressing pattern, Figure \ref{fig:interleaved}. The interleaved addressing pattern has the benefit over the sequential one of already computing the
-\begin{wrapfigure}[15]{r}{0.20\textwidth}
+\begin{wrapfigure}[13]{r}{0.20\textwidth}
+\vspace{-11}
  \includesvg[svgpath =images/,width=0.20\textwidth]{scan}
-  \caption{Scan for addition.}
+ \caption{Scan (add)}
   \label{fig:scan}
 \end{wrapfigure}
-partial scans for all odd indices (although misaligned). Note that the reduction needs to reduce to the right achieved by writing into the right element instead of the left in Figure \ref{fig:scan}. A full scan is then computed as \cite{NVIDIA:SCAN}:
+The scan uses an interleaved addressing pattern, Figure \ref{fig:interleaved}. The interleaved addressing pattern has the benefit over the sequential one of already computing the partial scans for all odd indices (although misaligned). Note that the reduction needs to reduce to the right achieved by writing into the right element instead of the left in Figure \ref{fig:scan}. A full scan is then computed as \cite{NVIDIA:SCAN}:
 \begin{enumerate}
   \item \label{it:up-sweep} Upsweep-Phase: Top-to-Bottom reduction to the right of the array.
   \item Inserting the neutral element into the last element of the array.
@@ -1346,14 +1346,30 @@ For a block size of 1024 one would need additional padding for a full conflict-f
 \end{equation}
 However the added computation time does not outweigh the bank-conflicts. So one reverts to eq. \ref{eq:bank}. Note that this is a correction to \cite{NVIDIA:SCAN} where C++ Operator Precedence of $+$ over $<<$ is not recognized and additionally incorrectly $ u << n$ is used in the first part of eq. \ref{eq:bank_1024}.
 
-
 A scan is used to calculate memory offsets for stream compaction or sorting algorithms.
 
-One can also calculate a per block scan (with halo) without doing a full scan for every block (Appendices \ref{sec:block_scan}). We did not end up using this more closely related approach to \cite{NVIDIA:NNSEARCH} since loading more particles does not improve performance for the implemented transfers (see chapter \ref{sec:eval}).
-\subsection{Counting Sort}
-\textbf{Binning}\cite{NVIDIA:BINNING} (coalesced, uncoalesced)\\
-\textbf{Reordering}
-\subsection{MPM-Transfers}
+One can also calculate a per block scan (with halo) without doing a full scan for every block (Appendices \ref{sec:block_scan}). This implementation did not end up using this more closely related approach to \cite{NVIDIA:NNSEARCH} as it would commit shared memory bank-conflicts defying the architecture of the GPU. Instead preferred is batching a fixed amount of particles, more in chapter \ref{sec:transfers}.
+\clearpage
+\subsection{Counting Sort \& Stream Compaction}
+As the sorting algorithm of choice counting sort is used as in \cite{NVIDIA:NNSEARCH}. Counting sort is split into three parts:
+\begin{enumerate}
+  \item
+\parbox[t]{\dimexpr\textwidth-\leftmargin}{%
+      \vspace{-7.5}
+      \begin{wrapfigure}[10]{r}{0.425\textwidth}
+	\vspace{-33}
+ \includesvg[svgpath =images/,width=0.425\textwidth]{binning}
+  \caption{Binning: Particle adds one to the grid counter after storing it.}
+  \label{fig:binning}
+\end{wrapfigure}
+  \textbf{Binning}: Transform the particle position into the grid space, such that every integer in range corresponds to a grid node. Bin due to flooring the transformed particle: Store the particle count $c_i$ of this grid node on the particle as an offset $o_p$ into this grid node.$$o_p := c_i.$$Following that, up the counter on the grid by one:$$c_i := c_i +1.$$
+}
+  \item \textbf{Scan}: Compute a per grid node scan $s_i$ on the counter $c_i$ following \ref{sec:red_scan}.
+
+  \item \textbf{Reordering}: $i_p := s_i + o_p$ will now lead to a new ordering of the particle indices. Sorting is now similar to methods \texttt{sort\_by\_key(uint i)}, where ordering of particles within the same bin is undefined. Supported is either a full deep copy of all particle variables or alternatively an indexing to access an existing particle buffer in the specified sorted manner.
+\end{enumerate}
+The one-dimensional indexing of the grid nodes can be chosen as preferred. Possible are a per-block indexing or a global indexing which are both supported. \cite{NVIDIA:NNSEARCH}
+\subsection{MPM-Transfers}\label{sec:transfers}
 Conjugate gradient method
 \subsubsection{Particle to grid transfers}
 \begin{figure}[htbp]
