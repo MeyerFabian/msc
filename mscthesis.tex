@@ -181,7 +181,7 @@
 
 
 \section{Introduction} \label{intro}
-\section{Related Work}
+\section{Related Work}\label{sec:rel_work}
 \textbf{Particle-in-Cell (PIC):} PIC techniques were developed initially for hydrodynamics
 \cite{evans1957particle}. They are also widely used in plasma simulations to solve Maxwell's equations. Their key steps are identical to the MPM-method:
 \begin{enumerate}
@@ -827,7 +827,7 @@ The transfers of the $APIC$-scheme are then summarized:
     (m\boldsymbol{v})^n_i = \sum_p w^n_{ip}m_p (\boldsymbol { v } _ { p } ^ { n } + \boldsymbol { B } _ { p } ^ { n } ( \boldsymbol { D } _ { p } ^ { n } ) ^ { - 1 } ( \boldsymbol { x } _ { i } ^ { n } - \boldsymbol { x } _ { p } ^ { n } ) )
 \end{equation}
   \item Factoring out mass:
-    \begin{equation}
+    \begin{equation}\label{eq:mass_divide}
       \boldsymbol{v}_i^n = \frac{(m\boldsymbol{v})_i^n}{m_i^n}.
     \end{equation}
   \item Grid to particle transfer (in a $PIC$-manner), where in contrast the new particle position $\boldsymbol{x}_p$ also needs to be interpolated:
@@ -1110,11 +1110,11 @@ The Hessian is derived following \ref{eq:partial_def_grad} and \ref{eq:nodal_for
 The Hessian increment can be computed with a two-stage process:
 \begin{enumerate}
   \item Compute a particle quantity $\boldsymbol{A}_p$ with a grid to particle transfer:
-    \begin{equation}
+    \begin{equation}\label{eq:Ap}
     \boldsymbol{A}_p = \frac { \partial ^ { 2 } \Psi } { \partial \boldsymbol { F } \partial \boldsymbol { F } } ( \hat { \boldsymbol { F } } _ { p } ( \hat { \boldsymbol { x } } )) : \left(\sum_j \delta \boldsymbol{u}_j (\nabla w_{jp}^n)^T \boldsymbol{F}^n_p\right).
     \end{equation}
   \item Compute the Hessian increment ($\delta \boldsymbol{f}_i$) with a particle to grid transfer:
-\begin{equation}
+    \begin{equation}\label{eq:delta_f}
   - \delta \boldsymbol{f}_i = - \sum_j \frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j} \delta \boldsymbol{u}_j = \sum_p V_p^0 \boldsymbol{A}_p(\boldsymbol{F}^n_p)^T \nabla w_{ip}^n.
 \end{equation}
 \end{enumerate}
@@ -1351,7 +1351,18 @@ A scan is used to calculate memory offsets for stream compaction or sorting algo
 One can also calculate a per block scan (with halo) without doing a full scan for every block (Appendices \ref{sec:block_scan}). This implementation did not end up using this more closely related approach to \cite{NVIDIA:NNSEARCH} as it would commit shared memory bank-conflicts defying the architecture of the GPU. Instead preferred is batching a fixed amount of particles, more in chapter \ref{sec:transfers}.
 \clearpage
 \subsection{Counting Sort \& Stream Compaction}
-As the sorting algorithm of choice counting sort is used as in \cite{NVIDIA:NNSEARCH}. Counting sort is split into three parts:
+Sorting on the GPU can dramatically increase workload performance of subsequent steps. If they can profit from following things:
+\begin{enumerate}
+  \item Accesses can now be handled in a coalesced fashion. \label{it:sort_1}
+  \item Data can now be reused due to L2-Cache and shared memory. \label{it:sort_2}
+\end{enumerate}
+This is the case for algorithms which require neighbor communication.
+Supported is either a full deep copy of all particle variables. A deep copy profits from item \ref{it:sort_1} and \ref{it:sort_2}, but takes the hit in performance of uncoalesced accesses for all variables. Or alternatively an indexing to access an existing particle buffer in the specified sorted manner. Indexing only profits from item \ref{it:sort_2} and subsequent shaders will be uncoalesced.
+
+\textbf{Stream Compaction} reduces applicable data for subsequent operations. The applicable data is checked by a condition. There are a lot of cases where stream compaction can reduce running times. In chapter \ref{sec:rel_work} particle activation is mentioned as one of such, chapter \ref{sec:active_blocks} will reduce to active blocks. Collision treatment could be implemented as an operation following a collision detection etc. Again indexing and deep copies can be executed for the same reasons mentioned in \ref{it:sort_1} and \ref{it:sort_2}.
+
+\textbf{Counting Sort}: As the sorting algorithm of choice counting sort is used.
+Counting sort is split into three parts:
 \begin{enumerate}
   \item
 \parbox[t]{\dimexpr\textwidth-\leftmargin}{%
@@ -1359,27 +1370,53 @@ As the sorting algorithm of choice counting sort is used as in \cite{NVIDIA:NNSE
       \begin{wrapfigure}[10]{r}{0.425\textwidth}
 	\vspace{-33}
  \includesvg[svgpath =images/,width=0.425\textwidth]{binning}
-  \caption{Binning: Particle adds one to the grid counter after storing it.}
+  \caption{Binning: Particle adds one to $c_i$ after storing it as $o_p$.}
   \label{fig:binning}
 \end{wrapfigure}
   \textbf{Binning}: Transform the particle position into the grid space, such that every integer in range corresponds to a grid node. Bin due to flooring the transformed particle: Store the particle count $c_i$ of this grid node on the particle as an offset $o_p$ into this grid node.$$o_p := c_i.$$Following that, up the counter on the grid by one:$$c_i := c_i +1.$$
 }
+This process is visualized in Figure \ref{fig:binning}.
   \item \textbf{Scan}: Compute a per grid node scan $s_i$ on the counter $c_i$ following \ref{sec:red_scan}.
 
-  \item \textbf{Reordering}: $i_p := s_i + o_p$ will now lead to a new ordering of the particle indices. Sorting is now similar to methods \texttt{sort\_by\_key(uint i)}, where ordering of particles within the same bin is undefined. Supported is either a full deep copy of all particle variables or alternatively an indexing to access an existing particle buffer in the specified sorted manner.
-\end{enumerate}
+  \item \textbf{Reordering}: $i_p := s_i + o_p$ will now lead to a new ordering of the particle indices. Sorting is now similar to methods \texttt{sort\_by\_key(uint i)}, where ordering of particles within the same bin is undefined. \end{enumerate}
 The one-dimensional indexing of the grid nodes can be chosen as preferred. Possible are a per-block indexing or a global indexing which are both supported. \cite{NVIDIA:NNSEARCH}
-\subsection{MPM-Transfers}\label{sec:transfers}
-Conjugate gradient method
-\subsubsection{Particle to grid transfers}
+
+Particles could potentially access the same bin at the same time resulting in a race condition. A naive solution to the problem are atomic accesses. As long as the (atomic) writes can be handled coalesced this process can be done fast by the GPU, chapter \ref{sec:eval}. This is only the case for a full deep sort. Therefore binning in the case of a full sort acts upon the last sorted state. Double buffering particles allows to do so. However binning is done after a position update that changes the ordering. Full coalescing will therefore generally not occur.
+
+Alternatively one could work again with the CFL-condition. Since particles move at most one bin in the 27-neighborhood one could mimic a Particle-to-Grid transfer, chapter \ref{sec:p2g}:
+\begin{enumerate}
+  \item \textbf{Labeling}: Label the particles by the bin they want to change to.
+  \item \textbf{Neighborhood lookup}: A bin then assigns offsets to the particles in the neighborhood and increases its counter.
+\end{enumerate}
+Similarly to the Particle-to-Grid transfer one could choose from the different algorithms presented there to do so. However without additional endeavors the order within a bin is not preserved. One would need to rely on the L1-cache as a coalescing buffer as does the atomic global solution.
+
+Alternatively one could choose a closer approach to \cite{NVIDIA:NNSEARCH}'s neighborhood search, which greedily loads all particles. Ordering can easily be preserved then. Note that the support in their approach is smaller (27 instead of 64 nodes) and the data required per particle is only the label.
+
+Chapter \ref{sec:active_blocks} shows how to do this only for active blocks. Due to the difference in support the same pipeline cannot be used.
+
+In summary there is little gains to do so as binning is only executed once per step and is not the dominant performance cost.
+
+\subsection{MPM-Operations}\label{sec:transfers}
+Easy to parallelize are all operations that are executed entirely on the grid or entirely on the particles:
+$$\square_p = \square_p \circ \square_p \circ ... \circ \square_p,$$
+$$\square_i = \square_i \circ \square_i \circ ... \circ \square_i.$$
+One thread will just equal to one node or particle respectively. For one variable operations mostly used is a map-shader that applies a unary operation to any input element. This can be used for instance for the mass divide of momentum on the grid (equation \ref{eq:mass_divide}) or resetting buffers that are target of global atomic operations.
+
+In contrast much harder are transfers between the two structures, that are essential to the Material-Point-Method.
+
+Particle-to-Grid(P2G)-transfers are the mass (equation \ref{eq:mpm:mass}) and momentum (equation \ref{eq:apic_mom_p2g}) transfers to the grid; as well as the computation of the Hessian of equation \ref{eq:delta_f}. In general these can be summarized as:
+$$\square_i = \sum_p \square_p \circ \square_{ip}.$$
+The transfers back to the particles are called Grid-to-Particle(G2P)-transfers. Apart from the APIC-transfers (equation \ref{eq:apic_mom_g2p}) and the intermediate Matrix $\boldsymbol{A}_p$ for the Hessian (equation \ref{eq:Ap}) the deformation gradient update $\boldsymbol{F}^{n+1}_p$ is also a G2P-transfer (equation \ref{eq:evol_def_grad_disc_x}). In short all transfers of the form:
+$$\square_p = \sum_i \square_i \circ \square_{ip}.$$
+
+\subsubsection{Particle-to-Grid transfers}\label{sec:p2g}
 \begin{figure}[htbp]
     \centering
   \includesvg[svgpath =images/,width=\textwidth]{block_transfer_par}
   \caption{dwad}
   \label{fig:p2g_transfer}
 \end{figure}
-\subsubsection{Grid to particle transfers}
-
+\subsubsection{Grid to particle transfers}\label{sec:g2p}
 \begin{wrapfigure}{r}{0.55\textwidth}
   \includesvg[svgpath =images/,width=0.55\textwidth]{block_transfer_inv_par}
   \caption{dwad}
