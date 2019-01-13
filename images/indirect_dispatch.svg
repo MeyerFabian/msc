@@ -94,7 +94,7 @@
       <path
          id="path2458"
          d="M 0,0 5,-5 -12.5,0 5,5 Z"
-         style="fill:#5876ff;fill-opacity:1;fill-rule:evenodd;stroke:#5876ff;stroke-width:1.00000003pt;stroke-opacity:1"
+         style="fill:#ffbe58;fill-opacity:1;fill-rule:evenodd;stroke:#ffbe58;stroke-width:1.00000003pt;stroke-opacity:1"
          transform="matrix(-0.8,0,0,-0.8,-10,0)"
          inkscape:connector-curvature="0" />
     </marker>
@@ -1309,10 +1309,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="2.0000001"
-     inkscape:cx="350.50595"
-     inkscape:cy="115.61233"
+     inkscape:cx="261.25595"
+     inkscape:cy="123.11233"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer2"
+     inkscape:current-layer="layer1"
      showgrid="false"
      inkscape:measure-start="0,0"
      inkscape:measure-end="0,0"
@@ -1335,7 +1335,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -1345,6 +1345,11 @@
      id="layer1"
      transform="translate(-4.6122826,-0.60408151)"
      style="display:inline">
+    <path
+       style="fill:none;stroke:#ffbe58;stroke-width:0.265;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker2460)"
+       d="M 24.985198,17.266231 9.9039489,26.923521"
+       id="path4359"
+       inkscape:connector-curvature="0" />
     <rect
        style="opacity:1;fill:#ffbe58;fill-opacity:1;stroke:#000000;stroke-width:0.13423266;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:0.30150757"
        id="rect4708"
@@ -1685,11 +1690,6 @@
          x="138.10551"
          y="5.0222893"
          style="stroke-width:0.26458332">Block 3</tspan></text>
-    <path
-       style="fill:none;stroke:#ffbe58;stroke-width:0.26499999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker4624)"
-       d="M 24.985198,17.266231 9.9039489,26.923521"
-       id="path4359"
-       inkscape:connector-curvature="0" />
     <path
        style="display:inline;fill:none;stroke:#ffbe58;stroke-width:0.26499999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker4624-1)"
        d="M 106.59775,17.263043 29.750567,26.893615"

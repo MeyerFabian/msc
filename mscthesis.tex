@@ -1435,21 +1435,21 @@ With the mentioned partitioning of the grid into blocks the shared memory archit
   {\textbf{end for}}
 
 \begin{algorithm}[t]
-  \caption{G2P-Transfer}\label{alg:conj_grad}
+  \caption{G2P-Transfer}\label{alg:g2p}
   \begin{algorithmic}[1]
     \FORALLP{$blockNode \in grid$}
-      \State \text{shared vec4 } $blockAndHalo$ [$H\_FLAT$]
-      \ForAll{$node\_id \in \text{assignedNodes}(blockNode, H\_FLAT)$}
-      \State $blockAndHalo[node\_id] \gets \text{LoadGlobalValue}(node\_id)$
+    \State \text{shared vec4 } $blockAndHalo$ [$H\_FLAT$]
+    \ForAll{$(node,local\_id) \in \text{assignedNodes}(blockNode, H\_FLAT)$}
+      \State $blockAndHalo[local\_id] \gets node$\Comment{global load}
       \EndFor
       \State \text{barrier()}
       \ForAll{$particle \in \text{bin}(blockNode)$}
       \State $sum \gets$ vec4(.0)
-      \ForAll{$neighbor \in \text{support}(blockNode)$}
-      \State $w_{ip} \gets weight(particle,neighbor)$
-      \State $sum \gets sum + blockAndHalo[neighbor]*w_{ip}$
+      \ForAll{$neighbor\_id \in \text{support}(blockNode)$}
+      \State $w_{ip} \gets weight(particle,neighbor\_id)$
+      \State $sum $ += $ blockAndHalo[neighbor\_id]*w_{ip}$
 	\EndFor
-      \State $particle \gets sum$
+	\State $particle \gets sum$ \Comment{global write}
       \EndFor
     \ENDFAP
   \end{algorithmic}
@@ -1463,6 +1463,30 @@ With the mentioned partitioning of the grid into blocks the shared memory archit
 \end{figure}
 
 \subsubsection{Particle-to-Grid-transfers}\label{sec:p2g}
+
+\begin{algorithm}[t]
+  \caption{P2G-Transfer (synchronized)}\label{alg:p2g}
+  \begin{algorithmic}[1]
+    \FORALLP{$blockNode \in grid$}
+    \State \text{shared vec4 } $blockAndHalo$ [$H\_FLAT$]
+    \ForAll{$local_id\_id \in \text{assignedNodesID}(blockNode, H\_FLAT)$}
+      \State $blockAndHalo[node\_id] \gets $vec4(.0)
+      \EndFor
+      \State \text{barrier()}
+      \ForAll{$particle \in \text{bin}(blockNode)$} \Comment{global load}
+	\ForAll{$neighbor\_id \in \text{support}(blockNode)$}
+	\State $w_{ip} \gets weight(particle,neighbor\_id)$
+	\State $blockAndHalo[neighbor\_id] $ += $ particle*w_{ip}$
+	\State \text{barrier()} \Comment{uniform flow control needed!}
+	\EndFor
+      \EndFor
+      \ForAll{$(node,local\_id) \in \text{assignedNodes}(blockNode, H\_FLAT)$}
+      \State atomicAdd($node$,$blockAndHalo[local\_id]$) \Comment{global write}
+      \EndFor
+    \ENDFAP
+  \end{algorithmic}
+\end{algorithm}
+
 \begin{figure}[htbp]
     \centering
   \includesvg[svgpath =images/,width=\textwidth]{block_transfer_par}
@@ -1471,7 +1495,7 @@ With the mentioned partitioning of the grid into blocks the shared memory archit
 \end{figure}
 \subsubsection{Active Blocks \& Maximum Block Count:}\label{sec:active_blocks}
 \begin{figure}[htbp]
-  \incl[svgpath =images/,width=\textwidth]{indirect_dispatch}
+  \includesvg[svgpath =images/,width=\textwidth]{indirect_dispatch}
   \caption{dwad}
   \label{fig:active_block}
 \end{figure}
