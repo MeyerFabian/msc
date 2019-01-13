@@ -1350,7 +1350,7 @@ A scan is used to calculate memory offsets for stream compaction or sorting algo
 
 One can also calculate a per block scan (with halo) without doing a full scan for every block (Appendices \ref{sec:block_scan}). This implementation did not end up using this more closely related approach to \cite{NVIDIA:NNSEARCH} as it would commit shared memory bank-conflicts defying the architecture of the GPU. Instead preferred is batching a fixed amount of particles, more in chapter \ref{sec:transfers}.
 \clearpage
-\subsection{Counting Sort \& Stream Compaction}
+\subsection{Counting Sort \& Stream Compaction}\label{sec:sort}
 Sorting on the GPU can dramatically increase workload performance of subsequent steps. If they can profit from following things:
 \begin{enumerate}
   \item Accesses can now be handled in a coalesced fashion. \label{it:sort_1}
@@ -1373,13 +1373,16 @@ Counting sort is split into three parts:
   \caption{Binning: Particle adds one to $c_i$ after storing it as $o_p$.}
   \label{fig:binning}
 \end{wrapfigure}
-  \textbf{Binning}: Transform the particle position into the grid space, such that every integer in range corresponds to a grid node. Bin due to flooring the transformed particle: Store the particle count $c_i$ of this grid node on the particle as an offset $o_p$ into this grid node.$$o_p := c_i.$$Following that, up the counter on the grid by one:$$c_i := c_i +1.$$
+\textbf{Binning}: Transform the particle position into the grid space, such that every integer in range corresponds to a grid node. Bin due to flooring the transformed particle: Store the particle count $c_i$ of this grid node on the particle as an offset $o_p$ into this grid node.$$o_p := c_i.$$Following that, up the counter on the grid by one:$$c_i := c_i +1.$$
 }
 This process is visualized in Figure \ref{fig:binning}.
   \item \textbf{Scan}: Compute a per grid node scan $s_i$ on the counter $c_i$ following \ref{sec:red_scan}.
 
-  \item \textbf{Reordering}: $i_p := s_i + o_p$ will now lead to a new ordering of the particle indices. Sorting is now similar to methods \texttt{sort\_by\_key(uint i)}, where ordering of particles within the same bin is undefined. \end{enumerate}
-The one-dimensional indexing of the grid nodes can be chosen as preferred. Possible are a per-block indexing or a global indexing which are both supported. \cite{NVIDIA:NNSEARCH}
+  \item \textbf{Reordering}: $i_p := s_i + o_p$ will now lead to a new ordering of the particle indices. Sorting is now similar to methods \texttt{sort\_by\_key(uint i)}, where ordering of particles within the same bin is undefined.
+\end{enumerate}
+\begin{flushright}\cite{NVIDIA:NNSEARCH}\cite{MPM:GPU}\end{flushright}
+
+The one-dimensional indexing of the grid nodes can be chosen as preferred. Possible are a per-block indexing or a global indexing which are both supported.
 
 Particles could potentially access the same bin at the same time resulting in a race condition. A naive solution to the problem are atomic accesses. As long as the (atomic) writes can be handled coalesced this process can be done fast by the GPU, chapter \ref{sec:eval}. This is only the case for a full deep sort. Therefore binning in the case of a full sort acts upon the last sorted state. Double buffering particles allows to do so. However binning is done after a position update that changes the ordering. Full coalescing will therefore generally not occur.
 
@@ -1402,29 +1405,73 @@ $$\square_p = \square_p \circ \square_p \circ ... \circ \square_p,$$
 $$\square_i = \square_i \circ \square_i \circ ... \circ \square_i.$$
 One thread will just equal to one node or particle respectively. For one variable operations mostly used is a map-shader that applies a unary operation to any input element. This can be used for instance for the mass divide of momentum on the grid (equation \ref{eq:mass_divide}) or resetting buffers that are target of global atomic operations.
 
-In contrast much harder are transfers between the two structures, that are essential to the Material-Point-Method.
+In contrast much harder are transfers between the two structures, that are essential to the Material-Point-Method:
 
 Particle-to-Grid(P2G)-transfers are the mass (equation \ref{eq:mpm:mass}) and momentum (equation \ref{eq:apic_mom_p2g}) transfers to the grid; as well as the computation of the Hessian of equation \ref{eq:delta_f}. In general these can be summarized as:
 $$\square_i = \sum_p \square_p \circ \square_{ip}.$$
+
 The transfers back to the particles are called Grid-to-Particle(G2P)-transfers. Apart from the APIC-transfers (equation \ref{eq:apic_mom_g2p}) and the intermediate Matrix $\boldsymbol{A}_p$ for the Hessian (equation \ref{eq:Ap}) the deformation gradient update $\boldsymbol{F}^{n+1}_p$ is also a G2P-transfer (equation \ref{eq:evol_def_grad_disc_x}). In short all transfers of the form:
 $$\square_p = \sum_i \square_i \circ \square_{ip}.$$
 
-\subsubsection{Particle-to-Grid transfers}\label{sec:p2g}
+The MPM-transfers are different from a typical stencil or filter operation in two main factors:
+\begin{enumerate}
+  \item \textbf{Dynamic weights}: The stencil is not static. In the MPM-Method the weighting function $w_{ip}$ (or $\nabla w_{ip}$ etc.) is dependent on the particle position $w_i(\boldsymbol{x}_p)$. This also means the position needs to be temporarily stored to apply the transfer.
+  \item \label{it:part_nodes} \textbf{Participating nodes}: A stencil operation reads from a fixed amount of nodes in its neighborhood given by the support of the stencil. This is a node to node relationship which all threads typically participate in from start to finish for the full range of the support.
+
+In a MPM-Transfer the number of participating nodes can vary. A node may have one, zero or any positive integer of particles associated with it. Thus in a transfer some nodes may not participate at all or have more load than any of the nodes in its neighborhood.
+\end{enumerate}
+Item \ref{it:part_nodes} does sound more problematic from a parallelization perspective than it is in practice. In chapter \ref{sec:rel_work} particle resampling is mentioned of a means to fill material gaps. This is an inherent mechanic to control the number of particles within a cell. Although it is designed to augment the numerics, the merge method can be easily used to control the upper boundary of particles within a cell. Nevertheless the number of particles within a cell is still variable.
+
+The sorting and binning employed in chapter \ref{sec:sort} allows to split the grid into a partitioning of blocks. Blocks map well to the thread group nature of GPUs. A single thread within a thread group thus corresponds to a grid node within that block.
+\subsubsection{Grid-to-Particle-transfers}\label{sec:g2p}
+The most straightforward solution to this problem is to handle all particles independently from each other. One particle adds up the contribution of each grid node variable in range of the interpolation function. In three dimensions this can be done for instance with a two times nested for-loop within a thread. Luckily grid nodes in a uniform grid are inherently sorted which takes care of coalescing.
+
+Furthermore sorting particles due to chapter \ref{sec:sort} increases caching behavior as variables of grid nodes are directly reused by particles in the same group. This results in direct L2-cache hits instead of going the long way of reloading from global memory.
+
+With the mentioned partitioning of the grid into blocks the shared memory architecture of the GPU can be exploited. This requires two-level binning of particles to nodes within blocks.
+
+\algblockdefx{FORALLP}{ENDFAP}[1]%
+  {\textbf{for all }#1 \textbf{do in parallel}}%
+  {\textbf{end for}}
+
+\begin{algorithm}[t]
+  \caption{G2P-Transfer}\label{alg:conj_grad}
+  \begin{algorithmic}[1]
+    \FORALLP{$blockNode \in grid$}
+      \State \text{shared vec4 } $blockAndHalo$ [$H\_FLAT$]
+      \ForAll{$node\_id \in \text{assignedNodes}(blockNode, H\_FLAT)$}
+      \State $blockAndHalo[node\_id] \gets \text{LoadGlobalValue}(node\_id)$
+      \EndFor
+      \State \text{barrier()}
+      \ForAll{$particle \in \text{bin}(blockNode)$}
+      \State $sum \gets$ vec4(.0)
+      \ForAll{$neighbor \in \text{support}(blockNode)$}
+      \State $w_{ip} \gets weight(particle,neighbor)$
+      \State $sum \gets sum + blockAndHalo[neighbor]*w_{ip}$
+	\EndFor
+      \State $particle \gets sum$
+      \EndFor
+    \ENDFAP
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{figure}[htbp]
+    \centering
+  \includesvg[svgpath =images/,width=\textwidth]{block_transfer_inv_par}
+  \caption{dwad}
+  \label{fig:g2p_transfer}
+\end{figure}
+
+\subsubsection{Particle-to-Grid-transfers}\label{sec:p2g}
 \begin{figure}[htbp]
     \centering
   \includesvg[svgpath =images/,width=\textwidth]{block_transfer_par}
   \caption{dwad}
   \label{fig:p2g_transfer}
 \end{figure}
-\subsubsection{Grid to particle transfers}\label{sec:g2p}
-\begin{wrapfigure}{r}{0.55\textwidth}
-  \includesvg[svgpath =images/,width=0.55\textwidth]{block_transfer_inv_par}
-  \caption{dwad}
-  \label{fig:g2p_transfer}
-\end{figure}
-\subsubsection{Active Blocks /& Maximum Block Count:}\label{sec:active_blocks}
+\subsubsection{Active Blocks \& Maximum Block Count:}\label{sec:active_blocks}
 \begin{figure}[htbp]
-  \includesvg[svgpath =images/,width=\textwidth]{indirect_dispatch}
+  \incl[svgpath =images/,width=\textwidth]{indirect_dispatch}
   \caption{dwad}
   \label{fig:active_block}
 \end{figure}

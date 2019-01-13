@@ -2991,7 +2991,7 @@
      inkscape:cx="354.47908"
      inkscape:cy="257.35758"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer3"
+     inkscape:current-layer="layer7"
      showgrid="false"
      inkscape:measure-start="0,0"
      inkscape:measure-end="0,0"
@@ -3013,7 +3013,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -3433,12 +3433,12 @@
          x="151.87987"
          y="19.522545"
          style="stroke-width:0.26458332"
-         id="tspan21259-2">Node corr. to</tspan><tspan
+         id="tspan21263-7">Nodes of this</tspan><tspan
          sodipodi:role="line"
          x="151.87987"
          y="24.814211"
          style="stroke-width:0.26458332"
-         id="tspan21263-7">thread</tspan></text>
+         id="tspan1969">thread group</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:4.23333311px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
