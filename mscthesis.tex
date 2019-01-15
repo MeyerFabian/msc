@@ -23,6 +23,7 @@
 \usepackage{graphicx}
 \usepackage{blindtext}
 \usepackage{svg}
+\usepackage{xcolor,colortbl}
 \addbibresource{mscthesis.bib}
 
 \captionsetup{justification=raggedright,singlelinecheck=false}
@@ -1413,6 +1414,19 @@ $$\square_i = \sum_p \square_p \circ \square_{ip}.$$
 The transfers back to the particles are called Grid-to-Particle(G2P)-transfers. Apart from the APIC-transfers (equation \ref{eq:apic_mom_g2p}) and the intermediate Matrix $\boldsymbol{A}_p$ for the Hessian (equation \ref{eq:Ap}) the deformation gradient update $\boldsymbol{F}^{n+1}_p$ is also a G2P-transfer (equation \ref{eq:evol_def_grad_disc_x}). In short all transfers of the form:
 $$\square_p = \sum_i \square_i \circ \square_{ip}.$$
 
+The number of transfers per frame is much higher than in simple PIC- or SPH-code which are mostly interested in pressure contributions($float$). This motivates to make the transfers a very highly optimized operation. The Material-Point-Method requires for an elastic material as derived:
+\begin{enumerate}
+  \item One P2G-Transfer of mass and momentum $m_i, \boldsymbol{v}_i$(combined $float4$).
+  \item Per Conjugate Gradient Iteration:
+    \begin{enumerate}
+      \item One G2P-Transfer for the $3 \times 3$ Matrix $\boldsymbol{A}_p$
+      \item One P2G-Transfer of $\delta \boldsymbol{f}_i$ ($float4$)
+    \end{enumerate}
+  \item Per Newton Iteration: One G2P-Transfer for $\boldsymbol{F}^{n+1}_p$
+  \item One G2P-Transfer of the $3 \times 3$ Matrix $\boldsymbol{B}_p^{n+1}$, the position $\boldsymbol{x}_p^{n+1}$ and the velocity $\boldsymbol{v}_p^{n+1}$
+\end{enumerate}
+In summary this is a lot of data to be transferred between grid and particles, which will only increase with more complex models. In contrast any preprocessing like sorting (chapter \ref{sec:sort}) or filtering active blocks(chapter \ref{sec:active_blocks}) need to be executed only once every frame. After that it helps each transfer running more performant. Therefore the transfers are the main focus of this implementation.
+
 The MPM-transfers are different from a typical stencil or filter operation in two main factors:
 \begin{enumerate}
   \item \textbf{Dynamic weights}: The stencil is not static. In the MPM-Method the weighting function $w_{ip}$ (or $\nabla w_{ip}$ etc.) is dependent on the particle position $w_i(\boldsymbol{x}_p)$. This also means the position needs to be temporarily stored to apply the transfer.
@@ -1420,21 +1434,36 @@ The MPM-transfers are different from a typical stencil or filter operation in tw
 
 In a MPM-Transfer the number of participating nodes can vary. A node may have one, zero or any positive integer of particles associated with it. Thus in a transfer some nodes may not participate at all or have more load than any of the nodes in its neighborhood.
 \end{enumerate}
-Item \ref{it:part_nodes} does sound more problematic from a parallelization perspective than it is in practice. In chapter \ref{sec:rel_work} particle resampling is mentioned of a means to fill material gaps. This is an inherent mechanic to control the number of particles within a cell. Although it is designed to augment the numerics, the merge method can be easily used to control the upper boundary of particles within a cell. Nevertheless the number of particles within a cell is still variable.
+Item \ref{it:part_nodes} does sound more problematic from a parallelization perspective than it is in practice. In chapter \ref{sec:rel_work} particle resampling is mentioned of a means to fill material gaps. This is an inherent mechanic to control the number of particles within a cell. Although it is designed to augment the numerics, the merge method can be easily used to control the upper boundary of particles within a cell. Nevertheless the number of particles within a cell is still variable. Nevertheless all methods presented in the following are not restricted to bins of a fixed size of particles.
 
 The sorting and binning employed in chapter \ref{sec:sort} allows to split the grid into a partitioning of blocks. Blocks map well to the thread group nature of GPUs. A single thread within a thread group thus corresponds to a grid node within that block.
 \subsubsection{Grid-to-Particle-transfers}\label{sec:g2p}
-The most straightforward solution to this problem is to handle all particles independently from each other. One particle adds up the contribution of each grid node variable in range of the interpolation function. In three dimensions this can be done for instance with a two times nested for-loop within a thread. Luckily grid nodes in a uniform grid are inherently sorted which takes care of coalescing.
+The straightforward solution to this problem is to handle all particles independently from each other. One particle adds up the contribution of each grid node variable in range of the interpolation function. In three dimensions this can be done for instance with a two times nested for-loop within a thread. Luckily grid nodes in a uniform grid are inherently sorted which takes care of coalescing.
 
 Furthermore sorting particles due to chapter \ref{sec:sort} increases caching behavior as variables of grid nodes are directly reused by particles in the same group. This results in direct L2-cache hits instead of going the long way of reloading from global memory.
 
-With the mentioned partitioning of the grid into blocks the shared memory architecture of the GPU can be exploited. This requires two-level binning of particles to nodes within blocks.
+With the mentioned partitioning of the grid into blocks the shared memory architecture of the GPU can be exploited. This requires two-level binning of particles to nodes within blocks. Figure \ref{fig:g2p_transfer} show how the G2P-transfer using shared memory is realized. Algorithm \ref{alg:g2p} shows this process briefly. Due to binning a particle is associated with its lower left node. In Figure \ref{fig:g2p_transfer} four threads are active and form the thread group. All visible grid nodes need to be loaded by the threads. This includes the halo of the block, which is dependent upon the support of the interpolation function. For uneven polynomials of the interpolation function the floored position is very favorable. It allows the left support to be one smaller than the right support. As a result the weight of a most outer-edge particle (of the active particle region) just reaches zero for any neighborhood-node outside the halo.
+
+\begin{figure}[htbp]
+    \centering
+  \includesvg[svgpath =images/,width=\textwidth]{block_transfer_inv_par}
+  \caption{G2P-Transfer: The transfer of a single particle is split into 64 sequential runs (using cubic weights). Shown are the first two runs.}
+  \label{fig:g2p_transfer}
+\end{figure}
+The bigger the block the less halo nodes need to be loaded in total. Given an interpolation function with left support $l$ and right support $r$, total grid size $g$ and block sizes $b_x,b_y,b_z$ the general function to calculate the number of elements loaded is:
+\begin{equation}
+  m(b_x,b_y,b_z) = \frac{g}{b_x*b_y*b_z}(l+b_x+r)(l+b_y+r)(l+b_z+r).
+\end{equation}
+ As an example, take a 128*128*128 grid and the cubic interpolation function, which has a left support of 1 and a right support of 2. Subdivide the grid into 4*4*4 or 8*4*4 elements respectively:
+ $$m(4,4,4): 11,239,424\text{ Elements, }m(8,4,4):  8,830,976\text{ Elements}$$
+Note however that in practice there is a good change that a major part of the additional elements will result in L2-cache hits.
+
+Next up is the transfer: Each thread corresponds to one particle within the blue nodes in Figure \ref{fig:g2p_transfer}. The threads will sequentially run over the neighbors within the support and collect the weighted contribution to this particle. This process needs to be repeated for each particle in the bin. Since the number of particles is variable, this loop is dynamic and will lead to branch divergence within a warp. One should rely on external mechanics like particle resampling to reduce branching.
 
 \algblockdefx{FORALLP}{ENDFAP}[1]%
   {\textbf{for all }#1 \textbf{do in parallel}}%
   {\textbf{end for}}
-
-\begin{algorithm}[t]
+\begin{algorithm}[htpb]
   \caption{G2P-Transfer}\label{alg:g2p}
   \begin{algorithmic}[1]
     \FORALLP{$blockNode \in grid$}
@@ -1445,7 +1474,7 @@ With the mentioned partitioning of the grid into blocks the shared memory archit
       \State \text{barrier()}
       \ForAll{$particle \in \text{bin}(blockNode)$}
       \State $sum \gets$ vec4(.0)
-      \ForAll{$neighbor\_id \in \text{support}(blockNode)$}
+      \ForAll{$neighbor\_id \in \text{support}(blockNode)$}\Comment{transfer}
       \State $w_{ip} \gets weight(particle,neighbor\_id)$
       \State $sum $ += $ blockAndHalo[neighbor\_id]*w_{ip}$
 	\EndFor
@@ -1454,17 +1483,21 @@ With the mentioned partitioning of the grid into blocks the shared memory archit
     \ENDFAP
   \end{algorithmic}
 \end{algorithm}
+Alternatively one could come up with a per-warp load balancing scheme: One thread would then not directly correspond to one active node. They would need to act as another node in the same warp, when their load is done. This will inevitably lead to shared memory bank conflicts. For the P2G-Transfer this would introduce atomic operations on shared memory again.
 
+In Appendices \ref{sec:shared_transfer} the accesses of one warp on shared memory banks is shown. The interpolation function is assumed to be cubic and the first block dimension is $x=4$ or $x=8$. The shared memory can thus be handled as concurrently as possible.
+
+As an extension to this process batching is introduced. Instead of conservatively loading one particle at a time, each thread handles multiple particles together which it stores in register memory. Important to this process is to unroll the corresponding code that loads as well as processes these multiple particles. Instead of needing to rerun the transfer for each particle, the number of runs now done is the number of non-batched runs divided by the number of particles. This process adds to the amount of registers allocated and can thus also negatively impact performance.
+\subsubsection{Particle-to-Grid-transfers}\label{sec:p2g}
+The Particle-to-Grid transfer is
 \begin{figure}[htbp]
     \centering
-  \includesvg[svgpath =images/,width=\textwidth]{block_transfer_inv_par}
+  \includesvg[svgpath =images/,width=\textwidth]{block_transfer_par}
   \caption{dwad}
-  \label{fig:g2p_transfer}
+  \label{fig:p2g_transfer}
 \end{figure}
 
-\subsubsection{Particle-to-Grid-transfers}\label{sec:p2g}
-
-\begin{algorithm}[t]
+\begin{algorithm}[htpb]
   \caption{P2G-Transfer (synchronized)}\label{alg:p2g}
   \begin{algorithmic}[1]
     \FORALLP{$blockNode \in grid$}
@@ -1474,7 +1507,7 @@ With the mentioned partitioning of the grid into blocks the shared memory archit
       \EndFor
       \State \text{barrier()}
       \ForAll{$particle \in \text{bin}(blockNode)$} \Comment{global load}
-	\ForAll{$neighbor\_id \in \text{support}(blockNode)$}
+      \ForAll{$neighbor\_id \in \text{support}(blockNode)$} \Comment{transfer}
 	\State $w_{ip} \gets weight(particle,neighbor\_id)$
 	\State $blockAndHalo[neighbor\_id] $ += $ particle*w_{ip}$
 	\State \text{barrier()} \Comment{uniform flow control needed!}
@@ -1487,12 +1520,6 @@ With the mentioned partitioning of the grid into blocks the shared memory archit
   \end{algorithmic}
 \end{algorithm}
 
-\begin{figure}[htbp]
-    \centering
-  \includesvg[svgpath =images/,width=\textwidth]{block_transfer_par}
-  \caption{dwad}
-  \label{fig:p2g_transfer}
-\end{figure}
 \subsubsection{Active Blocks \& Maximum Block Count:}\label{sec:active_blocks}
 \begin{figure}[htbp]
   \includesvg[svgpath =images/,width=\textwidth]{indirect_dispatch}
@@ -1664,14 +1691,14 @@ We can alternatively compute the local scan from the global scan with the follow
 \begin{enumerate}
 \item Subtract the global scan's first element of every row-element and limit your view to indices $b,c$ then:
   $$
-  T_{st} = S^G_{st} - \left(\sum_{q,r=0}^{s-1,n} a_{qr} + \sum_{r=0}^{(j-1)} a_{sr}\right)
+  P_{st} = S^G_{st} - \left(\sum_{q,r=0}^{s-1,n} a_{qr} + \sum_{r=0}^{(j-1)} a_{sr}\right)
   $$
 \begin{equation}
-  \Rightarrow T_{bc} = \sum_{r=j}^{(c-1)} a_{br}
+  \Rightarrow P_{bc} = \sum_{r=j}^{(c-1)} a_{br}
 \end{equation}
 \item Add the last value of $\boldsymbol{L}$ of the previous row (if it exists) to the current row.
   \begin{equation}
-    \Rightarrow T^2_{bc} = a_{(b-1)(n-l)} + \sum_{r=j}^{(c-1)} a_{br}
+    \Rightarrow T_{bc} = a_{(b-1)(n-l)} + \sum_{r=j}^{(c-1)} a_{br}
   \end{equation}
 \item Extract the last column $c =(n-l)$:
   \begin{equation}
@@ -1693,6 +1720,44 @@ For a simpler understanding of this process Figure \ref{fig:tile_scan} shows the
   \caption{A per block scan following the above enumeration.}
   \label{fig:tile_scan}
 \end{figure}
+
+\clearpage
+\section{Shared memory accesses on MPM-Transfers}\label{sec:shared_transfer}
+\newcommand{\mc}[2]{\multicolumn{#1}{c}{#2}}
+\definecolor{Gray}{gray}{0.85}
+
+\newcolumntype{a}{>{\columncolor{Gray}}c}
+\newcolumntype{b}{>{\columncolor{white}}c}
+\begin{table}[htpb]
+  \begin{tabular}{ | l | a | a | a | a | l | l | l |}\hline
+    \rowcolor{white}
+    BlockAndHalo(vec4) & 0 & 1 & 2 & 3 & 4 & 5 & 6 \\\hline
+    Banks (1.) & 0 & 1 & 2 & 3 & 4 & 5 & 6 \\\hline
+    Banks (2.) & 7 & 0 & 1 & 2 & 3 & 4 & 5 \\\hline
+    Banks (3.) & 6 & 7 & 0 & 1 & 2 & 3 & 4 \\\hline
+    Banks (4.) & 5 & 6 & 7 & 0 & 1 & 2 & 3 \\\hline
+    Banks (5.) & 4 & 5 & 6 & 7 & 0 & 1 & 2 \\\hline
+    Banks (6.) & 3 & 4 & 5 & 6 & 7 & 0 & 1 \\\hline
+    Banks (7.) & 2 & 3 & 4 & 5 & 6 & 7 & 0 \\\hline
+    Banks (8.) & 1 & 2 & 3 & 4 & 5 & 6 & 7 \\\hline
+    \rowcolor{white}
+    Banks (9.) & 0 & 1 & 2 & 3 & 4 & 5 & 6 \\\hline
+  \end{tabular}
+  \caption{First run of transfer: Bank accesses by warp with block size $x=4$. Bank accesses are colored grey. The halo ranges due to the support from $0-7$. Every bank gets accessed four times. It is easy to see that a window shift would lead to the same amount of bank accesses.}
+\end{table}
+\begin{table}[htpb]
+  \begin{tabular}{ | l | a | a | a | a | a | a | a |a | l | l | l |}\hline
+    \rowcolor{white}
+    BlockAndHalo(vec4) & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 \\\hline
+    Banks (1.) & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 0 & 1 & 2  \\\hline
+    Banks (2.) & 3 & 4 & 5 & 6 & 7 & 0 & 1 & 2 & 3 & 4 & 5  \\\hline
+    Banks (3.) & 6 & 7 & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 0  \\\hline
+    Banks (4.) & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 0 & 1 & 2 & 3  \\\hline
+    \rowcolor{white}
+    Banks (5.) & 4 & 5 & 6 & 7 & 0 & 1 & 2 & 3 & 4 & 5 & 6  \\\hline
+  \end{tabular}
+  \caption{First run of transfer: Bank accesses by warp with block size $x=8$. Bank accesses are colored grey. The halo ranges due to the support from $0-10$. Every bank gets accessed four times. It is easy to see that a window shift would lead to the same amount of bank accesses.}
+\end{table}
 \end{appendices}
 \clearpage
 \listoffigures
