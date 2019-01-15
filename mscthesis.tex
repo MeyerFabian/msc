@@ -1350,7 +1350,10 @@ However the added computation time does not outweigh the bank-conflicts. So one 
 A scan is used to calculate memory offsets for stream compaction or sorting algorithms.
 
 One can also calculate a per block scan (with halo) without doing a full scan for every block (Appendices \ref{sec:block_scan}). This implementation did not end up using this more closely related approach to \cite{NVIDIA:NNSEARCH} as it would commit shared memory bank-conflicts defying the architecture of the GPU. Instead preferred is batching a fixed amount of particles, more in chapter \ref{sec:transfers}.
-\clearpage
+
+
+The input size for reduction and scan is limited. It's calculable by the $block\text{ }size$ $ \times sequential\text{ }loads$. To support bigger input sizes pyramid structures are in use to process the elements the blocks reduced. For our case we mostly reduce the input size s.t. the first level above in the pyramid can be computed within a single block. For the scan this result is then written back. This was enough for the input sizes we employed and can be similarly extended.
+
 \subsection{Counting Sort \& Stream Compaction}\label{sec:sort}
 Sorting on the GPU can dramatically increase workload performance of subsequent steps. If they can profit from following things:
 \begin{enumerate}
@@ -1437,7 +1440,7 @@ In a MPM-Transfer the number of participating nodes can vary. A node may have on
 Item \ref{it:part_nodes} does sound more problematic from a parallelization perspective than it is in practice. In chapter \ref{sec:rel_work} particle resampling is mentioned of a means to fill material gaps. This is an inherent mechanic to control the number of particles within a cell. Although it is designed to augment the numerics, the merge method can be easily used to control the upper boundary of particles within a cell. Nevertheless the number of particles within a cell is still variable. Nevertheless all methods presented in the following are not restricted to bins of a fixed size of particles.
 
 The sorting and binning employed in chapter \ref{sec:sort} allows to split the grid into a partitioning of blocks. Blocks map well to the thread group nature of GPUs. A single thread within a thread group thus corresponds to a grid node within that block.
-\subsubsection{Grid-to-Particle-transfers}\label{sec:g2p}
+\subsubsection{Grid-to-Particle transfers}\label{sec:g2p}
 The straightforward solution to this problem is to handle all particles independently from each other. One particle adds up the contribution of each grid node variable in range of the interpolation function. In three dimensions this can be done for instance with a two times nested for-loop within a thread. Luckily grid nodes in a uniform grid are inherently sorted which takes care of coalescing.
 
 Furthermore sorting particles due to chapter \ref{sec:sort} increases caching behavior as variables of grid nodes are directly reused by particles in the same group. This results in direct L2-cache hits instead of going the long way of reloading from global memory.
@@ -1458,7 +1461,7 @@ The bigger the block the less halo nodes need to be loaded in total. Given an in
  $$m(4,4,4): 11,239,424\text{ Elements, }m(8,4,4):  8,830,976\text{ Elements}$$
 Note however that in practice there is a good change that a major part of the additional elements will result in L2-cache hits.
 
-Next up is the transfer: Each thread corresponds to one particle within the blue nodes in Figure \ref{fig:g2p_transfer}. The threads will sequentially run over the neighbors within the support and collect the weighted contribution to this particle. This process needs to be repeated for each particle in the bin. Since the number of particles is variable, this loop is dynamic and will lead to branch divergence within a warp. One should rely on external mechanics like particle resampling to reduce branching.
+Next up is the transfer: Each thread corresponds to one particle within the blue nodes in Figure \ref{fig:g2p_transfer}. The threads will sequentially run over the neighbors within the support and collect the weighted contribution to this particle. In this process the particle's position need to be loaded to calculate the weight for its corresponding variables. The transfer needs to be repeated for each particle in the bin. Since the number of particles is variable, this loop is dynamic and will lead to branch divergence within a warp. One should rely on external mechanics like particle resampling to reduce branching.
 
 \algblockdefx{FORALLP}{ENDFAP}[1]%
   {\textbf{for all }#1 \textbf{do in parallel}}%
@@ -1487,34 +1490,56 @@ Alternatively one could come up with a per-warp load balancing scheme: One threa
 
 In Appendices \ref{sec:shared_transfer} the accesses of one warp on shared memory banks is shown. The interpolation function is assumed to be cubic and the first block dimension is $x=4$ or $x=8$. The shared memory can thus be handled as concurrently as possible.
 
-As an extension to this process batching is introduced. Instead of conservatively loading one particle at a time, each thread handles multiple particles together which it stores in register memory. Important to this process is to unroll the corresponding code that loads as well as processes these multiple particles. Instead of needing to rerun the transfer for each particle, the number of runs now done is the number of non-batched runs divided by the number of particles. This process adds to the amount of registers allocated and can thus also negatively impact performance.
+As an extension to this process batching is introduced. Instead of conservatively loading and writing one particle at a time, each thread handles multiple particles together which it stores in register memory. Important to this process is to unroll the corresponding loops that load, write as well as process these multiple particles. Instead of needing to rerun the transfer for each particle, the number of runs now done is the number of non-batched runs divided by the number of particles. This process adds to the amount of registers allocated and can thus also negatively impact performance.
 \subsubsection{Particle-to-Grid-transfers}\label{sec:p2g}
-The Particle-to-Grid transfer is
+Straightforward to implement are various variations on global memory. Consider first binning was note executed. A grid node would not know how to look up the particles in its neighborhood. The only solution to this is go from the perspective of a particle and write to the grid node in its support. Since any particle in the neighborhood of a grid node contribute to its variables all writes have to be atomic. The approach the could be simply parallelizing for every particle and atomically write to the neighbor nodes in a loop. In the unsorted case this stalls the warps immensely. In \cite{Meyer2015} the static loop over the support is also parallelized resulting in higher throughput.
+
+The benefits of sorting in chapter \ref{sec:sort} apply to the P2G-transfers very significantly. The results of above get reversed and looping performs better. Stalling is much less of an issue.
+
+\textbf{P2G-Pull Transfer}: However sorting and binning again opens up the possibility of shared memory implementations. The equivalent of the G2P-Transfer for the P2G-Transfer is pulling the relevant data from the neighborhood. We will refer to this as the P2G-Pull transfer. The process is shown in Figure \ref{fig:p2g_transfer}.
+
 \begin{figure}[htbp]
     \centering
   \includesvg[svgpath =images/,width=\textwidth]{block_transfer_par}
-  \caption{dwad}
+  \caption{P2G-Transfer: The first run is shown. On the left the P2G-Sync transfer is shown that writes into the neighborhood. On the right the P2G-Pull approach is shown that instead reads out of the neighborhood.}
   \label{fig:p2g_transfer}
 \end{figure}
 
+It is important to notice that the supports in the P2G-Pull approach are reversed: Left becomes right, right becomes left. Other than that the transfer works in the same way as the G2P-Transfer Instead of reading from grid nodes, reading from particles is done. Consequently one particle of each bin is loaded into shared memory. This typically puts a lot more strain onto shared memory. For a simple PIC-Transfer(equation \ref{eq:lin_p2g})
+$$
+(m\boldsymbol{v})_i^n = \sum_p w_{i}(\boldsymbol{x}_p)m_p\boldsymbol{v}^n_p.
+$$
+the position $\boldsymbol{x}_p$ and the velocity $\boldsymbol{v}_p$ need to be stored in shared memory for every node in the halo. Additionally the count $c_i$ and scan $s_i$ need to be available to load and access particles. For more complex transfers this will get even worse.
+
+By construction the Material-Point-Method tries to avoid matrices on the grid due to storage cost. Conversely the particles have matrices defined over them, e.g. $\boldsymbol{B}_p$,$\boldsymbol{F}_p$. In conclusion one should motivate approaches where grid nodes correspond to shared memory.
+
+There is one implementation detail left out which is solved in chapter \ref{sec:active_blocks}. That is grid nodes do not know if there are any particles in the neighborhood left processing. \ref{sec:active_blocks} solves this by finding the maximum particle count in the block (with halo). Thus all nodes within the block need to stay active during transfers. It is possible to delegate this decision down from the block to its subgroups (respecting their respective haloes).
+
+\textbf{P2G-Atomic Transfer}: One can invert the process of pulling into pushing. Instead of reading from particles this means now writing to grid nodes in shared memory. This immediately alarms one that accesses now need to be either atomic or explicitly scheduled if blocks are larger than a subgroup.
+
+As can be seen in Figure \ref{sec:p2g} push approaches have the big advantage of only needing to load particles within the block region. The transfers then spread the particle's contribution to the grid nodes in the neighborhood. If in algorithm \ref{alg:p2g} line \ref{alg:p2g_uniform_barrier} the \texttt{barrier()} is left out of the transfer and \texttt{atomicAdds()} on shared memory are in use this process is straightforward to implement. One has to make sure to reset the shared memory as their contents are otherwise undefined.
+
+The write-back to memory however now also needs to feature atomics. This process will be the same in the following synchronized approach of line \ref{alg:atomicAdd} in algorithm \ref{alg:p2g}. For a node that will be part of any halo \texttt{atomicAdds()} are a strict requirement. Their results are only partially computed and need to be complemented by neighbor blocks. For such a node these are two writes for a side node, four for an edge node and eight for a corner node.
+
+\textbf{P2G-Sync Transfer}:
 \begin{algorithm}[htpb]
-  \caption{P2G-Transfer (synchronized)}\label{alg:p2g}
+  \caption{P2G-Sync Transfer}\label{alg:p2g}
   \begin{algorithmic}[1]
     \FORALLP{$blockNode \in grid$}
     \State \text{shared vec4 } $blockAndHalo$ [$H\_FLAT$]
-    \ForAll{$local_id\_id \in \text{assignedNodesID}(blockNode, H\_FLAT)$}
-      \State $blockAndHalo[node\_id] \gets $vec4(.0)
+    \ForAll{$local\_id \in \text{assignedNodesID}(blockNode, H\_FLAT)$}
+      \State $blockAndHalo[local\_id] \gets $vec4(.0)
       \EndFor
       \State \text{barrier()}
       \ForAll{$particle \in \text{bin}(blockNode)$} \Comment{global load}
       \ForAll{$neighbor\_id \in \text{support}(blockNode)$} \Comment{transfer}
 	\State $w_{ip} \gets weight(particle,neighbor\_id)$
 	\State $blockAndHalo[neighbor\_id] $ += $ particle*w_{ip}$
-	\State \text{barrier()} \Comment{uniform flow control needed!}
+	\State \text{barrier()} \Comment{uniform flow control needed!} \label{alg:p2g_uniform_barrier}
 	\EndFor
       \EndFor
       \ForAll{$(node,local\_id) \in \text{assignedNodes}(blockNode, H\_FLAT)$}
-      \State atomicAdd($node$,$blockAndHalo[local\_id]$) \Comment{global write}
+      \State atomicAdd($node$,$blockAndHalo[local\_id]$) \Comment{global write}\label{alg:atomicAdd}
       \EndFor
     \ENDFAP
   \end{algorithmic}
