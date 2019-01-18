@@ -1299,7 +1299,7 @@ Parallel reduction solves assuming a \texttt{unary\_op(x)} directly after memory
 \begin{itemize}
   \item CFL-condition of chapter \ref{sec:cfl} with operators
   \begin{itemize}
-  \item \texttt{unary\_op(x) := length2(x)} and
+  \item \texttt{unary\_op(x) := length(x)} and
   \item \texttt{binary\_op(x,y) := max(x,y)}.
   \end{itemize}
 \item Discretized conservation of governing equations between time steps or transfers in chapter \ref{sec:mass} and \ref{sec:apic} with
@@ -1578,42 +1578,106 @@ The process of filtering active blocks can be easily appended. Figure \ref{fig:a
   \item \texttt{binary\_op(lc,rc) = lc + rc}.
 \end{enumerate}
 
-Starting a dispatch for every block only the active blocks will now write their index at the scan's position. This process is not coalesced. Coalescing will still be guarenteed for all nodes within the block for the P2G-Transfers and G2P-Transfer. The only non-coalesced access within these shaders is the maximum per block count, which there are really few of in comparison.
+Starting a dispatch for every block only the active blocks will now write their index at the scan's position. This process is not coalesced. Coalescing will still be guarenteed for all nodes within the block for the P2G-Transfers and G2P-Transfer. The only non-coalesced access within these shaders is loading the maximum per block count from VRAM, which there are really few of in comparison.
 
 \section{Evaluation}\label{sec:eval}
 \subsection{Verifying Results}
+\textbf{Parallel reduction}, \textbf{map} and \textbf{scan} are tested against \texttt{std::transform\_reduce} as it supplies the same functionality as a fully reduced parallel reduction. It is standard since C++17.
+\begin{table}[h]
+  \begin{tabular}{|l|r|r|r|}\hline
+    Shader       & \texttt{unary\_op} & Total abs. error & Total rel. error \\\hline
+    Map (float)   & x          & 0.0    & 0.0      \\\hline
+    Map (vec4,dvec4)   & length(x)  &0.0625 & 7.94e-08 \\\hline\hline
+    MapReduce (float)& x  &0.0183 & 3.51e-08 \\\hline
+    MapReduce (double)& x  &1.78e-08 & 3.42e-14 \\\hline
+    MapReduce (vec4)& length(x)  &212.813 & 2.71e-04 \\\hline
+    MapReduce (dvec4)& length(x)  &1.58e-05 & 2.02e-11 \\\hline
+  \end{tabular}
+  \caption{Error of various shaders on 1024*1024 random elements. Scalars are just between [0.0-1.0]. The vectors have length between [0.0-1.0].}
+\end{table}
+
 \begin{itemize}
   \item Conservation equations
     \cite{MPM:APIC}
   \item Singular Value Decomposition
 \end{itemize}
-
+ \subsubsection{Performance}
 \textbf{SoA vs. AoS}:
-
+dvec4 same
 \begin{table}
   \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
-    Description &  $\Delta t_c (\mu s)$ & Speedup &VRAM     & SM     & L2     & Tex \\\hline
+    Layout &  $\Delta t_c (\mu s)$ & Speedup &VRAM     & SM     & L2     & Tex \\\hline
     AoS         & 278                   & -       &77.7\%   & 7.3\%  & 30.3\% & 14.7\% \\\hline
     SoA         & 122                   & 2.26x   &75.4\%   & 14.3\% & 29.4\% & 17.9\% \\
     \hline
   \end{tabular}
-  \caption{Map operation with one instruction of form \texttt{float x = length2( (vec4) y)} on $1024 \times 1024$ \texttt{vec4}.}\label{table:map_1}
+\caption{Timings betweens different buffer layouts. Map operation with one instruction \texttt{float x = length(vel)} on $1024 \times 1024$ \texttt{vec4} buffer storing position and velocity (\texttt{vel})}.}\label{table:map_1}
 \end{table}
 
 \begin{table}
   \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
-    Description &  $\Delta t_c (\mu s)$ & Speedup &VRAM   & SM     & L2     & Tex \\\hline
-    AoS         & 292                   & -       &61.3\% & 11.4\% & 41.8\% & 20.4\% \\\hline
-    SoA         & 252                   & 1.16x   &75.4\% & 14.3\% & 29.4\% & 17.9\% \\
+    Layout &  $\Delta t_c (\mu s)$ & Speedup       &VRAM             & L2              & L2-Hit & Read Active \\\hline
+    AoS         & 292                   & -        &61.3\%           & \textbf{41.8}\% & 53.8\% & 48.9\% \\\hline
+    SoA         & 252                   & 1.16x    &\textbf{75.4}\%  & 29.4\%          & 20.0\% & 62.3\% \\
     \hline
   \end{tabular}
-  \begin{tabular}{ | l | l | l | l | }    \hline
-    Description &  L2-Hit & Read Active \\\hline
-    AoS   & 53.8\%        & 48.9\%      \\\hline
-    SoA   & 20.0\%          & 62.3\%      \\
+\caption{Timings betweens different buffer layouts. Map operation with instructions \texttt{float x = length(vel), float y = length(pos)} on $1024 \times 1024$ \texttt{vec4} buffer storing position(\texttt{pos}) and velocity (\texttt{vel})}.}\label{table:map_1}
+\end{table}
+
+\begin{enumerate}
+Occupancy!
+\end{enumerate}
+\begin{table}
+  \begin{tabular}{ | l | r | r | r | r | r | r | r |}    \hline
+    Method         &  $\Delta t_c (\mu s)$ & Speedup &VRAM              & SM              & Top Warp-Stall Reas.\\\hline
+    Interleaved    & 305                   & -       &23.0\%            & \textbf{60.9}\% & Short Scoreb.(17.2\%)\\\hline
+    Sequential     & 141                   & 2.16x   &\textbf{49.8}\%   & 37.1\%          & Long Scoreb.(17.3\%) \\\hline
+    Seq. (2x)      & 100                   & 3.05x   &69.5\%            & 26.2\%          & Long Scoreb.(80.1\%)\\\hline
+    Seq. (128x)    & 98                    & 3.1x    &\textbf{72.9}\%   & 16.9\%          & Long Scoreb.(84.4\%)\\\hline
+    Seq. (256x)    & 101                   & 3.0x    &66.4\%            & 14.6\%          & Long Scoreb.(76.9\%)\\
     \hline
   \end{tabular}
-  \caption{Map operation with two instructions of form \texttt{float x = length2( (vec4) y)} on $1024 \times 1024 \times 2$ \texttt{vec4}.}\label{table:map_2}
+  \caption{Optimization of one parallel reduction dispatch on $1024\times1024$ instruction \texttt{float x= length(vec4 y)}. Note that the interleaved addressing intentionally does bank conflicts to show performance impacts. The number in parentheses states the number of sequential elements each thread loads.}\label{table:map_reduce}
+\end{table}
+
+\begin{table}
+  \begin{tabular}{ | l | r | r | r | r | r | r | r |}    \hline
+    Method              &  $\Delta t_c$         & Speedup &VRAM              & SM      & L2     & Top Stall Reas.\\\hline
+    Conflicts           & 748                   & -       &17.5\%            & 51.7\%  & 8.2\%  & Barrier(49.5\%)\\\hline
+    No confl.           & 571                   & 1.31x   &25.7\%            & 50.1\%  & 5.4\%  & Barrier(31.9\%)\\\hline
+    part. confl.        & 546                   & 1.36x   &23.5\%            & 50.8\%  & 6.0\%  & Barrier(30.5\%) \\\hline\hline
+    Seq. (2x)           & 323                   & 2.31x   &41.7\%            & 43.0\%  & 17.2\% & S. Scoreb.(32.0\%)\\\hline
+    unrolled            & 258                   & 2.90x   &53.8\%            & 42.2\%  & 22.0\% & S. Scoreb.(32.0\%)\\\hline\hline
+    Seq. (4x)           & 311                   & 2.40x   &56.8\%            & 22.7\%  & 37.9\% & L. Scoreb.(43.3\%)\\\hline
+    unrolled            & 297                   & 2.52x   &61.1\%            & 21.2\%  & 40.6\% & L. Scoreb.(49.9\%)\\
+    \hline
+  \end{tabular}
+  \caption{Optimization of one scan dispatch on $4 \times 1024\times1024$ integers with \texttt{binary\_op(x,y) := x+y}. $\Delta t_c$ in $\mu s$. }\label{table:scan}
+\end{table}
+
+\begin{table}
+  \begin{tabular}{ | l | r | r | r | r | r |r|}    \hline
+    Ordering            &  $\Delta t_c (\mu s)$ & Speedup &VRAM              & SM      & L2     & L2-Hit \\\hline
+    Random              &  1,516                & -       &25.0\%            & 3.4\%   & 9.1\%  & 10.8\% \\\hline
+    Deep sort           &    218                & 6.95x   &75.3\%            & 24.4\%  & 35.0\% & 37.8\% \\
+    \hline
+ \end{tabular}
+\caption{Order dependency of binning of $1024\times1024$ randomly positioned particles in a $128\times128\times128$ grid.}\label{table:bin}
+\end{table}
+
+\begin{table}
+  \begin{tabular}{ | l | r | r | r | r | r |r|}    \hline
+    Best Case(*)          &  $\Delta t_c$         &VRAM  & Top Stall Reas. & Read & Write\\\hline
+    Index                 &  1,516                &25.6\%& L. Scoreb.(78.7\%) &&\\\hline
+    Full(8 vec4)     &  1,731                &75.3\%& L. Scoreb.(92.2\%) &&\\
+    \hline
+    \hline
+    Worst Case(*)          &  $\Delta t_c$         &VRAM              & Top Stall Reas.    &Read & Write\\\hline
+    Index                  &  1,516                &26.0\%            & L. Scoreb.(73.5\%) & &\\\hline
+    Deep Sort(8 vec4)      &  9,847                &24.0\%            & L. Scoreb.(82.2\%) & &\\
+    \hline
+ \end{tabular}
+\caption{Order dependency of binning of $1024\times1024$ randomly positioned particles in a $128\times128\times128$ grid.}\label{table:bin}
 \end{table}
 
 \section{Conclusion}
