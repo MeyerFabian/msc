@@ -1582,8 +1582,8 @@ Starting a dispatch for every block only the active blocks will now write their 
 
 \section{Evaluation}\label{sec:eval}
 \subsection{Verifying Results}
-\textbf{Parallel reduction}, \textbf{map} and \textbf{scan} are tested against \texttt{std::transform\_reduce} as it supplies the same functionality as a fully reduced parallel reduction. It is standard since C++17.
-\begin{table}[h]
+\textbf{Parallel reduction}, \textbf{map} and \textbf{scan} are tested against \texttt{std::transform\_reduce} as it supplies the same functionality as a fully reduced parallel reduction. It is standard since C++17. These shaders are exact on integers. Floating point precision can be seen in table \ref{tab:parallel_red}.
+\begin{table}[!b]
   \begin{tabular}{|l|r|r|r|}\hline
     Shader       & \texttt{unary\_op} & Total abs. error & Total rel. error \\\hline
     Map (float)   & x          & 0.0    & 0.0      \\\hline
@@ -1594,17 +1594,45 @@ Starting a dispatch for every block only the active blocks will now write their 
     MapReduce (dvec4)& length(x)  &1.58e-05 & 2.02e-11 \\\hline
   \end{tabular}
   \caption{Error of various shaders on 1024*1024 random elements. Scalars are just between [0.0-1.0]. The vectors have length between [0.0-1.0].}
+  \label{tab:parallel_red}
 \end{table}
 
-\begin{itemize}
-  \item Conservation equations
-    \cite{MPM:APIC}
-  \item Singular Value Decomposition
-\end{itemize}
- \subsubsection{Performance}
+\textbf{Counting sort} is tested as a whole by giving back the bin keys of the particles. The bin keys are then tested on the CPU against \texttt{std::is\_sorted}, which is standard since C++11.
+
+The Eigen-library \cite{EIGEN:LIBRARY} is a well regarded linear algebra library. The \textbf{Singular value decomposition} is tested against \texttt{Eigen::JacobiSVD}. As a test one million random matrices are created by Eigen. Tests account for the 'Polar SVD'. There is not a single sign error. The average error between the singular values of Eigen and the implementation of chapter \ref{sec:svd} is 4.91782e-07. $det(\boldsymbol{U})$ and $det(\boldsymbol{V})$ should be as close as possible to 1. The errors are 3.55707e-07 and 3.26429e-07, respectively.
+
+The \textbf{MPM-Transfers} need to be mass and momentum conserving. The total mass on the grid $m_g^{tot}$ and the particles $m_p^{tot}$ has to be the same after any transfer:
+\begin{equation}
+  m_{p}^{tot}= \sum_p m_p =  \sum_i m_i = m_{g}^{tot}.
+\end{equation}
+Following this procedure, the same should be true for the total linear momentum $\boldsymbol{p}^{tot}$:
+\begin{equation}
+  \boldsymbol{p}_{p}^{tot}= \sum_p m_p \boldsymbol{v}_p=  \sum_i m_i \boldsymbol{v}_i = \boldsymbol{p}_{g}^{tot}.
+\end{equation}
+And more specifically for the case of APIC also for angular momentum $\boldsymbol{L}^{tot}$ (out of convention upper-case):
+\begin{equation}
+  \boldsymbol{L}_{p}^{tot}= \sum_p \boldsymbol{x}_p \times m_p \boldsymbol{v}_p =  \sum_i \boldsymbol{x}_i \times m_i \boldsymbol{v}_i = \boldsymbol{L}_{g}^{tot}.
+\end{equation}
+An extreme test case spreads one million particles randomly with random velocities on a $128\times128\times128$ grid, table \ref{tab:roundtrip}. A roundtrip consists of a P2G-Transfer and a G2P-Transfer for relevant variables. In this process the (random) velocities will get filtered. In PIC-Transfers this regionally averages out velocities. Thus table \ref{tab:roundtrip} shows the effects on the total error after 1,000 roundtrips.
+
+As a side note: Random particle positions as well as random velocities are a configuration that in practice will never occur. Even for a fundamental state of matter of gas this is unrealistic.
+
+The total errors vary little between the methods presented in chapter \ref{sec:transfers}. They are caused by floating-point inaccuracy. The order of execution on the GPU can vary. Thus the floating-point error will vary from execution to execution.
+\begin{table}[t]
+\centering
+  \begin{tabular}{|l|r|r|}\hline
+    Quantity& Abs. error  & Rel. error \\ \hline
+    $m^{tot}_i$ & 212.438     & 2.12438e-04     \\\hline
+    $\boldsymbol{p}^{tot}_i$ & (0.578,0.787,0.778)&(1.076,1.290,1.204)e-04 \\\hline
+   \end{tabular}
+   \caption{Error of 1,000 PIC-roundtrips of 1M randomly placed particles with random velocity in a $128\times128\times128$ grid. Used this instance is a P2G-Sync-Transfer and G2P-Transfer with batching = 4 and block size = (4,4,4). Particles are fixed.}
+  \label{tab:roundtrip}
+\end{table}
+
+\subsection{Performance}
 \textbf{SoA vs. AoS}:
 dvec4 same
-\begin{table}
+\begin{table}[]
   \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
     Layout &  $\Delta t_c (\mu s)$ & Speedup &VRAM     & SM     & L2     & Tex \\\hline
     AoS         & 278                   & -       &77.7\%   & 7.3\%  & 30.3\% & 14.7\% \\\hline
