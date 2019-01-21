@@ -152,7 +152,6 @@
 }
 
 \newenvironment{code}{\captionsetup{type=algorithm}}{}
- \caption{P2G-Transfers of one million randomly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. Block size is (8,4,4). Methods marked with a star(*) are executed with batching = 4.}\label{table:p2g_random}
 \begin{document}
 \author{Fabian Meyer}
 \title{GPU-Beschleunigung der Material Point Method}
@@ -1370,7 +1369,7 @@ Sorting on the GPU can dramatically increase workload performance of subsequent 
   \item Data can now be reused due to L2-Cache and shared memory. \label{it:sort_2}
 \end{enumerate}
 This is the case for algorithms which require neighbor communication.
-Supported is either a full deep copy of all particle variables. A deep copy profits from item \ref{it:sort_1} and \ref{it:sort_2}, but takes the hit in performance of uncoalesced accesses for all variables. Or alternatively an indexing to access an existing particle buffer in the specified sorted manner. Indexing only profits from item \ref{it:sort_2} and subsequent shaders will be uncoalesced.
+Supported is a full deep copy of all particle variables. A deep copy profits from item \ref{it:sort_1} and \ref{it:sort_2}, but takes the hit in performance of uncoalesced accesses for all variables. Or, alternatively an indexing to access an existing particle buffer in the specified sorted manner. Indexing only profits from item \ref{it:sort_2} and subsequent shaders will be uncoalesced.
 
 \textbf{Stream Compaction} reduces applicable data for subsequent operations. The applicable data is checked by a condition. There are a lot of cases where stream compaction can reduce running times. In chapter \ref{sec:rel_work} particle activation is mentioned as one of such, chapter \ref{sec:active_blocks} will reduce to active blocks. Collision treatment could be implemented as an operation following a collision detection etc. Again indexing and deep copies can be executed for the same reasons mentioned in \ref{it:sort_1} and \ref{it:sort_2}.
 
@@ -1681,7 +1680,7 @@ As a closure the reader is again referred to the subject of data-oriented design
   \begin{tabular}{ | l | r | r | r | r | r | r | r |}    \hline
     Method         &  $\Delta t_c$ & Speedup &VRAM              & SM              & Sel. Warp-Stall Reas.\\\hline
     Interleaved    & 305                   & -       &23.0\%          & \textbf{60.9}\%  & S. Scoreb.(17.2\%)\\\hline
-    Sequential     & 141                   & 2.16x   &\textbf{49.8}\%   & 37.1\%         & \textbf{S. Scoreb.(2.0}\%) \\\hline
+    Sequential     & 141                   & 2.16x   &\textbf{49.8}\%   & 37.1\%         & \textbf{S. Scoreb.(2.0\%)} \\\hline
     Seq. (2x)      & 100                   & 3.05x   &69.5\%            & 26.2\%         & L. Scoreb.(80.1\%)\\\hline
     Seq. (128x)    & 98                    & 3.1x    &\textbf{72.9}\%   & 16.9\%         & L. Scoreb.(84.4\%)\\\hline
     Seq. (256x)    & 101                   & 3.0x    &66.4\%            & 14.6\%         & L. Scoreb.(76.9\%)\\
@@ -1708,28 +1707,32 @@ The warp-stall reason however showing the increased throughput due to respecting
   \end{tabular}
   \caption{Optimization of one scan dispatch on $4 \times 1024\times1024$ integers with \texttt{binary\_op(x,y) := x+y}. $\Delta t_c$ in $\mu s$, block size is 1024. The number in parentheses states the number of additionally loaded sequential elements. Segment of each scan is block\_size$\times$ sequential elements. Higher reduction factor corresponds to more work being done.}\label{tab:scan}
 \end{table}
-The second optimization is giving these algorithms more sequential work. This will lighten the SM throughput and increase VRAM throughput as can be seen in both cases. Note, that each thread in table \ref{tab:map_reduce} and \ref{tab:scan} does the same amount of parallel work; the sequential work is additionally being done. However due to the additional sequential work parallelization a block level goes down by the same factor. As mentioned in \cite{NVIDIA:PARALLEL_REDUCTION} this balances the relation of I/O latency to work better and thus improves performance.
+The second optimization is giving these algorithms more sequential work. This will lighten the SM throughput and increase VRAM throughput as can be seen in both cases. Note, that each thread group in table \ref{tab:map_reduce} and \ref{tab:scan} does the same amount of parallel work; the sequential work is additionally being done by each thread. However due to the additional sequential work parallelization the amount of thread groups go down by the same factor. As mentioned in \cite{NVIDIA:PARALLEL_REDUCTION} this saturates the threads and thus improves performance.
 
 Doing sequential work in parallel reduction adds almost no strain. Thus very high sequential work can be done by each thread. The SM work will shrink, while the shader gets more and more memory bound. For a reduction factor of 256 first signs of performance decrease can be seen as only four groups are involved in the dispatch. The GTX970 has 13 SMs. Therefore work is not parallelized enough on a block level anymore. The metric SM active\% will go rapidly down at this point. For four groups its 27.8\%, which is roughly $\frac{4}{13}$.
 
-For the scan this is a little bit harder as elements need to be stored in registers. The effects can be seen in table \ref{tab:scan}. The segment each scan can handle is by far not as extensive as in parallel reduction. But the speedup achieved from a partially conflict free to an implementation with sequential work is in contrast much higher. Since each thread requires the nearest by elements, L2-cache hits increase rapidly as does the L2 utilization.Thus the scoreboard stall reasons rise again.
+For the scan this is a little bit harder as elements need to be stored in registers. The effects can be seen in table \ref{tab:scan}. The segment each scan can handle is by far not as extensive as in parallel reduction. But the speedup achieved from a partially conflict free to an implementation with sequential work is in contrast much higher. Since each thread requires the nearest by elements, L2-cache hits increase rapidly as does the L2 utilization. Thus the scoreboard stall reasons rise again. Unrolling the static loop which loads the sequential elements additionally hides memory latency.
 
-\textbf{Counting Sort:}
-\begin{table}
-  \begin{tabular}{ | l | r | r | r | r | r |r|}    \hline
+\textbf{Counting Sort:} The aim of sorting is coalesced as well as increased caching behavior for all following shaders. As a motivation the binning's similarity to the MPM-Operations might already be highlighted. A key difference is that binning does not query neighbor information (in the global atomic approach). Table \ref{table:bin} shows how a sorted particle position increases coalescing and L2-Cache hits. The VRAM-throughput increases to 75.3\% due to coalescing. Nearby particles hit the same bins and thus L2 rises up to 35.0\%. The 6.95x speed up shows how important the sorting as a preprocess is.
+\begin{table}[htbp]
+  \begin{tabular}{ | l | r | r | r | r | r | r |}    \hline
     Ordering            &  $\Delta t_c (\mu s)$ & Speedup &VRAM              & SM      & L2     & L2-Hit \\\hline
     Random              &  1,516                & -       &25.0\%            & 3.4\%   & 9.1\%  & 10.8\% \\\hline
-    Deep sort           &    218                & 6.95x   &75.3\%            & 24.4\%  & 35.0\% & 37.8\% \\
+    Deep sort           &    218                & 6.95x   &\textbf{75.3\%}   & 24.4\%  & \textbf{35.0\%} & \textbf{37.8\%} \\
     \hline
  \end{tabular}
 \caption{Order dependency of binning of $1024\times1024$ randomly positioned particles in a $128\times128\times128$ grid.}\label{table:bin}
 \end{table}
 
-\begin{table}
+Table \ref{table:sort} shows the performance of index and deep sorting as is. The index sorting will have constant timing across cases. Their writing access will stay uncoalesced. Moreover shaders down the pipeline will also not benefit from coalescing. The binning in table \ref{table:bin} thus for instance always runs on random ordering. Global atomic binning does not use neighbor data. Thus index sorting is not affecting it.
+
+Again differences similarly to the binning can be seen when already working with a sorted state. Coalescing highly increases VRAM throughput. So much that a deep sort on eight \texttt{vec4}s is almost on equal footing with a random index sort. The speedup from an uncoalesced to a fully coalesced state is 5.68x. The full sort suffers for each (particle) variable from an uncoalesced access. However if sorting is not done the MPM-Transfers will then suffer from those.
+
+\begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r| }    \hline
     Best Case    &  $\Delta t_c (\mu s)$&VRAM  & Top Stall Reas.    & Read   & Write  \\\hline
     Index        &  1,516       &25.6\%& L. Scoreb.(78.7\%) & 16.30\%& 9.30\% \\\hline
-    Full(8 vec4) &  1,731       &75.3\%& L. Scoreb.(92.2\%) & 38.60\%& 34.60\%\\
+    Full(8 vec4) &  1,731       &\textbf{75.3}\%& L. Scoreb.(92.2\%) & 38.60\%& 34.60\%\\
     \hline
     \hline
     Worst Case             &  $\Delta t_c(\mu s)$         &VRAM              & Top Stall Reas.    & Read   & Write\\\hline
@@ -1737,11 +1740,12 @@ For the scan this is a little bit harder as elements need to be stored in regist
     Full(8 vec4)           &  9,847                &24.0\%            & L. Scoreb.(82.2\%) & 9.90\% & 14.0\%\\
     \hline
  \end{tabular}
-\caption{Order dependency of binning of $1024\times1024$ randomly positioned particles in a $128\times128\times128$ grid. Best case is already sorted, worst case is unsorted and still fully random.}\label{table:bin}
+\caption{Order dependency of reordering of $1024\times1024$ randomly positioned particles in a $128\times128\times128$ grid. Best case is already sorted, worst case is unsorted and still fully random.}\label{table:sort}
 \end{table}
 
+Binning as well as reordering will rarely run fully sorted as mentioned in \ref{sec:sort}. Sorting works on the last sorted state. The CFL-condition encourages limited reach. The Material-Point-Method encourages uniform movement. These two properties in general will guarantee higher coalescing as well as L2-cache hit rates. It is however up to the dynamics of the problem how much time is spend sorting.
 
-\begin{table}
+\begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r |r|r|r|}    \hline
     Method                 &  $\Delta t_c(\mu s)$ &Speedup         &VRAM  & L2    &SM     \\\hline
     G2P global             &   38,318             &-               &24.3\%&34.4\% & 9.6\% \\\hline
@@ -1753,7 +1757,7 @@ For the scan this is a little bit harder as elements need to be stored in regist
 
 VRAM-L.Scoreboard 79.9\%
 Wait No Instructions
-\begin{table}
+\begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r |}    \hline
     Method                 &  $\Delta t_c(\mu s)$ &Speedup         &VRAM  & L2   &SM    \\\hline
     G2P global             &   10,316             &-               &2.3\%&34.4\%&32.4\% \\\hline
@@ -1763,7 +1767,7 @@ Wait No Instructions
 
  \caption{G2P-Transfers of a $128\times 128\times128$ grid back to one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4). Methods marked with a star(*) are executed with batching = 4.}\label{table:p2g_uniform4}
 \end{table}
-\begin{table}
+\begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r |}    \hline
     Method                 &  $\Delta t_c(\mu s)$ & Speedup &SM    & Top Stall Reas.\\\hline
     P2G-Atomic		   &    6,933             & -       &82.9\%&S. Scoreb.(24.7\%)\\\hline
@@ -1777,7 +1781,7 @@ Wait No Instructions
  \caption{P2G-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4).}\label{table:p2g_optim}
 \end{table}
 
-\begin{table}
+\begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r |}    \hline
     Method                 &  $\Delta t_c(\mu s)$ &Speedup         &VRAM  & L2   &SM    \\\hline
     global                 &   44,442             &-               &4.6 \%&34.4\%&7.7\%  \\\hline
@@ -1792,7 +1796,7 @@ Wait No Instructions
  \caption{P2G-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4). Methods marked with a star(*) are executed with batching = 4.}\label{table:p2g_uniform4}
 \end{table}
 Barrier 26.3\% on P2G-Sync
-\begin{table}
+\begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r |}    \hline
     Method                 &  $\Delta t_c(\mu s)$ &Speedup         &VRAM  & L2   &SM    \\\hline
     global                 &  254,410             &-               &17.8\%&9.6\% &1.7\%  \\\hline
