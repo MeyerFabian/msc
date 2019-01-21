@@ -1160,8 +1160,11 @@ To our knowledge there is no way to find out the exact number of registers an Op
 \textbf{Block size:} In general the block size should be chosen as small as possible to not hit resource limits. Though we in general had better experiences starting with a block size of 64 as can be seen in the Occupancy calculator. Increasing the block size is useful in combination with shared memory usage. Shared memory access is typically 100x faster than uncached global memory accesses. The more threads of a block reuse shared memory data the faster the memory throughput will be. Therefore operators which involve filtering (also MPM-transfers) can use this behavior.
 
 \textbf{Multiple elements per thread:} Merging threads and simultaneously reducing block size can reduce register pressure if the algorithm allows it. Otherwise merging sequential and parallel work improves performance heavily. Since the block size is limited by the GPU large amounts of data need to be split in tree structures to process in parallel. One can not avoid an indirection of writing-back and loading again from global memory. Therefore algorithms often improve much further from more sequential work to avoid this indirection.
-\begin{flushright}\cite{AMD:GPU_OPEN}\cite{NVIDIA:BEST:PRACTICE}\end{flushright}
-\subsubsection{GPU Metrics}
+
+\textbf{Loop unrolling:} Foremost loop unrolling reduces instructions and can thus speed up compute-bound work. Moreover loop unrolling might help the compiler reorder instructions and thus execute code faster. Instructions benefiting greatly from this are global loads. \cite{NVIDIA:PEAK_PERFORMANCE} shows at the example of motion blur and ray-marching that this greatly can increase throughput. Whereas the motion blur example uses a fixed amount of samples and therefore is easily unrollable, ray-marching is a dynamic process. Dynamic loops can however be partially unrolled. In the case of ray-marching this would for instance fetch two samples at once, although it might process only one. In short, this merges two consecutive loop iterations. The latency of the second instruction might be partly hidden by the first one and thus speed up the work load. Mind however that loop unrolling can increase register pressure. More registers need to store and process the relevant code, where a dynamic loop reuses the same registers for any iteration.
+
+\begin{flushright}\cite{AMD:GPU_OPEN}\cite{NVIDIA:BEST:PRACTICE}\cite{NVIDIA:PEAK_PERFORMANCE}\end{flushright}
+\subsubsection{GPU Metrics}\label{sec:metrics}
 The GPU metric topping all others is the raw computing time spend on a shader: $\Delta t_c$. The following factors matter to set $\Delta t_c$ into perspective:
 \begin{enumerate}
   \item For the GPU most interesting is the scalability with increasing input data sizes.
@@ -1211,7 +1214,7 @@ The metric SM Issue Utilization (per active cycle) is important for compute-boun
 \clearpage
 \section{Implementation}\label{sec:implementation}
 The computing time $\Delta t_c$ of shaders is gained by OpenGL timer queries \cite{KHRONOS:TIMER_QUERY}. A small benchmarker takes care of queuing timer queries and resolving them a frame later. This is done to not stall the GPU pipeline waiting on those queries. At the end of testing data is gathered and statistical quantities are written into a log file.
-\subsection{GPU memory layout}
+\subsection{GPU memory layout}\label{sec:soa_aos}
 \noindent\begin{minipage}{0.45\textwidth}
 \begin{lstlisting}[caption={AoS Layout},language={GLSL},style={GL}]
 struct Particle {
@@ -1636,59 +1639,82 @@ The total errors vary little between the methods presented in chapter \ref{sec:t
 \end{table}
 
 \subsection{Performance}
-\textbf{SoA vs. AoS}:
-dvec4 same
-\begin{table}[]
+The given metrics in \ref{sec:metrics} lead to valuable insight into how well the GPU can utilize a given shader or program. The GPU was a black box for a long time in this regard. The metrics provided by NVIDIA are a first step to open up the GPUs inner workings. Theory about optimization for the architecture such as \cite{NVIDIA:BEST:PRACTICE} can be more readily applied. However for abstraction purposes theory as well as descriptions about the architecture might be deliberately vague. These metrics give the programmer more power of identifying the right optimizations for a given code. All metrics in the following are gathered from a NVIDIA GTX970.
+
+\textbf{SoA vs. AoS}: In chapter \ref{sec:soa_aos} was already hinted that throughput could be halved in an AoS-Layout. These effects can be hideous without knowledge of the architecture. Take for instance a map operation (or equivalently a copy operation). Figure \ref{fig:soa} and \ref{fig:aos} in chapter \ref{sec:soa_aos} already gave an overview of the procedure for \texttt{vec4}. Table \ref{tab:map_1} compares differences between an AoS- and an SoA-Layout with a buffer of two attributes.
+\begin{table}[htbp]
   \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
-    Layout &  $\Delta t_c (\mu s)$	& Speedup &VRAM     & SM     & L2     & SM Issue Util.\% \\\hline
-    AoS         & 278                   & -       &77.7\%   & 7.3\%  & 30.3\% & 14.0\% \\\hline
-    SoA         & 122                   & 2.26x   &75.4\%   & 14.3\% & 29.4\% & 6.8\% \\
+    Layout &  $\Delta t_c (\mu s)$	& Speedup &VRAM     & SM     & L2     & SM Issue Util. \\\hline
+    AoS         & 243                   & -       &77.7\%   & 7.3\%  & 30.3\% & 6.8\% \\\hline
+    SoA         & \textbf{120}                   & 2.26x   &75.4\%   & \textbf{14.3}\% & 29.4\% & \textbf{14.0\%} \\
     \hline
   \end{tabular}
-\caption{Timings between different buffer layouts. Map operation with one instruction \texttt{float x = length(vel)} on $1024 \times 1024$ \texttt{vec4} buffer storing position and velocity (\texttt{vel})}.}\label{table:map_1}
+\caption{Metrics between different buffer layouts. Map operation with one instruction \texttt{float x = length(vel)} on $1024 \times 1024$ \texttt{vec4} buffer storing position and velocity (\texttt{vel}).}
+\label{tab:map_1}
 \end{table}
 
-\begin{table}
+Immediately apparent becomes that the SoA-Layout is 2.26 times as fast. However both memory subunits(VRAM,L2) have the same utilization as in an AoS-Layout. Though the big difference is in the memory access, the wrong access may be conversely spotted in the non-memory subunits. Since an AoS-Layout loads twice as many \texttt{vec4}, every non-memory related metric shrinks by half. An AoS-Layout however issues the same instructions. Though the SM should do equal work and be active for the same amount of cycles which is not the case.
+\begin{table}[htpb]
   \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
     Layout &  $\Delta t_c (\mu s)$ & Speedup       &VRAM             & L2              & L2-Hit & Read Active \\\hline
-    AoS         & 292                   & -        &61.3\%           & \textbf{41.8}\% & 53.8\% & 48.9\% \\\hline
-    SoA         & 252                   & 1.16x    &\textbf{75.4}\%  & 29.4\%          & 20.0\% & 62.3\% \\
+    AoS         & 275                   & -        &61.3\%           & \textbf{41.8}\% & \textbf{53.8}\% & 48.9\% \\\hline
+    SoA         & 240                   & 1.16x    &75.4\%  & 29.4\%          & 20.0\% & 62.3\% \\
     \hline
   \end{tabular}
-\caption{Timings between different buffer layouts. Map operation with two instructions \texttt{float x = length(vel), float y = length(pos)} on $1024 \times 1024$ \texttt{vec4} buffer storing position(\texttt{pos}) and velocity (\texttt{vel})}.}\label{table:map_1}
+\caption{Metrics between different buffer layouts. Map operation with two instructions \texttt{float x = length(vel), float y = length(pos)} on $1024 \times 1024$ \texttt{vec4} buffer storing position(\texttt{pos}) and velocity (\texttt{vel}).}
+\label{tab:map_2}
 \end{table}
 
-\begin{enumerate}
-Occupancy!
-\end{enumerate}
-\begin{table}
+The case of using both attributes is also visualized in Figure \ref{fig:soa} and \ref{fig:aos}. One map instruction for each attribute is done within the same shader. Table \ref{tab:map_2} shows the results. Now AoS and SoA load the same amount of elements from VRAM. The SoA-Layout is still faster by 35 $\mu s$.
+
+In the SoA-Layout the second attribute lays consecutively in memory and is directly fetched. The SoA timing from table \ref{tab:map_1} is doubled. As expected the two operations are independent of each other and could thus be separated into two shaders with minimal performance impact; Assuming invocation cost is minimal.
+
+In the AoS-Layout the second attribute lays in the L2-Cache from fetching the first attribute. Thus using the second attribute will yield to cache hits. But going the extra way of checking for the element in the L2-cache requires an additional look up. Thus in table \ref{tab:map_2} L2-SOL and L2 Hit rate go up.
+
+The view given was restricted to \texttt{vec4} as its the most commonly occurring type. For float/uint data structures the impacts of AoS vs. SoA can be even more dramatic. Instead of two \texttt{vec4}s eight scalars fit into a cache-line. In contrast only one \texttt{dvec4} (double-precision) fits into a cache-line. Performance of AoS and SoA in this case is equal.
+
+As a closure the reader is again referred to the subject of data-oriented design. While for non-random access SoA is (as shown) the more efficient layout. Random access algorithms can improve performance by using an AoS or mixed setup. In a random access pattern the nearby elements of an SoA-Layout will be left unused in the cache-line.
+
+\textbf{Parallel Reduction \& Scan:} Chapter \ref{sec:red_scan} presents a shared memory implementation of parallel reduction. To further speed up the work load a sequential pattern is preferred to avoid bank conflicts. Table \ref{tab:map_reduce} compares this to an interleaved addressing without padding to illustrate the effects of bank conflicts on performance. Similarly the same can be done for a scan, where however the interleaved addressing is preferred anyway. Table \ref{tab:scan} shows the comparison for a scan.
+
+\begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r | r | r |}    \hline
-    Method         &  $\Delta t_c (\mu s)$ & Speedup &VRAM              & SM              & Top Warp-Stall Reas.\\\hline
-    Interleaved    & 305                   & -       &23.0\%            & \textbf{60.9}\% & Short Scoreb.(17.2\%)\\\hline
-    Sequential     & 141                   & 2.16x   &\textbf{49.8}\%   & 37.1\%          & Long Scoreb.(17.3\%) \\\hline
-    Seq. (2x)      & 100                   & 3.05x   &69.5\%            & 26.2\%          & Long Scoreb.(80.1\%)\\\hline
-    Seq. (128x)    & 98                    & 3.1x    &\textbf{72.9}\%   & 16.9\%          & Long Scoreb.(84.4\%)\\\hline
-    Seq. (256x)    & 101                   & 3.0x    &66.4\%            & 14.6\%          & Long Scoreb.(76.9\%)\\
+    Method         &  $\Delta t_c$ & Speedup &VRAM              & SM              & Sel. Warp-Stall Reas.\\\hline
+    Interleaved    & 305                   & -       &23.0\%          & \textbf{60.9}\%  & S. Scoreb.(17.2\%)\\\hline
+    Sequential     & 141                   & 2.16x   &\textbf{49.8}\%   & 37.1\%         & \textbf{S. Scoreb.(2.0}\%) \\\hline
+    Seq. (2x)      & 100                   & 3.05x   &69.5\%            & 26.2\%         & L. Scoreb.(80.1\%)\\\hline
+    Seq. (128x)    & 98                    & 3.1x    &\textbf{72.9}\%   & 16.9\%         & L. Scoreb.(84.4\%)\\\hline
+    Seq. (256x)    & 101                   & 3.0x    &66.4\%            & 14.6\%         & L. Scoreb.(76.9\%)\\
     \hline
   \end{tabular}
-  \caption{Optimization of one parallel reduction dispatch on $1024\times1024$ instruction \texttt{float x= length(vec4 y)}. Note that the interleaved addressing intentionally does bank conflicts to show performance impacts. The number in parentheses states the number of sequential elements each thread loads.}\label{table:map_reduce}
+  \caption{Optimization of one parallel reduction dispatch on $1024\times1024$ \texttt{vec4} with \texttt{unary\_op(vec4 x)=length(x)} with block\_size = 1024. $\Delta t_c$ is in $\mu s$ Note that the interleaved addressing in this example intentionally commits bank conflicts to show performance impacts. The number in parentheses states the number of additional added sequential elements. Reduced is by block\_size$\times$ sequential elements. Thus they do more work, while also performing better!}\label{tab:map_reduce}
 \end{table}
 
-\begin{table}
+The metrics between the parallel reduction and scan differ quite a lot in their comparison to the their bank-conflict reduced solutions. Where the scans issue utilization goes drastically up from 34.2\% to 51.3\%, the same metric goes down for parallel reduction from 62.2\% to 33.0\%. SM throughput decreases as VRAM throughput increases, although little for the scan. The top warp-stall reason for both is the barrier synchronization between thread groups.
+
+The warp-stall reason however showing the increased throughput due to respecting the shared memory architecture is the short scoreboard. The shaders in their original state have no reason to stall for the short scoreboard as any memory access is directly fetched. In the parallel reduction case the change is quite visible as this metric drops from 17.2\% to only 2.0\%.
+
+\begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r | r | r |}    \hline
-    Method              &  $\Delta t_c$         & Speedup &VRAM              & SM      & L2     & Top Stall Reas.\\\hline
-    Conflicts           & 748                   & -       &17.5\%            & 51.7\%  & 8.2\%  & Barrier(49.5\%)\\\hline
-    No confl.           & 571                   & 1.31x   &25.7\%            & 50.1\%  & 5.4\%  & Barrier(31.9\%)\\\hline
-    part. confl.        & 546                   & 1.36x   &23.5\%            & 50.8\%  & 6.0\%  & Barrier(30.5\%) \\\hline\hline
-    Seq. (2x)           & 323                   & 2.31x   &41.7\%            & 43.0\%  & 17.2\% & S. Scoreb.(32.0\%)\\\hline
-    unrolled            & 258                   & 2.90x   &53.8\%            & 42.2\%  & 22.0\% & S. Scoreb.(32.0\%)\\\hline\hline
+    Interleaved       &  $\Delta t_c$         & Speedup &VRAM              & SM      & L2     & Sel. Stall Reas.\\\hline
+    Conflicts           & 748                   & -       &17.5\%            & 51.7\%  & 8.2\%  & S. Scoreb.(6.3\%)\\\hline
+    No confl.           & 571                   & 1.31x   &25.7\%            & 50.1\%  & 5.4\%  & \textbf{S. Scoreb.(2.6\%)}\\\hline
+    part. confl.        & 546                   & 1.36x   &23.5\%            & 50.8\%  & 6.0\%  & \textbf{S. Scoreb.(3.2\%)} \\\hline\hline
+    Seq. (2x)           & 323                   & 2.31x   &41.7\%            & \textbf{43.0}\%  & 17.2\% & S. Scoreb.(32.0\%)\\\hline
+    unrolled            & 258                   & 2.90x   &\textbf{53.8}\%   & 42.2\%  & \textbf{22.0}\% & S. Scoreb.(32.0\%)\\\hline\hline
     Seq. (4x)           & 311                   & 2.40x   &56.8\%            & 22.7\%  & 37.9\% & L. Scoreb.(43.3\%)\\\hline
     unrolled            & 297                   & 2.52x   &61.1\%            & 21.2\%  & 40.6\% & L. Scoreb.(49.9\%)\\
     \hline
   \end{tabular}
-  \caption{Optimization of one scan dispatch on $4 \times 1024\times1024$ integers with \texttt{binary\_op(x,y) := x+y}. $\Delta t_c$ in $\mu s$. }\label{table:scan}
+  \caption{Optimization of one scan dispatch on $4 \times 1024\times1024$ integers with \texttt{binary\_op(x,y) := x+y}. $\Delta t_c$ in $\mu s$, block size is 1024. The number in parentheses states the number of additionally loaded sequential elements. Segment of each scan is block\_size$\times$ sequential elements. Higher reduction factor corresponds to more work being done.}\label{tab:scan}
 \end{table}
+The second optimization is giving these algorithms more sequential work. This will lighten the SM throughput and increase VRAM throughput as can be seen in both cases. Note, that each thread in table \ref{tab:map_reduce} and \ref{tab:scan} does the same amount of parallel work; the sequential work is additionally being done. However due to the additional sequential work parallelization a block level goes down by the same factor. As mentioned in \cite{NVIDIA:PARALLEL_REDUCTION} this balances the relation of I/O latency to work better and thus improves performance.
 
+Doing sequential work in parallel reduction adds almost no strain. Thus very high sequential work can be done by each thread. The SM work will shrink, while the shader gets more and more memory bound. For a reduction factor of 256 first signs of performance decrease can be seen as only four groups are involved in the dispatch. The GTX970 has 13 SMs. Therefore work is not parallelized enough on a block level anymore. The metric SM active\% will go rapidly down at this point. For four groups its 27.8\%, which is roughly $\frac{4}{13}$.
+
+For the scan this is a little bit harder as elements need to be stored in registers. The effects can be seen in table \ref{tab:scan}. The segment each scan can handle is by far not as extensive as in parallel reduction. But the speedup achieved from a partially conflict free to an implementation with sequential work is in contrast much higher. Since each thread requires the nearest by elements, L2-cache hits increase rapidly as does the L2 utilization.Thus the scoreboard stall reasons rise again.
+
+\textbf{Counting Sort:}
 \begin{table}
   \begin{tabular}{ | l | r | r | r | r | r |r|}    \hline
     Ordering            &  $\Delta t_c (\mu s)$ & Speedup &VRAM              & SM      & L2     & L2-Hit \\\hline
