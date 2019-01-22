@@ -1194,8 +1194,7 @@ The GPU metric topping all others is the raw computing time spend on a shader: $
     Write Active\%    & 100                   & \% of time spend on VRAM writes\\\hline
     \multicolumn{3}{|l|}{\textbf{Warp Stall Reasons:}}\\\hline
     Long Scoreboard\% & 100                   & VRAM latency (mostly reads)\\\hline
-    Short Scoreboard\%& 100                   & L2/Shared Mem. latency\\
-		      &                       & (mostly (atomic) writes)\\\hline
+    Short Scoreboard\%& 100                   & L2/Shared Mem. latency\\\hline
     Barrier\%         & 100                   & block synchronization \\\hline
     No Instruction\%  & 100                   & instruction fetching or\\
 		      &                       & waiting on instruction cache miss\\\hline
@@ -1638,7 +1637,9 @@ The total errors vary little between the methods presented in chapter \ref{sec:t
 \end{table}
 
 \subsection{Performance}
-The given metrics in \ref{sec:metrics} lead to valuable insight into how well the GPU can utilize a given shader or program. The GPU was a black box for a long time in this regard. The metrics provided by NVIDIA are a first step to open up the GPUs inner workings. Theory about optimization for the architecture such as \cite{NVIDIA:BEST:PRACTICE} can be more readily applied. However for abstraction purposes theory as well as descriptions about the architecture might be deliberately vague. These metrics give the programmer more power of identifying the right optimizations for a given code. All metrics in the following are gathered from a NVIDIA GTX970.
+The given metrics in \ref{sec:metrics} lead to valuable insight into how well the GPU can utilize a given shader or program. The GPU was a black box for a long time in this regard. The metrics provided by NVIDIA are a first step to open up the GPUs inner workings. Theory about optimization for the architecture such as \cite{NVIDIA:BEST:PRACTICE} can be more readily applied. However for abstraction purposes theory as well as descriptions about the architecture might be deliberately vague. These metrics give the programmer more power of identifying the right optimizations for a given code.
+
+All metrics in the following are gathered from a NVIDIA GTX970. All timings are averaged over at least 1000 runs with OpenGL Timer Queries \cite{KHRONOS:TIMER_QUERY}. As more runs are done the GPU stays very consistent on bringing the average runtime closer to the minimum recorded time. This indicates that the first few runs can take comparably longer.
 
 \textbf{SoA vs. AoS}: In chapter \ref{sec:soa_aos} was already hinted that throughput could be halved in an AoS-Layout. These effects can be hideous without knowledge of the architecture. Take for instance a map operation (or equivalently a copy operation). Figure \ref{fig:soa} and \ref{fig:aos} in chapter \ref{sec:soa_aos} already gave an overview of the procedure for \texttt{vec4}. Table \ref{tab:map_1} compares differences between an AoS- and an SoA-Layout with a buffer of two attributes.
 \begin{table}[htbp]
@@ -1743,59 +1744,46 @@ Again differences similarly to the binning can be seen when already working with
 \caption{Order dependency of reordering of $1024\times1024$ randomly positioned particles in a $128\times128\times128$ grid. Best case is already sorted, worst case is unsorted and still fully random.}\label{table:sort}
 \end{table}
 
-Binning as well as reordering will rarely run fully sorted as mentioned in \ref{sec:sort}. Sorting works on the last sorted state. The CFL-condition encourages limited reach. The Material-Point-Method encourages uniform movement. These two properties in general will guarantee higher coalescing as well as L2-cache hit rates. It is however up to the dynamics of the problem how much time is spend sorting.
+Binning as well as reordering will rarely run fully sorted as mentioned in \ref{sec:sort}. Sorting works on the last sorted state. The CFL-condition encourages limited reach. Solids and fluids will mostly move uniformly. These two properties in general will guarantee higher coalescing as well as L2-cache hit rates. It is however up to the dynamics of the problem how much time is spend sorting.
+\\
+
+The following metrics are gathered for PIC-Transfers of momentum as they form a reduced problem to build off with only one \texttt{vec4} transfer. The MPM-Operations are evaluated with two easily reproducible examples.
+
+For the \textbf{G2P-Transfers} the different datasets can be seen in table \ref{table:g2p_random} and \ref{table:g2p_uniform4}. The first one uses random particle positions and therefore is overly pessimistic for the Material Point Method as explained earlier. The second one is optimistic as warp branch divergence is minimized.
+
+The global G2P-Transfers does not reach desirable throughput in any of the GPU subunits. The top warp-stall reason is Long Scoreboard: Nearly all information needs to be reloaded uncoalesced from global memory. The data in \ref{table:g2p_uniform4} has an ordering that encourages data reuse. But is not aligned with the grid. However the SM already runs on three times its throughput compared to the random data.
 
 \begin{table}[htpb]
-  \begin{tabular}{ | l | r | r | r | r | r |r|r|r|}    \hline
-    Method                 &  $\Delta t_c(\mu s)$ &Speedup         &VRAM  & L2    &SM     \\\hline
-    G2P global             &   38,318             &-               &24.3\%&34.4\% & 9.6\% \\\hline
-    sorted                 &    2,991		  &12.81x          & 7.5\%&52.3\% &67.1\% \\\hline
-    G2P-Shared             &    9,665             & 3.96x          & 3.4\%& 2.5\% &65.0\% \\\hline
+  \begin{tabular}{ | l | r | r | r | r | r |r|}    \hline
+    Method                 &  $\Delta t_c(\mu s)$ &Speedup         & L2    &SM     &Top Warp-Stall Reas. \\\hline
+    G2P-global             &   38,318             &-               &34.4\% & 9.6\% &L. Scoreb.(95.1\%)  \\\hline
+    sorted                 &    \textbf{2,991}    &12.81x          &\textbf{52.3\%}&\textbf{67.1}\% &No Instr.(14.8\%)   \\\hline
+    G2P-shared             &    9,665             & 3.96x          & 2.5\% &65.0\% &No Instr.(14.2\%)\\\hline
  \end{tabular}
- \caption{G2P-Transfers of a $128\times 128\times128$ grid back to one million randomly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$. Block size is (8,4,4).}\label{table:p2g_uniform4}
+ \caption{G2P-Transfers of a $128\times 128\times128$ grid back to one million randomly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$. Block size is (8,4,4).}\label{table:g2p_random}
 \end{table}
 
-VRAM-L.Scoreboard 79.9\%
-Wait No Instructions
-\begin{table}[htpb]
-  \begin{tabular}{ | l | r | r | r | r | r |}    \hline
-    Method                 &  $\Delta t_c(\mu s)$ &Speedup         &VRAM  & L2   &SM    \\\hline
-    G2P global             &   10,316             &-               &2.3\%&34.4\%&32.4\% \\\hline
-    sorted                 &    2,629		  &3.92x           &4.1\%&9.4\%&66.9\%  \\\hline
-    G2P-Shared             &    2,232             &4.62x           &7.3\%&4.1\% &63.6\% \\\hline
- \end{tabular}
+As elucidated in chapter \ref{sec:sort} deep sorting increases coalescing and caching behavior. The effects of sorting impact performance by a 12.81x speedup in the randomized case. The density of particles per bin is 0.5. Heavy use is made of the L2-Cache rising up to 52.3\% reading from many distinctive, successive memory positions. Meanwhile the density of four particles per bin in table \ref{table:g2p_uniform4} puts comparably low strain on the L2-Cache with 9.4\%. The runtime on random data is only 12.2\% slower than the uniform data.
 
- \caption{G2P-Transfers of a $128\times 128\times128$ grid back to one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4). Methods marked with a star(*) are executed with batching = 4.}\label{table:p2g_uniform4}
-\end{table}
-\begin{table}[htpb]
-  \begin{tabular}{ | l | r | r | r | r |}    \hline
-    Method                 &  $\Delta t_c(\mu s)$ & Speedup &SM    & Top Stall Reas.\\\hline
-    P2G-Atomic		   &    6,933             & -       &82.9\%&S. Scoreb.(24.7\%)\\\hline
-    indirect		   &    6,276             & 1.10x   &90.8\%&S.Scoreb.(31.7\%)\\\hline
-    batching = 4           &    4,929             & 1.41x   &65.1\%&S. Scoreb.(24.3\%)\\\hline
-    both                   &    3,148             & 2.20x   &65.0\%&No Instr.(23.2\%)\\\hline
-    \hline
-    P2G-Sync               &    3,161             & -       &72.4\%&No Instr.(17.7\%) \\\hline
-    batching=4             &    2,595             & 1.21x   &67.0\%&No Instr.(23.7\%) \\\hline
- \end{tabular}
- \caption{P2G-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4).}\label{table:p2g_optim}
-\end{table}
+The G2P-shared method lies miles beyond that as its execution time is 9,665 $\mu s$. It can however get an edge on the more favored uniform data where 2,232 is the best recorded time. The G2P-shared method relies on shared memory instead of the L2-Cache to read data. Thus this method can be faster when little branch divergence between warps is the case. The random data however has highly divergent branching and is cause for the high execution times.
 
 \begin{table}[htpb]
-  \begin{tabular}{ | l | r | r | r | r | r |}    \hline
-    Method                 &  $\Delta t_c(\mu s)$ &Speedup         &VRAM  & L2   &SM    \\\hline
-    global                 &   44,442             &-               &4.6 \%&34.4\%&7.7\%  \\\hline
-    \cite{Meyer2015}       &   45,342             &0.98x           &25.1\%&42.4\%&11.7\% \\\hline
-    \cite{Meyer2015} sorted&   23,007		  &1.97x           &43.8\%&59.0\%&23.9\% \\\hline
-    global sorted          &   20,484		  &2.21x           &7.0 \%&44.0\%&16.1\% \\\hline
-    \hline
-    P2G-Pull               &    4,747             &9.55x           &3.7\% &6.7\% &39.4\%\\\hline
-    P2G-Atomic*		   &    3,148             &14.40x          &5.3\% &6.7\% &65.0\%\\\hline
-    P2G-Sync*              &    2,595             &17.47x          &5.9\%&7.6\%  &67.0\%\\\hline
+  \begin{tabular}{ | l | r | r | r | r | r | r |}    \hline
+    Method                 &  $\Delta t_c(\mu s)$ &Speedup         & L2   &SM             & Top Warp-Stall Reas.\\\hline
+    G2P-global             &   10,316             &-               &34.4\%&\textbf{32.4}\%         & L. Scoreb.(79.9\%) \\\hline
+    sorted                 &    2,629		  &3.92x           &\textbf{9.4}\%&66.9\%          & No Instr.(14.1\%) \\\hline
+    G2P-shared             &    \textbf{2,232}             &4.62x           &4.1\% &\textbf{63.6}\%& No Instr.(22.7\%) \\\hline
  \end{tabular}
- \caption{P2G-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4). Methods marked with a star(*) are executed with batching = 4.}\label{table:p2g_uniform4}
+ \caption{G2P-Transfers of a $128\times 128\times128$ grid back to one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4).}\label{table:g2p_uniform4}
 \end{table}
-Barrier 26.3\% on P2G-Sync
+
+In NVIDIA-Nsight run times recorded for the G2P-Transfers were comparably lower while making use of batching. However OpenGL timer queries recorded little difference in trade-off for the added register pressure. Thus G2P-Transfers should stay away of batching.
+
+For the sorted G2P-global as well as the G2P-shared method following statements are also of interest. The top-warp stall reason is waiting on the instruction fetches which is typical for compute-bound shaders with high SM usage. The SM Issue Utilization per Active Cycles is consistent around 65\%. This indicates that neither increasing occupancy nor reducing warp-stalls would increase performance.
+
+As a summary, relying on the comparably fast L2-Cache memory transactions over shared memory is consistent across data for the sorted G2P-global method. The main benefit of the global solution is that warps do not suffer from branch divergence in that method. However the G2P-shared method may still give an edge in performance.
+
+The \textbf{P2G-Transfer}
 \begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r |}    \hline
     Method                 &  $\Delta t_c(\mu s)$ &Speedup         &VRAM  & L2   &SM    \\\hline
@@ -1810,6 +1798,38 @@ Barrier 26.3\% on P2G-Sync
  \end{tabular}
  \caption{P2G-Transfers of one million randomly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. Block size is (8,4,4). Methods marked with a star(*) are executed with batching = 4.}\label{table:p2g_random}
 \end{table}
+
+\begin{table}[htpb]
+  \begin{tabular}{ | l | r | r | r | r | r | r |}    \hline
+    Method                 &  $\Delta t_c(\mu s)$ &Speedup         &VRAM  & L2   &SM     \\\hline
+    global                 &   44,442             &-               &4.6 \%&34.4\%&7.7\%  \\\hline
+    \cite{Meyer2015}       &   45,342             &0.98x           &25.1\%&42.4\%&11.7\% \\\hline
+    \cite{Meyer2015} sorted&   23,007		  &1.97x           &43.8\%&59.0\%&23.9\% \\\hline
+    global sorted          &   20,484		  &2.21x           &7.0 \%&44.0\%&16.1\% \\\hline
+    \hline
+    P2G-Pull               &    4,747             &9.55x           &3.7\% &6.7\% &39.4\%\\\hline
+    P2G-Atomic*		   &    3,148             &14.40x          &5.3\% &6.7\% &65.0\%\\\hline
+    P2G-Sync*              &    2,595             &17.47x          &5.9\%&7.6\%  &67.0\%\\\hline
+ \end{tabular}
+ \caption{P2G-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4). Methods marked with a star(*) are executed with batching = 4.}\label{table:p2g_uniform4}
+\end{table}
+
+Barrier 26.3\% on P2G-Sync
+\begin{table}[htpb]
+  \begin{tabular}{ | l | r | r | r | r | r |}    \hline
+    Method                 &  $\Delta t_c(\mu s)$ & Speedup &SM    & Top Stall Reas.  & Occupancy\\\hline
+    P2G-Atomic		   &    6,933             & -       &82.9\%&S. Scoreb.(24.7\%)& 43.3\\\hline
+    indirect		   &    6,276             & 1.10x   &90.8\%&S. Scoreb.(31.7\%) & 43.4\\\hline
+    batching = 4           &    4,929             & 1.41x   &65.1\%&No Instr.(20.8\%)& 34.9\\\hline
+    both                   &    3,148             & 2.20x   &65.0\%&No Instr.(23.2\%) & 35.4\\\hline
+    \hline
+    P2G-Sync               &    3,161             & -       &72.4\%&No Instr.(17.7\%) & 43.3\\\hline
+    batching=4             &    2,595             & 1.21x   &67.0\%&No Instr.(23.7\%) & 35.4\\\hline
+ \end{tabular}
+ \caption{P2G-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4).}\label{table:p2g_optim}
+\end{table}
+
+
 \begin{table}
   \begin{tabular}{ | l | r | r | r | r |}    \hline
     Method                 &  Area=47.6\% & Area=23.8\% &Area=11.9\%\\\hline
