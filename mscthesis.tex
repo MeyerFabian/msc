@@ -1781,23 +1781,32 @@ In NVIDIA-Nsight run times recorded for the G2P-Transfers were comparably lower 
 
 For the sorted G2P-global as well as the G2P-shared method following statements are also of interest. The top-warp stall reason is waiting on the instruction fetches which is typical for compute-bound shaders with high SM usage. The SM Issue Utilization per Active Cycles is consistent around 65\%. This indicates that neither increasing occupancy nor reducing warp-stalls would increase performance.
 
-As a summary, relying on the comparably fast L2-Cache memory transactions over shared memory is consistent across data for the sorted G2P-global method. The main benefit of the global solution is that warps do not suffer from branch divergence in that method. However the G2P-shared method may still give an edge in performance.
+As a summary, relying on the comparably fast L2-Cache memory transactions over shared memory is consistent across the reduced examples for the sorted G2P-global method. The main benefit of the global solution is that warps do not suffer from branch divergence in that method. However the G2P-shared method may still give an edge in performance.
 
-The \textbf{P2G-Transfer}
+The \textbf{P2G-Transfer} is tested on the same data in \ref{table:p2g_random} and \ref{table:p2g_uniform4} respectively. The global atomic approaches suffer from low throughput across all units. Cause are uncoalesced accesses and low cache utilization.
+
+The top stall reason for all global operations is the short scoreboard. This is caused by the high number of atomic writes which are accumulated in L2-Cache. The sorting brings forth this problem more acutely as L2-Caches throughput rises to the top SOL with 44.0\% in the uniform case of table \ref{table:p2g_uniform4}. The random data example in table \ref{table:p2g_random} relies even more heavily on the L2-Cache with 65.8 SOL\% similarly to what has been seen in the G2P-Transfer.
+
+Nevertheless this already speeds up the random case by a factor of 11.88x as it followed no particular ordering. The sorting makes sure that the incoming data is preprocessed for optimal access.
+
 \begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r |}    \hline
     Method                 &  $\Delta t_c(\mu s)$ &Speedup         &VRAM  & L2   &SM    \\\hline
     global                 &  254,410             &-               &17.8\%&9.6\% &1.7\%  \\\hline
     \cite{Meyer2015}       &  217,997             &1.17x           &21.7\%&3.7\% &13.2\% \\\hline
     \cite{Meyer2015} sorted&   30,477		  &8.35x           &64.2\%&64.2\%&22.1\% \\\hline
-    global sorted          &   21,413		  &11.88x          &7.2\% &65.8\%&19.4\% \\\hline
+    global sorted          &   21,413		  &11.88x          &7.2\% &\textbf{65.8}\%&19.4\% \\\hline
     \hline
     P2G-Pull               &   26,822             &9.46x           &1.6\% &2.3\% &35.2\%\\\hline
-    P2G-Atomic*		   &   15,552             &16.36x          &3.7\% &7.1\% &65.4\%\\\hline
-    P2G-Sync*              &   12,801             &19.87x          &3.6\% &7.3\% &61.3\%\\\hline
+    P2G-Atomic*		   &   15,552             &16.36x          &3.7\% &7.1\% &\textbf{65.4}\%\\\hline
+    P2G-Sync*              &   \textbf{12,801}    &19.87x          &3.6\% &7.3\% &\textbf{61.3}\%\\\hline
  \end{tabular}
  \caption{P2G-Transfers of one million randomly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. Block size is (8,4,4). Methods marked with a star(*) are executed with batching = 4.}\label{table:p2g_random}
 \end{table}
+
+Using the P2G-Pull method on the random case performs worse than the global method. It can significantly save time however in the uniform case. The P2G-Pull-Transfer is 4.31 times faster than the global P2G-Transfer on the sorted uniform data.
+
+Top SOL\% is now the SM, but it lacks throughput with 39.4\%. Its SM Issue Utilization per active cycle is 40\% which is below the desired threshold of 60\%. The top warp stall reason is instruction based. So as long as the algorithm does not change no increase can be achieved here. As explained in chapter \ref{sec:p2g} the pull method requires high amount of shared memory. The occupancy calculator as well as NVIDIA-Nsight report an occupancy of 16.0. This is $\frac{1}{4}$-th of the maximum occupancy of the GTX970. This is however optimized for thread group size.
 
 \begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r | r |}    \hline
@@ -1805,15 +1814,16 @@ The \textbf{P2G-Transfer}
     global                 &   44,442             &-               &4.6 \%&34.4\%&7.7\%  \\\hline
     \cite{Meyer2015}       &   45,342             &0.98x           &25.1\%&42.4\%&11.7\% \\\hline
     \cite{Meyer2015} sorted&   23,007		  &1.97x           &43.8\%&59.0\%&23.9\% \\\hline
-    global sorted          &   20,484		  &2.21x           &7.0 \%&44.0\%&16.1\% \\\hline
+    global sorted          &   20,484		  &2.21x           &7.0 \%&\textbf{44.0}\%&16.1\% \\\hline
     \hline
     P2G-Pull               &    4,747             &9.55x           &3.7\% &6.7\% &39.4\%\\\hline
-    P2G-Atomic*		   &    3,148             &14.40x          &5.3\% &6.7\% &65.0\%\\\hline
-    P2G-Sync*              &    2,595             &17.47x          &5.9\%&7.6\%  &67.0\%\\\hline
+    P2G-Atomic*		   &    3,148             &14.40x          &5.3\% &6.7\% &\textbf{65.0}\%\\\hline
+    P2G-Sync*              &    \textbf{2,595}             &17.47x          &5.9\%&7.6\%  &\textbf{67.0}\%\\\hline
  \end{tabular}
  \caption{P2G-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4). Methods marked with a star(*) are executed with batching = 4.}\label{table:p2g_uniform4}
 \end{table}
 
+A closer look is taken of the P2G-Atomic- and P2G-Sync-Transfers to illustrate the performance improvements of batching and filtering active blocks.
 Barrier 26.3\% on P2G-Sync
 \begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r |}    \hline
@@ -1828,7 +1838,6 @@ Barrier 26.3\% on P2G-Sync
  \end{tabular}
  \caption{P2G-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4).}\label{table:p2g_optim}
 \end{table}
-
 
 \begin{table}
   \begin{tabular}{ | l | r | r | r | r |}    \hline
