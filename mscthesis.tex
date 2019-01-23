@@ -1804,9 +1804,9 @@ Nevertheless this already speeds up the random case by a factor of 11.88x as it 
  \caption{P2G-Transfers of one million randomly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. Block size is (8,4,4). Methods marked with a star(*) are executed with batching = 4.}\label{table:p2g_random}
 \end{table}
 
-Using the P2G-Pull method on the random case performs worse than the global method. It can significantly save time however in the uniform case. The P2G-Pull-Transfer is 4.31 times faster than the global P2G-Transfer on the sorted uniform data.
+Using the \textbf{P2G-Pull method} on the random case performs worse than the global method. It can significantly save time however in the uniform case. The P2G-Pull-Transfer is 4.31 times faster than the global P2G-Transfer on the sorted uniform data.
 
-Top SOL\% is now the SM, but it lacks throughput with 39.4\%. Its SM Issue Utilization per active cycle is 40\% which is below the desired threshold of 60\%. The top warp stall reason is instruction based. So as long as the algorithm does not change no increase can be achieved here. As explained in chapter \ref{sec:p2g} the pull method requires high amount of shared memory. The occupancy calculator as well as NVIDIA-Nsight report an occupancy of 16.0. This is $\frac{1}{4}$-th of the maximum occupancy of the GTX970. This is however optimized for thread group size.
+Top SOL\% is now the SM, but it lacks throughput with 39.4\%. Its SM Issue Utilization per active cycle is 40\% which is below the desired threshold of 60\%. The top warp stall reason is instruction based. So as long as the algorithm does not change no increase can be achieved here. As explained in chapter \ref{sec:p2g} the pull method requires high amount of shared memory. The occupancy calculator as well as NVIDIA-Nsight report an occupancy of 16.0. This is $\frac{1}{4}$-th of the maximum occupancy of the GTX970. This is however already optimized for thread group size.
 
 \begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r | r |}    \hline
@@ -1818,37 +1818,47 @@ Top SOL\% is now the SM, but it lacks throughput with 39.4\%. Its SM Issue Utili
     \hline
     P2G-Pull               &    4,747             &9.55x           &3.7\% &6.7\% &39.4\%\\\hline
     P2G-Atomic*		   &    3,148             &14.40x          &5.3\% &6.7\% &\textbf{65.0}\%\\\hline
-    P2G-Sync*              &    \textbf{2,595}             &17.47x          &5.9\%&7.6\%  &\textbf{67.0}\%\\\hline
+    P2G-Sync*              &    \textbf{2,595}    &17.47x          &5.9\%&7.6\%  &\textbf{67.0}\%\\\hline
  \end{tabular}
  \caption{P2G-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4). Methods marked with a star(*) are executed with batching = 4.}\label{table:p2g_uniform4}
 \end{table}
 
-A closer look is taken of the P2G-Atomic- and P2G-Sync-Transfers to illustrate the performance improvements of batching and filtering active blocks.
-Barrier 26.3\% on P2G-Sync
+A closer look is taken of the P2G-Atomic- and P2G-Sync-Transfers to illustrate the performance improvements of batching and filtering for active blocks in table \ref{table:p2g_optim}.
+
+The \textbf{P2G-Atomic-Transfer} in its initial state uses one atomic transfer per particle on shared memory. Its effects are quite visible on the SM SOL\% with 82.9\% to 90.9\% in the call for active blocks. The top stall reason is short scoreboard which is indicative of the high number of stalls due to atomic writes on shared memory.
+
+Batching reduces the atomic writes. Particles get handled together. In succession one atomic write is done. This changes the top stall reason to the more favorable instruction fetches as the main stall reason with 20.8\%. Short scoreboard goes down to 11.6\%. As previously the SM was strained too hard throughput goes down to 65.0\%. The greatest time improvement can be seen when batching and indirect call lead to a combined speedup of 2.2x. This is much higher than the multiplicative speedup of 1.51x one could expect.
+
+The \textbf{P2G-Sync-Transfer} also may use batching and save time. The speedups are much smaller with 1.21x in the uniform case of table \ref{table:p2g_optim}. Batching in this case reduces the amount of thread group barriers needed for synchronization. The warp-stall reason barrier goes down from 10.4\% to 5.8\% in this process. The external synchronization is however much less invasive than atomic writes. The P2G-Sync method without batching has roughly the same timing as the P2G-Atomic-Transfer with batching of four particles.
 \begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r |}    \hline
-    Method                 &  $\Delta t_c(\mu s)$ & Speedup &SM    & Top Stall Reas.  & Occupancy\\\hline
+    Method                 &  $\Delta t_c(\mu s)$ & Speedup &SM    & Top Stall Reas.  & Occup.\\\hline
     P2G-Atomic		   &    6,933             & -       &82.9\%&S. Scoreb.(24.7\%)& 43.3\\\hline
-    indirect		   &    6,276             & 1.10x   &90.8\%&S. Scoreb.(31.7\%) & 43.4\\\hline
-    batching = 4           &    4,929             & 1.41x   &65.1\%&No Instr.(20.8\%)& 34.9\\\hline
-    both                   &    3,148             & 2.20x   &65.0\%&No Instr.(23.2\%) & 35.4\\\hline
+    indirect		   &    6,276             & 1.10x   &90.8\%&\textbf{S. Scoreb.(31.7\%)} & 43.4\\\hline
+    batching=4           &    4,929             & 1.41x   &65.1\%&No Instr.(20.8\%)& \textbf{34.9}\\\hline
+    both                   &    3,148             & \textbf{2.20x}   &\textbf{65.0}\%&No Instr.(23.2\%) & 35.4\\\hline
     \hline
-    P2G-Sync               &    3,161             & -       &72.4\%&No Instr.(17.7\%) & 43.3\\\hline
-    batching=4             &    2,595             & 1.21x   &67.0\%&No Instr.(23.7\%) & 35.4\\\hline
+    P2G-Sync     &    3,161             & -       &72.4\%&No Instr.(17.7\%) & 43.3\\\hline
+    batching=4             &    2,595             & 1.21x   &67.0\%&No Instr.(23.7\%) & \textbf{35.4}\\\hline
  \end{tabular}
- \caption{P2G-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4).}\label{table:p2g_optim}
+ \caption{P2G-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4). Shown are the effects of filtering active blocks(indirect) and batching.}\label{table:p2g_optim}
 \end{table}
 
-\begin{table}
+Batching is a process that adds register pressure as can be seen by the reduced occupancy of 34.9-35.4. Using batching every new particle variable involved in the transfer takes the batching amount of that variables size more registers.
+
+The P2G-Atomic-Transfer is very reliant on batching where the P2G-Sync-Transfer is not. This is further highlighted in table \ref{table:p2g_area}. With one particle per cell(area 47.6\%) batching does not help at all. The P2G-Sync-Transfer however can still work comparably fast to the high density of four particles per cell losing about 7.2\% speed. This also means that the P2G-Sync-Transfer only scales slightly with the area covered, which is due to the overhead of loading and writing more blocks.
+
+\begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r |}    \hline
     Method                 &  Area=47.6\% & Area=23.8\% &Area=11.9\%\\\hline
     P2G-Sync		   &  3,375$\mu s$& 3,266$\mu s$ & 3,129$\mu s$\\\hline
     batching = 2           & -&2,942$\mu s$ & 2,745$\mu s$\\\hline
     batching = 4           & -&- &2,622$\mu s$\\\hline
  \end{tabular}
- \caption{P2G-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with one/two/four particles per cell corresponding to the area of the grid that is covered. Block size is (4,4,4).}\label{table:p2g_optim}
+ \caption{P2G-Sync-Transfer of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with one/two/four particles per cell corresponding to the area of the grid that is covered with 47.6\%/23.8\%/11.9\%. Block size is (4,4,4).}
+ \label{table:p2g_area}
 \end{table}
-
+The P2G-Atomic- and the even more favorable P2G-Sync-Transfer give great speedups over the global atomic methods. Even in a random case (table \ref{table:p2g_random}) they can outdo the global sorted method despite the high branch divergence. They however shine in the uniform case where speedups of 6.5x and 7.8x respectively can be achieved over the global sorted method.
 \section{Conclusion}
 \subsection{Summary}
 \subsection{Future Work}
