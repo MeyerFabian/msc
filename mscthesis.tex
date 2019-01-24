@@ -182,15 +182,32 @@
 
 
 \section{Introduction} \label{intro}
+General Purpose Computation on Graphics Processing Unit(GPGPU) has elevated Graphics Processing Units(GPUs) to any computational field utilizing massively parallelizable algorithms. As such is the nature of discretizations in physics. GPUs performance still follows Moore's Law. In unison with efficient algorithms they still have much potential to offer.
+
+The higher parallelization acceleration of GPUs is a blessing for those applications that can profit from it. Conversely algorithms which are not parallelizable perform much worse and should be avoided. Dividing up these tasks between CPU and GPU is not recommendable. Transferring data over the PCI-Bus between the two is slow for big amounts of data and requires synchronization. Tasks in such a pipeline should thus stay on the GPU although they might perform worse.
+
+Programming for the GPU is another hurdle. GPU code is very reliable on the generation of the GPU to use relevant extensions. Backwards compatibility therefore is mostly ignored and written towards a certain GPU (generation). This is amplified due to the GPU code often being reliant on architecture limits for maximum performance. The major languages to target the GPU are CUDA, OpenCL, Direct 3D, OpenGL and Vulkan. They build on top of a C/C++-language subset. Whereas CUDA offers the most libraries and optimized code it is only available on NVIDIA GPUs. OpenCL's development on NVIDIA GPUs is dragging far behind the standard. It's merge into the Vulkan roadmap therefore could be an incentive to support a more in-depth language universally \cite{OPENCL:ROADMAP}. Direct3D is only available on Windows. Vulkan is the successor of OpenGL and removes work from the driver to the developer. Main benefit over OpenGL is less CPU usage, which helps little for the almost full GPU implementation here. This implementation opts for OpenGL as Vulkan is still relatively new. Everything presented could be implemented in one of the other languages as well.
+
+The simulation of the dynamics of materials is still extremely challenging in different applications and fields. Multi-physics interactions between materials are not realized on a big scale and often are not possible or feasible. The Material-Point-Method has already reliable tackled many different models, materials and even interaction between materials. Chapter \ref{sec:rel_work} will give a short summary of such.
+
+Pure Eulerian methods like the Finite-Element-Method(FEM) have been in use for long in engineering tasks but face problems handling topology changes with numerical stability. Pure Langrangian methods form the end other of the spectrum. Prominent are Smoothed Particle Hydrodynamics(SPH) that are restricted to (viscous) fluids and of empirical nature. Particle-in-Cell(PIC) techniques like the Material-Point-Method are hybrid Lagrangian/Eulerian methods. They try to benefit from the nature of both. The Material-Point-Method utilizes Langrangian particles as a consistent storage of the dynamics. The governing equations of the physical problem can be discretized to and solved on a uniform Eulerian grid.
+
+The necessary transfers between the Lagrangian and Eulerian representation are the focus of the Particle-in-Cell techniques. These transfers, realized due to interpolation, create (estimable) numerical error and lead to dissipation. Moreover grid nodes are mostly outnumbered by particles leading to more numerical error as modes of the single particles are not realized by the grid.
+
+This $p$ particles to one node relationship of a Particle-to-Grid-Transfer(P2G) or inversely one node to $p$ particles of a Grid-to-Particle-Transfer(G2P) is the main problem when realizing these operations (on the GPU). When faced with the static memory architecture of the GPU this will inevitably lead to branch divergence as some nodes are assigned more particles than others.
+
+Chapter \ref{sec:rel_work} looks at the relevant literature of PIC-Methods specifically on the GPU as wel as Material-Point-Method extensions. In chapter \ref{sec:notation} notations which will be used throughout the thesis are laid out. The Basics of chapter \ref{sec:basics} cover the derivation of an elastic material in the MPM-Method. Furthermore GPU intrinsics, metrics and optimization opportunities are discussed. Chapter \ref{sec:implementation} tends to the implementation. The evaluation of the implementation follows up in chapter \ref{sec:eval}. As a conclusion chapter \ref{sec:conclusion} gives a summarizing overview and tends to future work.
+
+\clearpage
 \section{Related Work}\label{sec:rel_work}
-\textbf{Particle-in-Cell (PIC):} PIC techniques were developed initially for hydrodynamics
+\textbf{Particle-in-Cell:} PIC techniques were developed initially for hydrodynamics
 \cite{evans1957particle}. They are also widely used in plasma simulations to solve Maxwell's equations. Their key steps are identical to the MPM-method:
 \begin{enumerate}
   \item Transfer particle data to a grid.
 \item \label{it:solve_gov_eq}Solve the governing partial differential equations on the grid to move forward in time.
   \item Transfer grid data back to particles.
 \end{enumerate}
-In general the grid is regarded as a scratch-pad since its only a temporary storage for the means of computing item \ref{it:solve_gov_eq}. Based on PIC to reduce dampening and momentum conservation Fluid-Implicit-Particle (FLIP) was developed for fluid simulations and is still widely in use for large simulations. Their counterpart being the empirical Smoothed Particle Hydrodynamics (SPH) \cite{gingold1977smoothed}.
+In general the grid is regarded as a scratch-pad since its only a temporary storage for the means of computing item \ref{it:solve_gov_eq}. Based on PIC to reduce dampening and momentum conservation Fluid-Implicit-Particle (FLIP) was developed for fluid simulations and is still widely in use for large simulations. Their counterpart being the empirical Smoothed Particle Hydrodynamics \cite{gingold1977smoothed}.
 
 For that matter APIC was developed as an improvement to PIC and FLIP solvers. Due to the definition of a local affine velocity field around each particle (instead of a single vector) APIC conserves angular momentum, reduces damping and improves stability over PIC and FLIP, more in chapter \ref{sec:apic}. \cite{MPM:APIC} \cite{MPM:OLD_APIC}
 
@@ -306,7 +323,7 @@ A useful relation to the Kronecker-Delta is:
 \end{equation}
 \cite{MCGINTY:CONTINUUM}
 \clearpage
-\section{Basics}
+\section{Basics}\label{sec:basics}
 \subsection{Reference and current configuration}\label{sec:ref_corr_config}
 Particles (or material points) in continuum mechanics are not what classically might be thought of as a particle. Rather the continuum assumption holds: each particle represents a continuous piece of material, s.t. a microscopic view does not need to be adopted. A particular body is composed of a set of particles and can adapt different configurations due to changes in shape. These changes are caused by external or internal effects (forces etc.) on it and deform the body over time. \cite{MIT:CONTINUUM_MECHANICS} \cite{MPM:COURSE}
 
@@ -1859,15 +1876,17 @@ The P2G-Atomic-Transfer is very reliant on batching where the P2G-Sync-Transfer 
  \label{table:p2g_area}
 \end{table}
 The P2G-Atomic- and the even more favorable P2G-Sync-Transfer give great speedups over the global atomic methods. Even in a random case (table \ref{table:p2g_random}) they can outdo the global sorted method despite the high branch divergence. They however shine in the uniform case where speedups of 6.5x and 7.8x respectively can be achieved over the global sorted method.
-\section{Conclusion}
-\subsection{Summary}
-\subsection{Future Work}
-Particle Activation: \cite{MPM:GPU}
+\section{Conclusion \& Future Work}\label{sec:conclusion}
+The derivation of the Material-Point-Method for a classic elastic material with an implicit midpoint scheme and the APIC scheme ensures that a wide coverage of the method is shown. Although the MPM-Method consists of many mathematical tasks four operations on the GPU can be identified. Exclusive grid and particle operations are parallelized with a 1:1 correspondence to threads. The optional use of stream compaction reduces applicable particles/nodes where necessary.
 
-Sparse: \cite{OPENVDB} \cite{NVIDIA:GVDB_VOXELS}
+The other two operations are particle and grid transfers which are the main focus of this thesis. Different particle and grid transfers utilizing the hierarchical memory structure of the GPU are compared. Presented is a pipeline to efficiently execute these transfers on the GPU. All transfers do not rely on fixed bin sizes in any stages of the pipeline. Since these operations are executed multiple times per frame these operations are augmented with two preprocessing steps. The preprocessing steps need to be done once and are outweighed by the transfers.
+
+Deep sorting particles with counting sort in a double-buffered manner allows coalesced accesses and high cache hit rates on transfers. Although possible this process does not rely on the CFL-condition. While the shared memory architecture can give an edge in performance it produces branch divergence and may perform worse over a simpler algorithm relying on the L2-cache. The P2G-Sync-Transfer is shown to be an easily extendable and even in edge cases well performing operation. Particle-Push-Transfers could be shown to profit from batching as multiple particles are handled in unison. The sorted global G2P-Transfer's consistency of utilizing the L2-Cache is a surprise further to be monitored. The second preprocessing step is filtering the active blocks with a stream compaction pipeline where no particles are present. It also supplies the P2G-Pull- and P2G-Sync-Transfer with a maximum per block bin counter.
+
+To show the weaknesses and strengths of the transfers tests on an overly pessimistic and an optimistic case are performed and examined. While this strongly furthers understanding it leaves real simulation performance comparisons to be desired. However before this process can be concluded merge and split techniques need to be taken into consideration. They are designed to augment the numerics of the Material-Point-Method but will inherently reduce branch divergence as particle numbers even out between cells in the same warp. As such they will stray from the optimistic example. How much they will stray from it is however dependent on the dynamics of the problem. The sorting further guarantees the independence of the ordering of the incoming data and may long-term benefit other operations relying on neighborhood information.
 \clearpage
 \begin{appendices}
-  \section{"Inertia Tensor" for Cubic Splines}\label{app:dp_proof}
+\section{$D_p$ for Cubic Splines}\label{app:dp_proof}
   \begin{code}
 \caption{$\boldsymbol{D}_p$ proof}
   \begin{minted}{python}
