@@ -152,6 +152,10 @@
 }
 
 \newenvironment{code}{\captionsetup{type=algorithm}}{}
+
+\setcounter{biburllcpenalty}{7000}
+\setcounter{biburlucpenalty}{8000}
+
 \begin{document}
 \author{Fabian Meyer}
 \title{GPU-Beschleunigung der Material Point Method}
@@ -164,13 +168,19 @@
 
 \clearpage
 \selectlanguage{english}
+
+\vspace*{\fill}~
+\begin{center}
 \subsubsection*{Abstract}
+\end{center}
+The Material-Point-Method is a technique allowing for physically accurate simulations. It has found its way into computer graphics and since then rapidly expanded. The Material Point Method's hybrid use of Lagrangian particles as a persistent storage and a background uniform Eulerian grid enable solving of various partial differential equations with ease. It has found its way into computer graphics and since then rapidly expanded.
 
-\noindent Physic
+\noindent Core of this process are the grid and particles transfers that interpolate between the two structures.  These transfers are executed multiple times per frame so preprocessing steps might be taken if they are outweighed.
 
-%\vfill~
-%ggf. noch'n \vfill~
+\noindent The Method however suffers from high execution times and make the method only viable for hero shots. The Material-Point-Method including the transfers are highly parallelizable. As such this thesis proposes how to accelerate the Material-Point-Method using GPGPU techniques.
 
+\noindent Deep sorting with counting sort increases coalescing and L2 hit rates. Binning allows for shared memory filtering techniques using blocking. As another preprocessing step only grid blocks are executed which have particles in them. All transfers do not rely on fixed size bins.
+\vfill
 \clearpage
 \tableofcontents
 
@@ -563,7 +573,7 @@ This leads to the primary contour $J=1$ which does not cross the inverted region
 fill with nonsense
 deriving the weak form
 \subsubsection{Conservation of mass}
-Let the Eulerian mass density be $_t\rho(_t\boldsymbol{x},t)$ and its (Lagrangian) pull back be $_0\rho(_0\boldsymbol{x},t)$.
+Let the Eulerian mass density be $_t\rho(_t\boldsymbol{x},t)$. Similarly, let its (Lagrangian) pull back be $_0\rho(_0\boldsymbol{x},t)$.
 After \ref{eq:volume_integral} they are related as:
 \begin{equation} \label{eq:density_pull_back}
   \int _ {_tB _ { \epsilon }}_t\rho(_t\boldsymbol{x},t)d_t\boldsymbol{x} =   \int _ {_0B _ { \epsilon }} {^t_0J}_0\rho(_0\boldsymbol{x},t) d_0\boldsymbol{x}.
@@ -1138,15 +1148,15 @@ The Hessian increment can be computed with a two-stage process:
   - \delta \boldsymbol{f}_i = - \sum_j \frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j} \delta \boldsymbol{u}_j = \sum_p V_p^0 \boldsymbol{A}_p(\boldsymbol{F}^n_p)^T \nabla w_{ip}^n.
 \end{equation}
 \end{enumerate}
-\subsection{General-purpose computing on graphics processing units(GPGPU)}
+\subsection{General-purpose computing on graphics processing units}
 fill with nonsense
 \subsubsection {GPGPU Optimization opportunities}\label{sec:optim}
 The speed of these memory types is given in the following starting with the fastest:
 Register > Shared Memory > Local, Global.
 
-Therefore, one should prefer register memory for intra-thread caching. Shared-memory should be used for extra caching memory(to reduce register spilling) or inter-thread communication within a block. Global memory should be mostly used at the start and end of a shader.
+Therefore, one should prefer register memory for intra-thread caching. Shared-memory should be used for extra caching memory(to reduce register spilling) or inter-thread communication within a block. Global memory is the persistent storage on the GPU.
 
-\textbf{Host communication:} A common performance bottleneck is stalling the GPU with CPU-GPU transfers. The attainable bandwidth for PCIe x16 3.0 between host and device is roughly 12GB/s. While the communication between device and GPU is 224GB/s (GTX 970). This includes doing calculations on the GPU that may run faster on the CPU. The API may also stall if the CPU is not issuing instructions fast enough to the GPU. This may be due to calculations on the CPU or, even worse, calculations depending on GPU results. This thesis tries to avoid PCI-transfers wherever possible.
+\textbf{Host communication:} A common performance bottleneck is stalling the GPU with CPU-GPU transfers. The attainable bandwidth for PCIe x16 3.0 between host and device is roughly 12GB/s while the communication between device and GPU is 224GB/s (GTX 970). This includes doing calculations on the GPU that may run faster on the CPU. The API may also stall the GPU if the CPU is not issuing instructions fast enough to the GPU. This may be due to calculations on the CPU or, even worse, calculations depending on GPU results. This thesis tries to avoid PCI-transfers wherever possible.
 
 \begin{table}
   \begin{tabular}{ | l | l | l | l | l |}    \hline
@@ -1159,34 +1169,34 @@ Therefore, one should prefer register memory for intra-thread caching. Shared-me
   \end{tabular}
 \caption{GPU Memory \cite{NVIDIA:BEST:PRACTICE}}
 \end{table}
-\textbf{Memory coalescing:} Between a single thread and a block of threads another important entity exists. NVIDIA GPUs group 32 threads into a synchronous warp, respectively AMD groups 64 threads as a wavefront. Generally they are called subgroups. All operations are issued per subgroup. A memory access uses the L2-caching behavior. A L2-cache-line is 32 bytes long. Thus eight (u)int/floats, two single-precision vectors or a single double-precision vector fit into one cache-line. If all threads of a warp access memory within this cache-line, only one memory request of 32 bytes needs to be made. In contrast, if a warp accesses N different cache-lines, N*32 bytes need to be loaded.
+\textbf{Memory coalescing:} Between a single thread and a block of threads another important entity exists. NVIDIA GPUs group 32 threads into a synchronous warp, respectively AMD groups 64 threads as a wavefront. In general they are called subgroups. All operations are issued per subgroup. A memory access uses the L2-caching behavior. A L2-cache-line is 32 bytes long. Thus eight (u)int/floats, two single-precision vectors or a single double-precision vector fit into one cache-line. If all threads of a warp access memory within this cache-line, only one memory request of 32 bytes needs to be made. In contrast, if a warp accesses N different cache-lines, N*32 bytes need to be loaded.
 
-The unified L1/texture-cache acts as a coalescing buffer for the thread of a subgroup (Maxwell architecture \cite{NVIDIA:MAXWELL}). It does not matter in which order the cache-line is accessed by the warp. I.e. random or reversed access on a single cache-line are also coalesced. On a global level the easiest to control access pattern thus becomes consecutive or reversed memory accesses. L2 is a write-back cache. Thus this assessment also qualifies for global memory writes. \cite{NVIDIA:MEMORY_BAND}
-
-
-\textbf{Shared Memory bank conflicts:} Shared memory is split into 32 banks of 4 bytes. The hardware groups together unique memory accesses on these banks. E.g., if two threads within a subgroup access bank 17, a bank conflict occurs, and the access needs to be split into two groups. The one exception is a broadcast: all threads within a subgroup access the same bank. The number of banks is equal to the warp size on the GTX970 s.t. throughput is maximized if every thread does a unique bank access. \cite{NVIDIA:BEST:PRACTICE}
+The unified L1/texture-cache acts as a coalescing buffer for the thread of a subgroup (Maxwell architecture \cite{NVIDIA:MAXWELL}). It does not matter in which order the cache-line is accessed by the warp. I.e. random or reversed access on a single cache-line are also coalesced. On a global level the easiest to control access pattern thus becomes consecutive or reversed memory accesses. L2 is a write back cache. Thus this assessment also qualifies for global memory writes. \cite{NVIDIA:MEMORY_BAND}
 
 
-\textbf{Register spilling:} One should avoid local memory. Local memory is created due to register spilling and stored off chip like global memory, though it is L2-cached. The available number of registers per thread is calculable with the CUDA Occupancy calculator \cite{NVIDIA:OCCUPANCY}. If the occupancy falls off to 0\%, register spilling occurs. The occupancy is the amount of active warps divided by the possible maximum amount of warps on a Streaming Multiprocessor. It allows the SM to schedule between warps: If the current warp can not continue (memory latency, barrier etc.) it will switch to another. This is called a warp stall, table \ref{table:metric}. Occupancy is mostly affected due to resource limits on an SM (shared memory, register) as can be seen in the occupancy calculator. Non optimal occupancy might not have any performance impact at all. \cite{NVIDIA:ACHIEVED_OCCUPANCY}
+\textbf{Shared Memory bank conflicts:} Shared memory is split into 32 banks of 4 bytes. The hardware groups together unique memory accesses on these banks. E.g., if two threads within a subgroup access bank 17, a bank conflict occurs, and the access needs to be split into two groups. The one exception is a broadcast: All threads within a subgroup access the same bank. The number of banks is equal to the warp size on the GTX970 s.t. throughput for 32 floats is maximized if every thread does a unique bank access. \cite{NVIDIA:BEST:PRACTICE}
 
-There is no way to find out the exact number of registers an OpenGL shader uses. The program object assembly output of \textit{nvemulate} \cite{NVIDIA:EMULATE} may give an indicator. It will output an intermediate language of one the families of \textit{NV\_gpu\_programX} (where $X$ stands for the version). TEMP variables are registers. Since \textit{NV\_gpu\_programX} is a family of intermediate languages, there is however no guarentees these are not further optimized. Otherwise close monitoring of the occupancy is recommended. All other metrics discussed are readily available for OpenGL.
 
-\textbf{Block size:} In general the block size should be chosen as small as possible to not hit resource limits. One should start however with a block size of at least 64 as can be seen in the Occupancy calculator. Increasing the block size is useful in combination with shared memory usage. Shared memory accesses are typically faster than global memory accesses. The more threads of a block reuse shared memory data the faster the memory throughput will be. Therefore, operators which involve filtering (also MPM-transfers) can use this behavior.
+\textbf{Register spilling:} Local memory should be avoided. Local memory is created due to register spilling and stored off chip like global memory, though it is L2-cached. The available number of registers per thread is calculable with the CUDA Occupancy Calculator \cite{NVIDIA:OCCUPANCY} on NVIDIA hardware. If the occupancy falls off to 0\%, register spilling occurs. The occupancy is either given absolute due the amount of active warp or relative divided by the possible maximum amount of warps on a Streaming Multiprocessor. Occupancy allows the SM to schedule between warps: If the current warp can not continue (memory latency, barrier etc.), the warp scheduler will switch to another. This is called a warp stall, table \ref{table:metric}. Occupancy is mostly affected due to resource limits on Streaming Multiprocessors (shared memory, register), as can be seen in the Occupancy Calculator. Non optimal occupancy might not have any performance impact at all when the GPU has enough warps to switch to at all times. \cite{NVIDIA:ACHIEVED_OCCUPANCY}
 
-\textbf{Multiple elements per thread:} Merging threads and simultaneously reducing block size can reduce register pressure, if the algorithm allows it. Otherwise merging sequential and parallel work improves I/O latency hiding. Since the block size is limited by the GPU, some algorithms need to be split in tree structures to be processed. One can not avoid an indirection of writing back and loading again from global memory. Therefore algorithms often improve much further from more sequential work to avoid this indirection.
+There is no exact way to find out the exact number of registers for any OpenGL shader. The program object assembly output of \textit{nvemulate} \cite{NVIDIA:EMULATE} may give an indicator. It will output an intermediate language of one of the families of \textit{NV\_gpu\_\-programX} (where $X$ stands for the version). TEMP variables are registers. Since \textit{NV\_gpu\_programX} is a family of intermediate languages, there is however no guarentees these are not further optimized. Otherwise, close monitoring of the occupancy is recommended. All other metrics discussed are readily available for OpenGL.
 
-\textbf{Loop unrolling:} Foremost, loop unrolling reduces instructions and can thus speed up compute-bound work. Moreover, loop unrolling might help the compiler reorder instructions and thus execute code faster. Instructions benefiting greatly from this are global loads. \cite{NVIDIA:PEAK_PERFORMANCE} shows at the example of motion blur and ray-marching that this greatly can increase throughput. Whereas the motion blur example uses a fixed amount of samples and therefore is easily unrollable, ray-marching is a dynamic process. Dynamic loops can however be partially unrolled. In the case of ray-marching this would for instance fetch two samples at once although it might process only one. In short, this merges two consecutive loop iterations. The latency of the second instruction might be partly hidden by the first one and thus speed up the work load. Mind however that loop unrolling can increase register pressure. More registers need to stored and process the relevant code where a dynamic loop reuses the same registers for any iteration.
+\textbf{Block size:} In general the block size should be chosen as small as possible to not hit resource limits. One should start however with a block size of at least 64, as can be seen in the Occupancy Calculator. Increasing the block size is useful in combination with shared memory usage. Shared memory accesses are typically faster than global memory accesses. The more threads of a block reuse shared memory data, the faster the memory throughput will be. Therefore, operators which involve filtering (also MPM-transfers) can use this behavior.
+
+\textbf{Multiple elements per thread:} Merging threads and simultaneously reducing block size can reduce register pressure if the algorithm allows it. Otherwise, merging sequential and parallel work improves I/O latency hiding. Since the block size is limited by the GPU, some algorithms need to be split in tree structures to be processed. An indirection cannot be avoided for writing back and loading again from global memory. Therefore, algorithms often improve much further from more sequential work to avoid this indirection.
+
+\textbf{Loop unrolling:} Foremost, loop unrolling reduces instructions and can thus speed up compute-bound work. Moreover, loop unrolling might help the compiler reorder instructions and thus execute code faster. Instructions benefiting greatly from this are global loads. \cite{NVIDIA:PEAK_PERFORMANCE} shows at the example of motion blur and ray-marching that this greatly can increase throughput. Whereas the motion blur example uses a fixed amount of samples and therefore is easily unrollable, ray-marching is a dynamic process. Dynamic loops can however be partially unrolled. In the case of ray-marching this would for instance fetch two samples at once although it might process only one. In short, this merges two consecutive loop iterations. The latency of the second instruction might be partly hidden by the first one and thus speed up the work load. Mind however, that loop unrolling can increase register pressure. More registers need to be stored and process the relevant code where a dynamic loop reuses the same registers for any iteration.
 
 \begin{flushright}\cite{AMD:GPU_OPEN}\cite{NVIDIA:BEST:PRACTICE}\cite{NVIDIA:PEAK_PERFORMANCE}\end{flushright}
 \subsubsection{GPU Metrics}\label{sec:metrics}
 The GPU metric topping all others is the raw computing time spend on a shader: $\Delta t_c$. The following factors matter to set $\Delta t_c$ into perspective:
 \begin{enumerate}
-  \item For the GPU most interesting is the scalability with increasing input data sizes.
+  \item For the GPU most interesting is the scalability with increasing input data sizes. All algorithms here however scale linear with the input size.
   \item \label{it:speedup}Numerical algorithms may spend additional time computing (implicit) quantities to allow for larger physical time steps: $\Delta t_p$. Therefore one might be interested how long the GPU needs to calculate one physical second:
     \begin{equation}
     \Delta t^c_{1s} = \frac{\Delta t_c}{\Delta t_p}.
     \end{equation}
-    Otherwise one would calculate the speedup of procedure 1 over procedure 2 for a direct comparision:
+    Otherwise, one would calculate the speedup of procedure 1 over procedure 2 for a direct comparison:
 
     \begin{equation}
       \text{Speedup of Procedure 1} = \frac{\Delta t_{c1}}{\Delta t_{p1}} \frac{\Delta t_{p2}}{\Delta t_{c2}}.
@@ -1197,12 +1207,12 @@ The GPU metric topping all others is the raw computing time spend on a shader: $
     \textbf{Metric}   & \textbf{Max}(GTX 970) & \textbf{Description} \\ \hline
     Speedup           & -                     & item \ref{it:speedup}\\\hline
     $\Delta t_c$      & -                     & computing time\\\hline
-    VRAM SOL\%        & 100                   & memory througput(, w.r.t. to hw.-limit)\\\hline
+    VRAM SOL\%        & 100                   & memory througput w.r.t. to hw.-limit\\\hline
     SM SOL\%          & 100                   & instruction throughput\\\hline
     L2 SOL\%          & 100                   & L2-cache throughput\\\hline
     Tex SOL\%         & 100                   & L1-cache throughput\\\hline
     L2-Hitrate\%      & 100                   & L2 hit-miss ratio\\\hline
-    SM Active\%       & 100                   & at least one warp active avg. over SMs\\\hline
+    SM Active\%       & 100                   & one warp active avg. over SMs\\\hline
     SM Issue Util.\%  & 100                   & amount of cycles an instr. was issued\\\hline
     SM Occupancy      & 64.0                  & active warps avg. over SMs\\\hline
     Read Active\%     & 100                   & \% of time spend on VRAM reads\\\hline
@@ -1216,13 +1226,13 @@ The GPU metric topping all others is the raw computing time spend on a shader: $
   \end{tabular}
 \caption{GPU Performance Metrics}\label{table:metric}
 \end{table}
-The other GPU metrics are acquired using NVIDIA Nsight with OpenGL Performance Markers \cite{NVIDIA:METRICS}. An active warp is also one that waits for memory.
+The other GPU metrics in table \ref{table:metric} are acquired using NVIDIA Nsight with OpenGL Performance Markers \cite{NVIDIA:METRICS}.
 
-None of these metrics necessarily have a correlation to computing time. However they are good indicators on which operations/hardware units the GPU spends its time on. The top SOL\% metric measures fraction of the throughput to the bandwidth of that hardware unit. NVIDIA aims to get the top SOL\% metric between 60\% < top SOL\% < 80\%. Occupancy was discussed in \ref{sec:optim}. \cite{NVIDIA:PEAK_PERFORMANCE}
+None of these metrics necessarily have a correlation to computing time. They are however good indicators on which operations/hardware units the GPU spends its time on. The top SOL\% metric measures fraction of the throughput to the bandwidth of that hardware unit. NVIDIA aims to get the top SOL\% metric between 60\% and 80\%. Occupancy was discussed in \ref{sec:optim}. \cite{NVIDIA:PEAK_PERFORMANCE}
 
-Aiming to get shaders memory-bandwidth limited while minimizing the amount of needed accesses for any given workload is the top-priority for simple tasks. Achieving memory-bandwidth limit is equal to bringing the VRAM SOL\% between 60\% < top SOL\% < 80\%. The metrics Read Active\%, Write Active\% and Long Scoreboard\% will simultaneously increase by following that aim.
+Aiming to get shaders memory-bandwidth limited, and minimizing the amount of needed accesses for any given workload, is the top priority for simple tasks. Achieving memory-bandwidth limit is equal to bringing the VRAM SOL\% between 60\% and 80\%. The metrics Read Active\%, Write Active\% and Long Scoreboard\% will simultaneously increase by following that aim.
 
-The metric SM Issue Utilization (per active cycle) is important for compute-bound work as memory-bandwidth limited work will spend most of its time outside of the SM fetching or writing data. This metric tells if the SM can issue instructions fast. NVIDIA also aims between 60\% to 80\% for this metric if the shader is compute-bound. Furthermore for compute-bound work often the top warp stall reason is waiting on instruction fetches.
+The metric SM Issue Utilization (per active cycle) is important for compute-bound work, as memory-bandwidth limited work will spend most of its time outside of the SM fetching or writing data. This metric tells if the SM can issue instructions fast. NVIDIA also aims between 60\% to 80\% for this metric if the shader is compute-bound. Furthermore, for compute-bound work often the top warp stall reason is waiting on instruction fetches.
 
 \clearpage
 \section{Implementation}\label{sec:implementation}
@@ -1245,9 +1255,9 @@ struct Container{
 \end{lstlisting}
 \end{minipage}
 
-Coalescing leads to the motivation of using structure of arrays(SoA) over arrays of structures(AoS) memory layouts. The latter is the more commonly taught approach, while high performance CPU code may also prefer SoA or the more advanced entity component systems. This opens up the field of data-oriented design which is too big too cover and not main part of this thesis.
+Coalescing leads to the motivation of using structure of arrays(SoA) over arrays of structures(AoS) memory layouts. The latter is the more commonly taught approach while high performance CPU code may also prefer SoA or the more advanced entity component systems. This opens up the field of data-oriented design which is too big too cover and not main part of this thesis.
 
-In short one might not access every variable of a particle in a shader. I.e. in physics one has a pipeline of different passes each requiring another subset of variables. Assume for instance one shader only requires the position then it is more favorable for consecutive threads to load consecutive position vectors. The cache-line is then filled with position vectors, which all will get used. In contrast in an AoS layout the cache-line will have a position and a velocity loaded, but the shader never uses the velocity, halfing the throughput. This process is show in Figure \ref{fig:soa} and \ref{fig:aos}.
+In short, one might not access every variable of a particle in a shader. I.e. in most compute work one has a pipeline of different passes each requiring another subset of the variables. Assume for instance, one shader only requires the position. Then it is more favorable for consecutive threads to load consecutive position vectors. The cache-line is then filled with position vectors which all will get used. In contrast, in an AoS layout the cache-line will have a position and a velocity loaded but the shader never uses the velocity. This halfes the throughput. This process is shown in Figure \ref{fig:soa} and \ref{fig:aos}.
 
 \noindent\begin{wrapfigure}{R}{0.5\textwidth}
 \hfill\begin{minipage}{0.45\textwidth}
@@ -1271,7 +1281,7 @@ buffer Container{
 
 Due to this we motivate the C++-library \textit{magic\_get} \cite{APOLUKHIN:MAGIC_GET} for basic reflection. Our code manipulates AoS layouts into SoA layouts and back using reflection. The MSVC-Compiler has a hard coded stack limit for these kind of operations. A struct may be not bigger than 256 Bytes before throwing a compiler error. With the optional use of double-precision this limit is quite restrictive towards that compiler.
 
-Furthermore we experienced that for sizes starting with 256 KB the NVIDIA-Compiler could not link the OpenGL program using the SoA Layout as in Listing \ref{llst:soa}. As an alternative we had to provide meta information in the style of reflection macros and collapse the container, Listing \ref{llst:opengl}. We can then access SoA by memory offset and AoS by variable or by memory offset for a more abstract view of the memory. We also share the AoS setup between C++ and OpenGL code. One could also build a shader using the abstract layout to convert from SoA to AoS.
+Furthermore, for sizes starting with 256 KB the NVIDIA-Compiler could not link the OpenGL program using the SoA Layout as in Listing \ref{llst:soa}. As an alternative meta information is provided in the style of reflection macros. Therefore, the container is collapsed as in Listing \ref{llst:opengl}. Memory is then accessible by SoA by memory offset and by AoS by variable or by memory offset for a more abstract view of the memory. The AoS setup is shared between C++ and OpenGL code. One could also build a shader using the abstract layout to convert from SoA to AoS. For more coherency converting the whole process to reflection macros is sensible.
 
 \begin{figure}[htbp]
   \centering
@@ -1296,47 +1306,47 @@ To name a few more cases that macros handle for us:
 
     \texttt{\#define binary\_op(x,y) x+y}
 \end{enumerate}
-For debugging we output the shader with all processed includes and let the gcc-preprocessor assemble the shader with options: \texttt{gcc -E -x c -P}. Except for the omission of the glsl version or extension macros, we did not find any problems in this process.
+For debugging the shader is output with all processed includes. The gcc-pre\-pro\-ces\-sor can preprocess the shader with options: \texttt{gcc -E -x c -P}. Except for the omission of the glsl version or extension macros no problems were encountered in this process.
 
 \subsection{Parallel Reduction \& Scan} \label{sec:red_scan}
 The schemes presented in the following are a result of the optimization opportunities discussed in \ref{sec:optim}.
 
-\textbf{Parallel Reduction}: Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ and an array of values $\left[a_0,a_1, ... ,a_n\right]$, parallel reduction computes:
+\textbf{Parallel Reduction}: Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ and an array of values $\left[a_0,a_1, ... ,a_n\right]$ reduction computes:
 \begin{equation}
   r = a_0 \circ a_1 \circ ... \circ a_n.
 \end{equation}
-Our OpenGL parallel reduction implementation uses \cite{NVIDIA:PARALLEL_REDUCTION} as a reference. To avoid memory padding in shared memory the addressing scheme is given by the sequential addressing scheme in Figure \ref{fig:sequential}.
+This OpenGL parallel reduction implementation uses \cite{NVIDIA:PARALLEL_REDUCTION} as a reference. To avoid memory padding in shared memory the addressing scheme is given by the sequential addressing scheme in Figure \ref{fig:sequential}.
 \begin{figure}[htbp]
     \centering
   \includesvg[svgpath =images/,width=\textwidth]{sequential}
-  \caption{Sequential addressing for \texttt{vec4}s. Even threads are blue, odd are yellow. Shared-memory banks per instruction are colored: The banks of the first instruction are green and red numbers. The second instruction is only green. The first and all following instructions can be handled fully concurrently. No memory padding required.}
+  \caption{Sequential addressing for \texttt{vec4}s. Even threads are blue. Odd threads are yellow. Shared-memory banks per instruction are colored: The banks of the first instruction are green and red numbers. The second instruction is only green. The first and all following instructions can be handled fully concurrently. No memory padding is required.}
 \label{fig:sequential}
 \end{figure}
 
-Parallel reduction schemes using shuffle-operations require interleaved addressing due to memory locality restrictions, Figure \ref{fig:interleaved}. They use registers instead of shared memory and thus do not need memory padding. \cite{NVIDIA:SHUFFLE}
+Parallel reduction schemes using warp shuffle-operations require interleaved addressing due to memory locality restrictions, Figure \ref{fig:interleaved}. \cite{NVIDIA:SHUFFLE}
 
-\cite{NVIDIA:PARALLEL_REDUCTION} also makes heavy use of combining parallel and sequential work. Every thread adds a multiple of two sequential adds into shared memory. After this the thread does its parallel work. Therefore the reduction factor one invocation does is multiple times higher and allows higher input data sizes without losing any performance, refer to chapter \ref{sec:eval}.
+\cite{NVIDIA:PARALLEL_REDUCTION} also make use of combining parallel and sequential work. Every thread adds a multiple of two sequential adds into shared memory. After this the thread does its parallel work. Therefore the reduction factor one invocation does is multiple times higher and allows higher input data sizes without losing any performance, refer to chapter \ref{sec:eval}.
 
-Parallel reduction solves assuming a \texttt{unary\_op(x)} directly after memory load:
+Parallel reduction solves, assuming a \texttt{unary\_op(x)} directly after memory load, the following problems in MPM:
 \begin{itemize}
-  \item CFL-condition of chapter \ref{sec:cfl} with operators
+  \item CFL-condition of chapter \ref{sec:cfl} with operators,
   \begin{itemize}
   \item \texttt{unary\_op(x) := length(x)} and
   \item \texttt{binary\_op(x,y) := max(x,y)}.
   \end{itemize}
-\item Discretized conservation of governing equations between time steps or transfers in chapter \ref{sec:mass} and \ref{sec:apic} with
+\item discretized conservation of governing equations between time steps or transfers in chapter \ref{sec:mass} and \ref{sec:apic} with
 \begin{itemize}
   \item \texttt{unary\_op(x) := x} and
   \item \texttt{binary\_op(x,y) := x + y}.
   \end{itemize}
-\item Calculate the maximum count of particles of all grid nodes within a block (\textit{per-block parallel reduction} \ref{sec:active_blocks}):
+\item calculate the maximum count of particles of all bins within a block (\textit{per-block parallel reduction} \ref{sec:active_blocks}):
 \begin{itemize}
   \item \texttt{unary\_op(x) := x} and
   \item \texttt{binary\_op(x,y) := max(x,y)}.
 \end{itemize}
 \end{itemize}
 
-\textbf{Scan:}  Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ , a neutral element $e$ of the \texttt{binary\_op} and an array of values $\left[a_0,a_1, ... ,a_n\right]$, an exclusive scan computes the array:
+\textbf{Scan:}  Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ , a neutral element $e$ of the \texttt{binary\_op}, and an array of values $\left[a_0,a_1, ... ,a_n\right]$ an exclusive scan computes the array:
 \begin{equation}
   \left[e , a_0 , \left(a_0 \circ a_1\right), \left(a_0 \circ a_1 \circ a_2\right), \ ... \ ,\left(a_0\circ a_1 \circ a_2 \circ ...\circ a_{n-1}\right)\right].
 \end{equation}
@@ -1346,13 +1356,13 @@ Parallel reduction solves assuming a \texttt{unary\_op(x)} directly after memory
  \caption{Scan (add)}
   \label{fig:scan}
 \end{wrapfigure}
-The scan uses an interleaved addressing pattern, Figure \ref{fig:interleaved}. The interleaved addressing pattern has the benefit over the sequential one of already computing the partial scans for all odd indices (although misaligned). Note that the reduction needs to reduce to the right achieved by writing into the right element instead of the left in Figure \ref{fig:scan}. A full scan is then computed as \cite{NVIDIA:SCAN}:
+The scan uses an interleaved addressing pattern, Figure \ref{fig:interleaved}. The interleaved addressing pattern has the benefit over the sequential one of already computing the partial scans for all odd indices (although misaligned). Note, that the reduction needs to reduce to the right achieved by writing into the right element instead of the left in Figure \ref{fig:scan}. A full scan is then computed as \cite{NVIDIA:SCAN}:
 \begin{enumerate}
   \item \label{it:up-sweep} Upsweep-Phase: Top-to-Bottom reduction to the right of the array.
   \item Inserting the neutral element into the last element of the array.
-  \item Downsweep-Phase: Reverse execution order of item \ref{it:up-sweep} (inverted tree), and an additional right to left element swap.
+  \item Downsweep-Phase: Reverse execution order of item \ref{it:up-sweep} (inverted tree), and in addition overwrite the left element with the right one's.
 \end{enumerate}
-Again, sequential work can be combined with parallel work. \cite{NVIDIA:SCAN_MODERN} name this process: Raking. Instead of loading one element per thread, one thread loads n elements and computes a sequential partial scan in register memory. The reduced last value of the array is written into shared memory and the parallel scan begins. Afterwards the parallel scan result is spread out with the sequential partial scan.\cite{NVIDIA:SCAN_MODERN}
+Again, sequential work can be combined with parallel work. \cite{NVIDIA:SCAN_MODERN} name the process: Raking. The general technique is also called register blocking. Instead of loading one element per thread, one thread loads N elements and computes a sequential partial scan in register memory. The reduced last value of the array is written into shared memory and the parallel scan begins. Afterwards the parallel scan result is spread out(raking) with the sequential partial scan.\cite{NVIDIA:SCAN_MODERN}
 \begin{figure}[htbp]
   \includesvg[svgpath =images/,width=\textwidth]{interleaved}
   \caption{Interleaved addressing \texttt{vec4}s. Even threads are blue, odd are yellow. Shared-memory banks per instruction are colored: The banks of the first instruction are green and red numbers. The second instruction is only green. Memory padding needs to be done for concurrent shared-memory access. The first and all following instructions can be handled fully concurrently.}
@@ -1363,29 +1373,28 @@ As mentioned, the interleaved addressing requires a memory padding for conflict-
   p = u + (u << \log_2(n)), \text{ or }   p = u + \frac{u}{n}
 \end{equation}
 where $p$ is the padded memory offset, $u$ is the unpadded memory offset and $n$ is the number of banks.
-For a block size of 1024 one would need additional padding for a full conflict-free access:
+For a block size of 1024 additional padding is needed for a full conflict-free access:
 \begin{equation}\label{eq:bank_1024}
   p = u + (u << \log_2(n)) + (u << (2 * \log_2(n))), \text{ or }   p = u + \frac{u}{n} + \frac{u}{n*n}.
 \end{equation}
-However the added computation time does not outweigh the bank-conflicts. So one reverts to eq. \ref{eq:bank}. Note that this is a correction to \cite{NVIDIA:SCAN} where C++ Operator Precedence of $+$ over $<<$ is not recognized and additionally incorrectly $ u << n$ is used in the first part of eq. \ref{eq:bank_1024}.
+However, the added computation time does not outweigh the bank-conflicts. So the process is reverted to eq. \ref{eq:bank}. Note, that this is a correction to \cite{NVIDIA:SCAN} where C++-Operator-Precedence of $+$ over $<<$ is not recognized, and additionally incorrectly $ u << n$ is used in the first part of eq. \ref{eq:bank_1024}.
 
 A scan is used to calculate memory offsets for stream compaction or sorting algorithms.
 
-One can also calculate a per block scan (with halo) without doing a full scan for every block (Appendices \ref{sec:block_scan}). This implementation did not end up using this more closely related approach to \cite{NVIDIA:NNSEARCH} as it would commit shared memory bank-conflicts defying the architecture of the GPU. Instead preferred is batching a fixed amount of particles, more in chapter \ref{sec:transfers}.
+One can also calculate a per block scan (with halo) without doing a full scan for every block (Appendices \ref{sec:block_scan}). This implementation did not end up using this more closely related approach to \cite{NVIDIA:NNSEARCH} as it would commit shared memory bank-conflicts defying the architecture of the GPU. It also puts restriction on the maximum allowed particles per block. Instead preferred is batching a fixed amount of particles, more in chapter \ref{sec:transfers}.
 
 
-The input size for reduction and scan is limited. It's calculable by the $block\text{ }size$ $ \times sequential\text{ }loads$. To support bigger input sizes pyramid structures are in use to process the elements the blocks reduced. For our case we mostly reduce the input size s.t. the first level above in the pyramid can be computed within a single block. For the scan this result is then written back. This was enough for the input sizes we employed and can be similarly extended.
+The input size for reduction and scan is limited. It's calculable by the $block\text{ }size$ $ \times sequential\text{ }loads$. To support bigger input sizes pyramid structures are in use to process the elements the blocks reduced. In this implementation the input size is mostly reduced s.t. the first level above in the pyramid can be computed within a single block. For the scan this result is then written back. This was enough for the input sizes we employed and can be similarly extended by pyramid structures.
 
 \subsection{Counting Sort \& Stream Compaction}\label{sec:sort}
-Sorting on the GPU can dramatically increase workload performance of subsequent steps. If they can profit from following things:
+Sorting on the GPU can dramatically increase workload performance of subsequent steps if they can profit from following things:
 \begin{enumerate}
   \item Accesses can now be handled in a coalesced fashion. \label{it:sort_1}
-  \item Data can now be reused due to L2-Cache and shared memory. \label{it:sort_2}
+  \item Data can now be reused due to L2-Cache and/or shared memory. \label{it:sort_2}
 \end{enumerate}
-This is the case for algorithms which require neighbor communication.
-Supported is a full deep copy of all particle variables. A deep copy profits from item \ref{it:sort_1} and \ref{it:sort_2}, but takes the hit in performance of uncoalesced accesses for all variables. Or, alternatively an indexing to access an existing particle buffer in the specified sorted manner. Indexing only profits from item \ref{it:sort_2} and subsequent shaders will be uncoalesced.
+This is the case for algorithms which require neighbor communication. Supported is a full deep copy of all particle variables. A deep copy profits from item \ref{it:sort_1} and \ref{it:sort_2} but takes a hit in performance of uncoalesced accesses for all variables. Alternatively, an indexing to access an existing particle buffer in the specified sorted manner is although supported. Indexing only profits from item \ref{it:sort_2} and subsequent shaders will be uncoalesced.
 
-\textbf{Stream Compaction} reduces applicable data for subsequent operations. The applicable data is checked by a condition. There are a lot of cases where stream compaction can reduce running times. In chapter \ref{sec:rel_work} particle activation is mentioned as one of such, chapter \ref{sec:active_blocks} will reduce to active blocks. Collision treatment could be implemented as an operation following a collision detection etc. Again indexing and deep copies can be executed for the same reasons mentioned in \ref{it:sort_1} and \ref{it:sort_2}.
+\textbf{Stream Compaction} reduces applicable data for subsequent operations. The applicable data is checked by a condition. There are a lot of cases where stream compaction can reduce running times: In chapter \ref{sec:rel_work} particle activation is mentioned as one of such. Chapter \ref{sec:active_blocks} will reduce active blocks with an indexed stream compaction. Collision treatment could be implemented as an operation following a collision detection etc. Again indexing and deep copies can be executed for the same reasons mentioned in \ref{it:sort_1} and \ref{it:sort_2}.
 
 \textbf{Counting Sort}: As the sorting algorithm of choice counting sort is used.
 Counting sort is split into three parts:
@@ -1399,47 +1408,48 @@ Counting sort is split into three parts:
   \caption{Binning: Particle adds one to $c_i$ after storing it as $o_p$.}
   \label{fig:binning}
 \end{wrapfigure}
-\textbf{Binning}: Transform the particle position into the grid space, such that every integer in range corresponds to a grid node. Bin due to flooring the transformed particle: Store the particle count $c_i$ of this grid node on the particle as an offset $o_p$ into this grid node.$$o_p := c_i.$$Following that, up the counter on the grid by one:$$c_i := c_i +1.$$
+\textbf{Binning}: Transform the particle position into the grid space s.t. every integer in range corresponds to a grid node. Bin due to flooring the transformed particle: Store the particle count $c_i$ of this grid node on the particle as an offset $o_p$ into this grid node.$$o_p := c_i.$$Following that, up the counter on the grid by one:$$c_i := c_i +1.$$
 }
 This process is visualized in Figure \ref{fig:binning}.
   \item \textbf{Scan}: Compute a per grid node scan $s_i$ on the counter $c_i$ following \ref{sec:red_scan}.
 
-  \item \textbf{Reordering}: $i_p := s_i + o_p$ will now lead to a new ordering of the particle indices. Sorting is now similar to methods \texttt{sort\_by\_key(uint i)}, where ordering of particles within the same bin is undefined.
+  \item \textbf{Reordering}: $i_p := s_i + o_p$ will now lead to a new ordering of the particle indices. Sorting is now similar to methods \texttt{sort\_by\_key(uint i)} where ordering of particles within the same bin is undefined.
 \end{enumerate}
 \begin{flushright}\cite{NVIDIA:NNSEARCH}\cite{MPM:GPU}\end{flushright}
 
 The one-dimensional indexing of the grid nodes can be chosen as preferred. Possible are a per-block indexing or a global indexing which are both supported.
 
-Particles could potentially access the same bin at the same time resulting in a race condition. A naive solution to the problem are atomic accesses. As long as the (atomic) writes can be handled coalesced this process can be done fast by the GPU, chapter \ref{sec:eval}. This is only the case for a full deep sort. Therefore binning in the case of a full sort acts upon the last sorted state. Double buffering particles allows to do so. However binning is done after a position update that changes the ordering. Full coalescing will therefore generally not occur.
+Particles could potentially access the same bin at the same time resulting in a race condition. A naive solution to the problem are atomic accesses. As long as the (atomic) writes can be handled coalesced, this process can be done fast by the GPU, chapter \ref{sec:eval}. This is however only the case for a full deep sort. Therefore, binning in the case of a full sort acts upon the last sorted state. Double buffering particles allows to do so. However binning is done after a position update that changes the ordering. Full coalescing will therefore generally not occur.
 
-Alternatively one could work again with the CFL-condition. Since particles move at most one bin in the 27-neighborhood one could mimic a Particle-to-Grid transfer, chapter \ref{sec:p2g}:
+Alternatively, one could work again with the CFL-condition. Since particles move at most one bin in the 27-neighborhood, one could mimic a Particle-to-Grid-Transfer, chapter \ref{sec:p2g}:
 \begin{enumerate}
   \item \textbf{Labeling}: Label the particles by the bin they want to change to.
   \item \textbf{Neighborhood lookup}: A bin then assigns offsets to the particles in the neighborhood and increases its counter.
 \end{enumerate}
 Similarly to the Particle-to-Grid transfer one could choose from the different algorithms presented there to do so. However without additional endeavors the order within a bin is not preserved. One would need to rely on the L1-cache as a coalescing buffer as does the atomic global solution.
 
-Alternatively one could choose a closer approach to \cite{NVIDIA:NNSEARCH}'s neighborhood search, which greedily loads all particles. Ordering can easily be preserved then. Note that the support in their approach is smaller (27 instead of 64 nodes) and the data required per particle is only the label.
+Alternatively, one could choose a closer approach to \cite{NVIDIA:NNSEARCH}'s neighborhood search which greedily loads all particles. Ordering can easily be preserved then.
 
-Chapter \ref{sec:active_blocks} shows how to do this only for active blocks. Due to the difference in support the same pipeline cannot be used.
+Note that the support in their approach is smaller (27 instead of 64 nodes) and the data required per particle is only the label. Chapter \ref{sec:active_blocks} shows how to do this only for active blocks. Due to the difference in support the same pipeline cannot be used.
 
-In summary there is little gains to do so as binning is only executed once per step and is not the dominant performance cost.
+In summary, there is little gains to do so yet as binning is only executed once per step and is not the dominant performance cost.
 
 \subsection{MPM-Operations}\label{sec:transfers}
 Easy to parallelize are all operations that are executed entirely on the grid or entirely on the particles:
 $$\square_p = \square_p \circ \square_p \circ ... \circ \square_p,$$
 $$\square_i = \square_i \circ \square_i \circ ... \circ \square_i.$$
-One thread will just equal to one node or particle respectively. For one variable operations mostly used is a map-shader that applies a unary operation to any input element. This can be used for instance for the mass divide of momentum on the grid (equation \ref{eq:mass_divide}) or resetting buffers that are target of global atomic operations.
+One thread will just equal one node or particle, respectively. For one variable assignments a map-shader is used that applies a unary operation to any input element. This can be used for instance for the mass divide of momentum on the grid (equation \ref{eq:mass_divide}) or resetting buffers that are target of global atomic operations.
 
-In contrast much harder are transfers between the two structures, that are essential to the Material-Point-Method:
+In contrast much harder are transfers between the two structures that are essential to the Material-Point-Method:
 
-Particle-to-Grid(P2G)-transfers are the mass (equation \ref{eq:mpm:mass}) and momentum (equation \ref{eq:apic_mom_p2g}) transfers to the grid; as well as the computation of the Hessian of equation \ref{eq:delta_f}. In general these can be summarized as:
+Particle-to-Grid(P2G)-Transfers are the mass (equation \ref{eq:mpm:mass}) and momentum (equation \ref{eq:apic_mom_p2g}) transfers to the grid, as well as the computation of the Hessian of equation \ref{eq:delta_f}. In general these can be summarized as:
 $$\square_i = \sum_p \square_p \circ \square_{ip}.$$
 
-The transfers back to the particles are called Grid-to-Particle(G2P)-transfers. Apart from the APIC-transfers (equation \ref{eq:apic_mom_g2p}) and the intermediate Matrix $\boldsymbol{A}_p$ for the Hessian (equation \ref{eq:Ap}) the deformation gradient update $\boldsymbol{F}^{n+1}_p$ is also a G2P-transfer (equation \ref{eq:evol_def_grad_disc_x}). In short all transfers of the form:
+The transfers back to the particles are called Grid-to-Particle(G2P)-Transfers. Apart from the APIC-Transfers (equation \ref{eq:apic_mom_g2p}) and the intermediate Matrix $\boldsymbol{A}_p$ for the Hessian (equation \ref{eq:Ap}), the deformation gradient update $\boldsymbol{F}^{n+1}_p$ is also a G2P-transfer (equation \ref{eq:evol_def_grad_disc_x}). In short, all transfers of the form:
 $$\square_p = \sum_i \square_i \circ \square_{ip}.$$
+This concludes all necessary operations for the MPM-Method as derived.
 
-The number of transfers per frame is much higher than in simple PIC- or SPH-code which are mostly interested in pressure contributions($float$). This motivates to make the transfers a very highly optimized operation. The Material-Point-Method requires for an elastic material as derived:
+The number of transfers per frame is much higher than in simple PIC- or SPH-code which are mostly interested in pressure contributions($float$). This motivates making the transfers a very highly optimized operation. The Material-Point-Method requires for an elastic material as derived:
 \begin{enumerate}
   \item One P2G-Transfer of mass and momentum $m_i, \boldsymbol{v}_i$(combined $float4$).
   \item Per Conjugate Gradient Iteration:
@@ -1450,7 +1460,7 @@ The number of transfers per frame is much higher than in simple PIC- or SPH-code
   \item Per Newton Iteration: One G2P-Transfer for $\boldsymbol{F}^{n+1}_p$
   \item One G2P-Transfer of the $3 \times 3$ Matrix $\boldsymbol{B}_p^{n+1}$, the position $\boldsymbol{x}_p^{n+1}$ and the velocity $\boldsymbol{v}_p^{n+1}$
 \end{enumerate}
-In summary this is a lot of data to be transferred between grid and particles, which will only increase with more complex models. In contrast any preprocessing like sorting (chapter \ref{sec:sort}) or filtering active blocks(chapter \ref{sec:active_blocks}) need to be executed only once every frame. After that it helps each transfer running more performant. Therefore the transfers are the main focus of this implementation.
+In summary, a lot of data is to be transferred between grid and particles which will only increase with more complex models. In contrast, any preprocessing like sorting (chapter \ref{sec:sort}) or filtering active blocks(chapter \ref{sec:active_blocks}) need to be executed only once every frame. Each transfer can profit from it. Therefore, the transfers are the main focus of this implementation.
 
 The MPM-transfers are different from a typical stencil or filter operation in two main factors:
 \begin{enumerate}
@@ -1459,15 +1469,16 @@ The MPM-transfers are different from a typical stencil or filter operation in tw
 
 In a MPM-Transfer the number of participating nodes can vary. A node may have one, zero or any positive integer of particles associated with it. Thus in a transfer some nodes may not participate at all or have more load than any of the nodes in its neighborhood.
 \end{enumerate}
-Item \ref{it:part_nodes} does sound more problematic from a parallelization perspective than it is in practice. In chapter \ref{sec:rel_work} particle resampling is mentioned of a means to fill material gaps. This is an inherent mechanic to control the number of particles within a cell. Although it is designed to augment the numerics, the merge method can be easily used to control the upper boundary of particles within a cell. Nevertheless the number of particles within a cell is still variable. Nevertheless all methods presented in the following are not restricted to bins of a fixed size of particles.
+Item \ref{it:part_nodes} does sound more problematic from a parallelization perspective than it is in practice. In chapter \ref{sec:rel_work} particle resampling is mentioned of a means to fill material gaps. This is an inherent mechanic to control the number of particles within a cell. Although it is designed to augment the numerics, the merge method can be easily used to control the upper boundary of particles within a cell. Nevertheless the number of particles within a cell is still variable. All methods presented in the following are not restricted to bins of a fixed size of particles.
 
-The sorting and binning employed in chapter \ref{sec:sort} allows to split the grid into a partitioning of blocks. Blocks map well to the thread group nature of GPUs. A single thread within a thread group thus corresponds to a grid node within that block.
+The sorting and binning employed in chapter \ref{sec:sort} allows to split the grid into a partitioning of blocks. Blocks map well to the thread group nature of GPUs. A single thread within a thread group thus corresponds to a grid node within that block, respectively.
+
 \subsubsection{Grid-to-Particle transfers}\label{sec:g2p}
-The straightforward solution to this problem is to handle all particles independently from each other. One particle adds up the contribution of each grid node variable in range of the interpolation function. In three dimensions this can be done for instance with a two times nested for-loop within a thread. Luckily grid nodes in a uniform grid are inherently sorted which takes care of coalescing.
+The straightforward solution to this problem is to handle all particles independently from each other. One particle adds up the contributions from each of the grid nodes in range of the interpolation function. In three dimensions this can be done for instance with a two times nested for-loop within a thread. Luckily, grid nodes in a uniform grid are inherently sorted which takes care of coalescing.
 
-Furthermore sorting particles due to chapter \ref{sec:sort} increases caching behavior as variables of grid nodes are directly reused by particles in the same group. This results in direct L2-cache hits instead of going the long way of reloading from global memory.
+Furthermore, sorting particles due to chapter \ref{sec:sort} increases caching behavior as variables of grid nodes are directly reused by particles in the same group. This results in direct L2-cache hits instead of going the long way of reloading from global memory.
 
-With the mentioned partitioning of the grid into blocks the shared memory architecture of the GPU can be exploited. This requires two-level binning of particles to nodes within blocks. Figure \ref{fig:g2p_transfer} show how the G2P-transfer using shared memory is realized. Algorithm \ref{alg:g2p} shows this process briefly. Due to binning a particle is associated with its lower left node. In Figure \ref{fig:g2p_transfer} four threads are active and form the thread group. All visible grid nodes need to be loaded by the threads. This includes the halo of the block, which is dependent upon the support of the interpolation function. For uneven polynomials of the interpolation function the floored position is very favorable. It allows the left support to be one smaller than the right support. As a result the weight of a most outer-edge particle (of the active particle region) just reaches zero for any neighborhood-node outside the halo.
+With the mentioned partitioning of the grid into blocks, the shared memory architecture of the GPU can be exploited. This requires two level binning of particles to nodes within blocks \cite{MPM:GPU}. Figure \ref{fig:g2p_transfer} show how the G2P-transfer using shared memory is realized. Algorithm \ref{alg:g2p} shows this process briefly. Due to binning a particle is associated with its lower left node. In Figure \ref{fig:g2p_transfer} four threads are active and form the thread group. All visible grid nodes need to be loaded by the threads. This includes the halo of the block which is dependent upon the support of the interpolation function. For uneven polynomials of the interpolation function the floored position is very favorable. It allows the left support to be one smaller than the right support. As a result, the weight of a most outer-edge particle (of the active particle region) just reaches zero for any neighborhood-node outside the halo.
 
 \begin{figure}[htbp]
     \centering
@@ -1475,15 +1486,15 @@ With the mentioned partitioning of the grid into blocks the shared memory archit
   \caption{G2P-Transfer: The transfer of a single particle is split into 64 sequential runs (using cubic weights). Shown are the first two runs.}
   \label{fig:g2p_transfer}
 \end{figure}
-The bigger the block the less halo nodes need to be loaded in total. Given an interpolation function with left support $l$ and right support $r$, total grid size $g$ and block sizes $b_x,b_y,b_z$ the general function to calculate the number of elements loaded is:
+The bigger the block the less halo nodes need to be loaded in total. Given an interpolation function with left support $l$ and right support $r$, total grid size $g$, and block sizes $b_x,b_y,b_z$ the general function to calculate the number of elements loaded is:
 \begin{equation}
   m(b_x,b_y,b_z) = \frac{g}{b_x*b_y*b_z}(l+b_x+r)(l+b_y+r)(l+b_z+r).
 \end{equation}
- As an example, take a 128*128*128 grid and the cubic interpolation function, which has a left support of 1 and a right support of 2. Subdivide the grid into 4*4*4 or 8*4*4 elements respectively:
+ As an example, take a 128*128*128 grid and the cubic interpolation function which has a left support of 1, and a right support of 2. Subdivide the grid into 4*4*4 or 8*4*4 elements respectively:
  $$m(4,4,4): 11,239,424\text{ Elements, }m(8,4,4):  8,830,976\text{ Elements}$$
-Note however that in practice there is a good change that a major part of the additional elements will result in L2-cache hits.
+Note however, that in practice there is a good chance, that a majority of the additional elements results in L2-cache hits.
 
-Next up is the transfer: Each thread corresponds to one particle within the blue nodes in Figure \ref{fig:g2p_transfer}. The threads will sequentially run over the neighbors within the support and collect the weighted contribution to this particle. In this process the particle's position need to be loaded to calculate the weight for its corresponding variables. The transfer needs to be repeated for each particle in the bin. Since the number of particles is variable, this loop is dynamic and will lead to branch divergence within a warp. One should rely on external mechanics like particle resampling to reduce branching.
+Next up is the transfer: Each thread corresponds to one particle within the blue nodes in Figure \ref{fig:g2p_transfer}. The threads will in unison run over their relative neighbors within the support and collect the weighted contribution to this particle. In this process the particle's position need to be loaded to the weighted corresponding contribution. The transfer needs to be repeated for each particle in the bin. Since the number of particles is variable, this loop is dynamic and will lead to branch divergence within a warp. One should rely on external mechanics like particle resampling to reduce branching.
 
 \algblockdefx{FORALLP}{ENDFAP}[1]%
   {\textbf{for all }#1 \textbf{do in parallel}}%
@@ -1508,15 +1519,13 @@ Next up is the transfer: Each thread corresponds to one particle within the blue
     \ENDFAP
   \end{algorithmic}
 \end{algorithm}
-Alternatively one could come up with a per-warp load balancing scheme: One thread would then not directly correspond to one active node. They would need to act as another node in the same warp, when their load is done. This will inevitably lead to shared memory bank conflicts. For the P2G-Transfer this would introduce atomic operations on shared memory again.
+Alternatively, one could come up with a per warp load balancing scheme: One thread would then not directly correspond to one active node. They would need to act as another node in the same warp when their load is done. This will inevitably lead to shared memory bank conflicts and other difficulties. For the P2G-Push-Transfers this would necessarily introduce atomic operations on shared memory again.
 
 In Appendices \ref{sec:shared_transfer} the accesses of one warp on shared memory banks is shown. The interpolation function is assumed to be cubic and the first block dimension is $x=4$ or $x=8$. The shared memory can thus be handled as concurrently as possible.
 
-As an extension to this process batching is introduced. Instead of conservatively loading and writing one particle at a time, each thread handles multiple particles together which it stores in register memory. Important to this process is to unroll the corresponding loops that load, write as well as process these multiple particles. Instead of needing to rerun the transfer for each particle, the number of runs now done is the number of non-batched runs divided by the number of particles. This process adds to the amount of registers allocated and can thus also negatively impact performance.
+As an extension to this process batching is introduced. Instead of conservatively loading and writing one particle at a time, each thread handles multiple particles together which it stores in register memory. Important to this process is to unroll the corresponding loops that load, write, as well as process these particles. Instead of needing to rerun the transfer for each particle, the number of runs now done is the number of non-batched runs divided by the number of particles. This process adds to the amount of registers allocated and can thus also negatively impact performance.
 \subsubsection{Particle-to-Grid-Transfers}\label{sec:p2g}
-Straightforward to implement are various variations on global memory. Consider first binning was note executed. A grid node would not know how to look up the particles in its neighborhood. The only solution to this is go from the perspective of a particle and write to the grid node in its support. Since any particle in the neighborhood of a grid node contribute to its variables all writes have to be atomic. The approach the could be simply parallelizing for every particle and atomically write to the neighbor nodes in a loop. In the unsorted case this stalls the warps immensely. In \cite{Meyer2015} the static loop over the support is also parallelized resulting in higher throughput.
-
-The benefits of sorting in chapter \ref{sec:sort} apply to the P2G-Transfers very significantly. The results of above get reversed and looping performs better. Stalling is much less of an issue.
+Straightforward to implement are various variations on global memory. Consider first binning was not introduced. A grid node would not know how to look up the particles in its neighborhood. This would require the particle to find and write to the grid node in its support. Since any particle in the neighborhood of a grid node contributes to it, all writes have to be atomic. A typical approach is thus simply parallelizing for each particle and atomically write to the neighbor nodes in a loop. In the unsorted case this stalls the warps immensely. In \cite{Meyer2015} the static loop over the support is also parallelized resulting in higher throughput. The benefits of sorting in chapter \ref{sec:sort} apply to the P2G-Transfers very significantly. The results of above get reversed and looping performs better. Stalling is much less of an issue.
 
 \begin{figure}[t]
     \centering
@@ -1525,17 +1534,19 @@ The benefits of sorting in chapter \ref{sec:sort} apply to the P2G-Transfers ver
   \label{fig:p2g_transfer}
 \end{figure}
 
-\textbf{P2G-Pull-Transfer}: However sorting and binning again opens up the possibility of shared memory implementations. The equivalent of the G2P-Transfer for the P2G-Transfer is pulling the relevant data from the neighborhood. We will refer to this as the P2G-Pull-Transfer. The process is shown in Figure \ref{fig:p2g_transfer}.
+\textbf{P2G-Pull-Transfer}: Sorting and binning however open up the possibility of shared memory implementations. The equivalent of the G2P-Transfer for the P2G-Transfer is pulling the relevant data from the neighborhood. We will refer to this as the P2G-Pull-Transfer. The process is shown in Figure \ref{fig:p2g_transfer}.
 
-It is important to notice that the supports in the P2G-Pull approach are reversed: Left becomes right, right becomes left. Other than that the transfer works in the same way as the G2P-Transfer Instead of reading from grid nodes, reading from particles is done. Consequently one particle of each bin is loaded into shared memory. This typically puts a lot more strain onto shared memory. For a simple PIC-Transfer(equation \ref{eq:lin_p2g})
+It is important to notice that the supports in the P2G-Pull approach are reversed: Left becomes right, right becomes left. Other than that the transfer works in the same way as the G2P-Transfer. Instead of reading from grid nodes, reading from particles is done. Consequently, one particle of each bin is loaded into shared memory. This typically puts a lot more strain onto shared memory. For a simple PIC-Transfer(equation \ref{eq:lin_p2g})
 $$
 (m\boldsymbol{v})_i^n = \sum_p w_{i}(\boldsymbol{x}_p)m_p\boldsymbol{v}^n_p.
 $$
 the position $\boldsymbol{x}_p$ and the velocity $\boldsymbol{v}_p$ need to be stored in shared memory for every node in the halo. Additionally the count $c_i$ and scan $s_i$ need to be available to load and access particles. For more complex transfers this will get even worse.
 
-By construction the Material-Point-Method tries to avoid matrices on the grid due to storage cost. Conversely the particles have matrices defined over them, e.g. $\boldsymbol{B}_p$,$\boldsymbol{F}_p$. In conclusion one should motivate approaches where grid nodes correspond to shared memory.
+By construction the Material-Point-Method tries to avoid matrices on the grid due to storage cost. Conversely, the particles have matrices defined over them, e.g. $\boldsymbol{B}_p$,$\boldsymbol{F}_p$. In conclusion one should motivate approaches where grid nodes correspond to shared memory due to the shared memory size limitation.
 
-There is one implementation detail left out which is solved in chapter \ref{sec:active_blocks}. That is grid nodes do not know if there are any particles in the neighborhood left processing. \ref{sec:active_blocks} solves this by finding the maximum particle count in the block (with halo). Thus all nodes within the block need to stay active during transfers. It is possible to delegate this decision down from the block to its subgroups (respecting their respective haloes). Delegating this from the subgroup to the threads is possible as well. Each thread would calculate the summed up count in its neighborhood. But this will hardly matter as all other threads need to wait on the thread with the highest count in the subgroup anyway.
+There is one implementation detail left out for the P2G-Pull-Transfer which is solved in chapter \ref{sec:active_blocks}. That is grid nodes do not know if there are any particles in the neighborhood left processing. \ref{sec:active_blocks} solves this by finding the maximum particle count in the block (with halo). Thus all nodes within the block need to stay active during transfers.
+
+It is possible to delegate this decision down from the block to its subgroups (respecting their respective haloes). Delegating this from the subgroup to the threads is possible as well. Each thread would calculate the summed up count in its neighborhood. But this hardly matters for compute-bound shaders as all other threads need to wait on the thread with the highest count in the subgroup anyway.
 
 \begin{algorithm}[t]
   \caption{P2G-Sync-Transfer}\label{alg:p2g}
@@ -1560,39 +1571,41 @@ There is one implementation detail left out which is solved in chapter \ref{sec:
   \end{algorithmic}
 \end{algorithm}
 
-\textbf{P2G-Atomic-Transfer}: One can invert the process of pulling into pushing. Instead of reading from particles this means now writing to grid nodes in shared memory. This immediately alarms one that accesses now need to be either atomic or explicitly scheduled if blocks are larger than a subgroup.
+In the following the two Particle-Push-Transfers are examined as they put less strain on shared memory:
 
-As can be seen in Figure \ref{sec:p2g} push approaches have the big advantage of only needing to load particles within the block region. The transfers then spread the particle's contribution to the grid nodes in the neighborhood. If in algorithm \ref{alg:p2g} line \ref{alg:p2g_uniform_barrier} the \texttt{barrier()} is left out of the transfer and \texttt{atomicAdds()} on shared memory are in use this process is straightforward to implement. One has to make sure to reset the shared memory as their contents are otherwise undefined.
+\textbf{P2G-Atomic-Transfer}: One can invert the process of pulling into pushing. Instead of reading from shared memory corresponding to particles, this means now writing to shared memory corresponding grid nodes. This immediately alarms one that accesses now need to be either atomic or explicitly scheduled if blocks are larger than a subgroup.
 
-The write-back to memory however now also needs to feature atomics. This process will be the same in the following synchronized approach of line \ref{alg:atomicAdd} in algorithm \ref{alg:p2g}. For a node that will be part of any halo \texttt{atomicAdds()} are a strict requirement. Their results are only partially computed and need to be complemented by neighbor blocks. For such a node these are two writes for a side node, four for an edge node and eight for a corner node.
+As can be seen in Figure \ref{sec:p2g} push approaches have the big advantage of only needing to load particles within the block region. The transfers then spread the particle's contribution to the grid nodes in the neighborhood. If in algorithm \ref{alg:p2g} line \ref{alg:p2g_uniform_barrier} the \texttt{barrier()} is left out, and \texttt{atomicAdd()}s on shared memory are in use, this process is straightforward to implement. One has to make sure to reset the shared memory as their contents are otherwise undefined.
 
-\textbf{P2G-Sync-Transfer}: Warps/Subgroups are inherently synchronized. No race conditions are present between their threads as they all access different memory positions (as can be seen in Figure \ref{fig:p2g_transfer}). The problem arises between different warps of the same thread group. In a synchronized approach this is solved by a \texttt{barrier()}. As already mentioned the particle loop of line \ref{alg:p2g_dyn_loop} in algorithm \ref{alg:p2g} is dynamic.
-The OpenGL language makes the following requirements for barriers:
+The write back to memory however now also needs to feature atomics. This process will be the same in the following synchronized approach. For a node that is part of any halo, \texttt{atomicAdds()} are a strict requirement. Their results are only partially computed and need to be complemented by neighbor blocks. For such a node these are two writes for a side node, four for an edge node, and eight for a corner node.
 
-"\texttt{barrier()} can be called from flow-control, but it can only be called from uniform flow control. (...) In short, (...) every execution must hit the exact same set of \texttt{barrier()} calls in the exact same order." \cite{KHRONOS:BARRIER}
+\textbf{P2G-Sync-Transfer}: Warps/Subgroups are inherently synchronized. No race conditions are present between their threads as they all access different memory positions (as can be seen in Figure \ref{fig:p2g_transfer}). The problem arises between different warps of the same thread group. In a synchronized approach this is solved by a \texttt{barrier()}. Care needs to be taken as the particle loop of line \ref{alg:p2g_dyn_loop} in algorithm \ref{alg:p2g} is dynamic.
 
-The dynamic loop has to become static within a group. The problem is solved in same fashion as in the P2G-Pull method with chapter \ref{sec:active_blocks}. Calculate the maximum particle count within the block without the halo. This is the minimum amount of times the loop needs to run across the threads to hit uniform flow control.
+The OpenGL language states the following requirements for external synchronization:
+\textit{"\texttt{barrier()} can be called from flow-control, but it can only be called from uniform flow control. (...) In short, (...) every execution must hit the exact same set of \texttt{barrier()} calls in the exact same order."} \cite{KHRONOS:BARRIER}
+
+The dynamic loop has to become static within a thread group. The problem is solved in same fashion as in the P2G-Pull method with chapter \ref{sec:active_blocks}. The maximum particle of each bin within the block without the halo is the minimum amount of times the loop needs to run across the threads to hit uniform flow control.
 
 Warps are still accelerated if all threads within that warp have lower count. They still however have to commit to wait at the same \texttt{barrier()}.
 
-In summary all transfers have the same optimal shared memory-access patterns as shown already by Appendices \ref{sec:shared_transfer}. Batching is again a valid option that is executed in the same manner by unrolling the corresponding loops. The block size as well as the level of batching can be chosen arbitrarily to optimize for the workload.
+In summary all transfers have the same optimal shared-memory access patterns as shown already by Appendices \ref{sec:shared_transfer}. Batching is again a valid option that is executed in the same manner by unrolling the corresponding loops. The block size as well as the level of batching can be chosen arbitrarily to optimize for the workload.
 
 \begin{figure}[!b]
   \includesvg[svgpath =images/,width=\textwidth]{indirect_dispatch}
-  \caption{Pipeline to filter active blocks. Returned is the number of active blocks for the launch of a dispatch. A scan and stream compaction gives back the filtered indices to access the active blocks in that dispatch.}
+  \caption{Pipeline to filter active blocks. Returned is the number of active blocks for the launch of a dispatch. A scan and an indexed stream compaction give back the filtered indices to access the active blocks in that dispatch.}
   \label{fig:active_block}
 \end{figure}
 
 \subsubsection{Active Blocks \& Maximum Block Count:}\label{sec:active_blocks}
-The P2G-Pull- and P2G-Sync-Transfer of chapter \ref{sec:transfers} required the maximum count of particles within a region. The active particle region is the region that needs to get reduced. Therefore it is sufficient for the P2G-Sync-Transfer to reduce the counter within the block, left of Figure \ref{fig:p2g_transfer}. The P2G-Pull-Transfer however also need to take the halo into account, right of Figure \ref{fig:p2g_transfer}. Both are achievable with a single level of parallel reduction (in contrast to a pyramid). We will call this the per-block count from now on, that uses as the functional input for the parallel reduction:
+The P2G-Pull- and P2G-Sync-Transfer of chapter \ref{sec:transfers} required the maximum count of particles within a region. The active particle region is the region that needs to get reduced. Therefore it is sufficient for the P2G-Sync-Transfer to reduce the counter within the block, left side of Figure \ref{fig:p2g_transfer}. The P2G-Pull-Transfer however also need to take the halo into account, right side of Figure \ref{fig:p2g_transfer}. Both are achievable with a single level of parallel reduction (in contrast to a pyramid). This is the \textit{per block bin count} from now on that uses as the functional input for the parallel reduction:
 \begin{enumerate}
   \item \texttt{unary\_op(count) = count} .
   \item \texttt{binary\_op(lc,rc) = max(lc,rc)}.
 \end{enumerate}
 
-For a P2G-Sync-Transfer one may just start with a parallelization level equal to the blocks employed in \ref{sec:transfers}. Then can narrow the shader down to do more sequential work to improve throughput. For the P2G-Pull-Transfer one may also do the first, but additionally load all rest elements (by the halo). From there on out more sequential work might be favorable.
+For a P2G-Sync-Transfer one may just start with a parallelization level equal to the blocks employed in \ref{sec:transfers}. Then can narrow the shader down to do more sequential work to improve throughput. For the P2G-Pull-Transfer one may also do the first but additionally load all rest elements (by the halo). From there on out more sequential work might be favorable.
 
-If a per block indexing mode is employed all blocks are directly behind each other in the buffer. Reduction then happens in the typical fashion. A global indexing needs to be permuted such that the indexing puts blocks first.
+If a per block indexing mode is employed, all blocks are directly behind each other in the buffer. Reduction then happens in the typical fashion. A global indexing needs to be permuted such that the indexing puts blocks first.
 
 The process of filtering active blocks can be easily appended. Figure \ref{fig:active_block} shows the process. An active block is one that has a non-zero per-block counter. The scan that will refer to the active block indices takes thus functional input:
 \begin{enumerate}
@@ -1600,11 +1613,13 @@ The process of filtering active blocks can be easily appended. Figure \ref{fig:a
   \item \texttt{binary\_op(lc,rc) = lc + rc}.
 \end{enumerate}
 
-Starting a dispatch for every block only the active blocks will now write their index at the scan's position. This process is not coalesced. Coalescing will still be guarenteed for all nodes within the block for the P2G-Transfers and G2P-Transfer. The only non-coalesced access within these shaders is loading the maximum per block count from VRAM, which there are really few of in comparison.
+Starting a dispatch for every block only the active blocks will now write their index at the scan's position. It results in an indexed stream compaction. This process is not coalesced. Coalescing will still be guarenteed for all nodes within the block for the P2G-Transfers and G2P-Transfer. The only uncoalesced access within these shaders is loading the maximum per block count from VRAM which there are few of in comparison.
 
+\clearpage
 \section{Evaluation}\label{sec:eval}
+fill with nonsense
 \subsection{Verifying Results}
-\textbf{Parallel reduction}, \textbf{map} and \textbf{scan} are tested against \texttt{std::transform\_reduce} as it supplies the same functionality as a fully reduced parallel reduction. It is standard since C++17. These shaders are exact on integers. Floating point precision can be seen in table \ref{tab:parallel_red}.
+\textbf{Parallel reduction}, \textbf{map}, and \textbf{scan} verify against \texttt{std::transform\_reduce} as it supplies the same functionality as a fully reduced parallel reduction. It is standard since C++17. These shaders are exact on integers. Floating point precision can be seen in table \ref{tab:parallel_red}.
 \begin{table}[!b]
   \begin{tabular}{|l|r|r|r|}\hline
     Shader       & \texttt{unary\_op} & Total abs. error & Total rel. error \\\hline
@@ -1654,9 +1669,9 @@ The total errors vary little between the methods presented in chapter \ref{sec:t
 \subsection{Performance}
 The given metrics in \ref{sec:metrics} lead to valuable insight into how well the GPU can utilize a given shader or program. The GPU was a black box for a long time in this regard. The metrics provided by NVIDIA are a first step to open up the GPUs inner workings. Theory about optimization for the architecture such as \cite{NVIDIA:BEST:PRACTICE} can be more readily applied. However for abstraction purposes theory as well as descriptions about the architecture might be deliberately vague. These metrics give the programmer more power of identifying the right optimizations for a given code.
 
-All metrics in the following are gathered from a NVIDIA GTX970. All timings are averaged over at least 1000 runs with OpenGL Timer Queries \cite{KHRONOS:TIMER_QUERY}. As more runs are done the GPU stays very consistent on bringing the average runtime closer to the minimum recorded time. This indicates that the first few runs can take comparably longer.
+All metrics in the following are gathered from a NVIDIA GTX970. All timings are averaged over at least 1000 runs with OpenGL Timer Queries \cite{KHRONOS:TIMER_QUERY}. As more runs are done, the GPU stays very consistent on bringing the average runtime closer to the minimum recorded time. This indicates that the first few runs can take comparably longer.
 
-\textbf{SoA vs. AoS}: In chapter \ref{sec:soa_aos} was already hinted that throughput could be halved in an AoS-Layout. These effects can be hideous without knowledge of the architecture. Take for instance a map operation (or equivalently a copy operation). Figure \ref{fig:soa} and \ref{fig:aos} in chapter \ref{sec:soa_aos} already gave an overview of the procedure for \texttt{vec4}. Table \ref{tab:map_1} compares differences between an AoS- and an SoA-Layout with a buffer of two attributes.
+\textbf{SoA vs. AoS}: In chapter \ref{sec:soa_aos} is already hinted that throughput could be halved in an AoS-Layout. These effects can be hideous without knowledge of the architecture. Take for instance a map operation (or equivalently a copy operation). Figure \ref{fig:soa} and \ref{fig:aos} in chapter \ref{sec:soa_aos} already gave an overview of the procedure for \texttt{vec4}. Table \ref{tab:map_1} compares differences between an AoS- and an SoA-Layout with a buffer of two attributes.
 \begin{table}[htbp]
   \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
     Layout &  $\Delta t_c (\mu s)$	& Speedup &VRAM     & SM     & L2     & SM Issue Util. \\\hline
@@ -1668,7 +1683,7 @@ All metrics in the following are gathered from a NVIDIA GTX970. All timings are 
 \label{tab:map_1}
 \end{table}
 
-Immediately apparent becomes that the SoA-Layout is 2.26 times as fast. However both memory subunits(VRAM,L2) have the same utilization as in an AoS-Layout. Though the big difference is in the memory access, the wrong access may be conversely spotted in the non-memory subunits. Since an AoS-Layout loads twice as many \texttt{vec4}, every non-memory related metric shrinks by half. An AoS-Layout however issues the same instructions. Though the SM should do equal work and be active for the same amount of cycles which is not the case.
+Immediately apparent becomes that the SoA-Layout is 2.26 times as fast. However both memory subunits(VRAM,L2) have the same utilization as in an AoS-Layout. Though the big difference is in the memory access, the wrong access may be conversely spotted in the non-memory subunits. Since an AoS-Layout loads twice as many \texttt{vec4}, every non-memory related metric shrinks by half. An AoS-Layout however issues the same instructions. The SM should do equal work and be active for the same amount of cycles which is not the case.
 \begin{table}[htpb]
   \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
     Layout &  $\Delta t_c (\mu s)$ & Speedup       &VRAM             & L2              & L2-Hit & Read Active \\\hline
@@ -1676,7 +1691,7 @@ Immediately apparent becomes that the SoA-Layout is 2.26 times as fast. However 
     SoA         & 240                   & 1.16x    &75.4\%  & 29.4\%          & 20.0\% & 62.3\% \\
     \hline
   \end{tabular}
-\caption{Metrics between different buffer layouts. Map operation with two instructions \texttt{float x = length(vel), float y = length(pos)} on $1024 \times 1024$ \texttt{vec4} buffer storing position(\texttt{pos}) and velocity (\texttt{vel}).}
+\caption{Metrics between different buffer layouts. Map operation with two instructions \texttt{float x = length(vel)}, \texttt{float y = length}\texttt{(pos)} on 1024 $\times$ 1024 \texttt{vec4} buffer storing position(\texttt{pos}) and velocity (\texttt{vel}).}
 \label{tab:map_2}
 \end{table}
 
@@ -1688,9 +1703,9 @@ In the AoS-Layout the second attribute lays in the L2-Cache from fetching the fi
 
 The view given was restricted to \texttt{vec4} as its the most commonly occurring type. For float/uint data structures the impacts of AoS vs. SoA can be even more dramatic. Instead of two \texttt{vec4}s eight scalars fit into a cache-line. In contrast only one \texttt{dvec4} (double-precision) fits into a cache-line. Performance of AoS and SoA in this case is equal.
 
-As a closure the reader is again referred to the subject of data-oriented design. While for non-random access SoA is (as shown) the more efficient layout. Random access algorithms can improve performance by using an AoS or mixed setup. In a random access pattern the nearby elements of an SoA-Layout will be left unused in the cache-line.
+As a closure the reader is again referred to the subject of data-oriented design. While for non-random access SoA is (as shown) the more efficient layout, random access algorithms can improve performance by using an AoS or mixed setup. In a random access pattern the nearby elements of an SoA-Layout will be left unused in the cache-line.
 
-\textbf{Parallel Reduction \& Scan:} Chapter \ref{sec:red_scan} presents a shared memory implementation of parallel reduction. To further speed up the work load a sequential pattern is preferred to avoid bank conflicts. Table \ref{tab:map_reduce} compares this to an interleaved addressing without padding to illustrate the effects of bank conflicts on performance. Similarly the same can be done for a scan, where however the interleaved addressing is preferred anyway. Table \ref{tab:scan} shows the comparison for a scan.
+\textbf{Parallel Reduction \& Scan:} Chapter \ref{sec:red_scan} presents a shared memory implementation of parallel reduction. To further speed up the work load a sequential pattern is preferred to avoid bank conflicts. Table \ref{tab:map_reduce} compares this to an interleaved addressing without padding to illustrate the effects of bank conflicts on performance. Similarly the same can be done for a scan where however the interleaved addressing is preferred anyway. Table \ref{tab:scan} shows the comparison for a scan.
 
 \begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r | r | r |}    \hline
@@ -1705,9 +1720,9 @@ As a closure the reader is again referred to the subject of data-oriented design
   \caption{Optimization of one parallel reduction dispatch on $1024\times1024$ \texttt{vec4} with \texttt{unary\_op(vec4 x)=length(x)} with block\_size = 1024. $\Delta t_c$ is in $\mu s$ Note that the interleaved addressing in this example intentionally commits bank conflicts to show performance impacts. The number in parentheses states the number of additional added sequential elements. Reduced is by block\_size$\times$ sequential elements. Thus they do more work, while also performing better!}\label{tab:map_reduce}
 \end{table}
 
-The metrics between the parallel reduction and scan differ quite a lot in their comparison to the their bank-conflict reduced solutions. Where the scans issue utilization goes drastically up from 34.2\% to 51.3\%, the same metric goes down for parallel reduction from 62.2\% to 33.0\%. SM throughput decreases as VRAM throughput increases, although little for the scan. The top warp-stall reason for both is the barrier synchronization between thread groups.
+The metrics between the parallel reduction and scan differ quite a lot when it comes to the resolve of bank-conflicts. Where the scans issue utilization goes drastically up from 34.2\% to 51.3\%, the same metric goes down for parallel reduction from 62.2\% to 33.0\%. SM throughput decreases as VRAM throughput increases although little for the scan. The top warp-stall reason for both is the barrier synchronization between thread groups.
 
-The warp-stall reason however showing the increased throughput due to respecting the shared memory architecture is the short scoreboard. The shaders in their original state have no reason to stall for the short scoreboard as any memory access is directly fetched. In the parallel reduction case the change is quite visible as this metric drops from 17.2\% to only 2.0\%.
+The warp-stall reason however showing the increased throughput due to respecting the shared memory architecture is the Short Scoreboard. The shaders in their original state have no reason to stall for the Short Scoreboard as any memory access is directly fetched. In the parallel reduction case the change is quite visible as this metric drops from 17.2\% to only 2.0\%.
 
 \begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r | r | r |}    \hline
@@ -1723,13 +1738,13 @@ The warp-stall reason however showing the increased throughput due to respecting
   \end{tabular}
   \caption{Optimization of one scan dispatch on $4 \times 1024\times1024$ integers with \texttt{binary\_op(x,y) := x+y}. $\Delta t_c$ in $\mu s$, block size is 1024. The number in parentheses states the number of additionally loaded sequential elements. Segment of each scan is block\_size$\times$ sequential elements. Higher reduction factor corresponds to more work being done.}\label{tab:scan}
 \end{table}
-The second optimization is giving these algorithms more sequential work. This will lighten the SM throughput and increase VRAM throughput as can be seen in both cases. Note, that each thread group in table \ref{tab:map_reduce} and \ref{tab:scan} does the same amount of parallel work; the sequential work is additionally being done by each thread. However due to the additional sequential work parallelization the amount of thread groups go down by the same factor. As mentioned in \cite{NVIDIA:PARALLEL_REDUCTION} this saturates the threads and thus improves performance.
+The second optimization is giving these algorithms more sequential work. This will lighten the SM throughput and increase VRAM throughput as can be seen in both cases. Note, that each thread group in table \ref{tab:map_reduce} and \ref{tab:scan} does the same amount of parallel work; the sequential work is additionally being done by each thread. However due to the additional sequential work the amount of thread groups go down by the same factor. As mentioned in \cite{NVIDIA:PARALLEL_REDUCTION} this saturates I/O-Latency and thus improves performance.
 
-Doing sequential work in parallel reduction adds almost no strain. Thus very high sequential work can be done by each thread. The SM work will shrink, while the shader gets more and more memory bound. For a reduction factor of 256 first signs of performance decrease can be seen as only four groups are involved in the dispatch. The GTX970 has 13 SMs. Therefore work is not parallelized enough on a block level anymore. The metric SM active\% will go rapidly down at this point. For four groups its 27.8\%, which is roughly $\frac{4}{13}$.
+Doing sequential work in parallel reduction adds almost no strain. Thus high amounts sequential work can be done by each thread. The SM work will shrink while the shader get more and more memory-bound. For a reduction factor of 256 first signs of performance decrease can be seen as only four groups are involved in the dispatch. The GTX970 has 13 SMs. Therefore work is not parallelized enough on a block level anymore. The metric SM active\% will go rapidly down at this point. For four groups its 27.8\% which is roughly $\frac{4}{13}$.
 
-For the scan this is a little bit harder as elements need to be stored in registers. The effects can be seen in table \ref{tab:scan}. The segment each scan can handle is by far not as extensive as in parallel reduction. But the speedup achieved from a partially conflict free to an implementation with sequential work is in contrast much higher. Since each thread requires the nearest by elements, L2-cache hits increase rapidly as does the L2 utilization. Thus the scoreboard stall reasons rise again. Unrolling the static loop which loads the sequential elements additionally hides memory latency.
+For the scan this is a little bit harder as elements need to be stored in registers. The effects can be seen in table \ref{tab:scan}. The segment each scan can handle is by far not as extensive as in parallel reduction. But the speedup achieved from a partially conflict free to an implementation with sequential work, is in contrast much higher. Since each thread requires the nearest by elements, L2-cache hits increase rapidly as does the L2 utilization. Thus the scoreboard stall reasons rise again. Unrolling the static loop which loads the sequential elements additionally hides memory latency.
 
-\textbf{Counting Sort:} The aim of sorting is coalesced as well as increased caching behavior for all following shaders. As a motivation the binning's similarity to the MPM-Operations might already be highlighted. A key difference is that binning does not query neighbor information (in the global atomic approach). Table \ref{table:bin} shows how a sorted particle position increases coalescing and L2-Cache hits. The VRAM-throughput increases to 75.3\% due to coalescing. Nearby particles hit the same bins and thus L2 rises up to 35.0\%. The 6.95x speed up shows how important the sorting as a preprocess is.
+\textbf{Counting Sort:} The aim of sorting is coalescing as well as increased caching behavior for all following shaders. As a motivation the binning's similarity to the MPM-Operations might already be highlighted. Table \ref{table:bin} shows how a sorted particle position increases coalescing and L2-Cache hits. The VRAM-throughput increases to 75.3\% due to coalescing. Nearby particles hit the same bins and thus L2 rises up to 35.0\%. The 6.95x speed up shows how important the sorting as a preprocess is.
 \begin{table}[htbp]
   \begin{tabular}{ | l | r | r | r | r | r | r |}    \hline
     Ordering            &  $\Delta t_c (\mu s)$ & Speedup &VRAM              & SM      & L2     & L2-Hit \\\hline
@@ -1740,7 +1755,7 @@ For the scan this is a little bit harder as elements need to be stored in regist
 \caption{Order dependency of binning of $1024\times1024$ randomly positioned particles in a $128\times128\times128$ grid.}\label{table:bin}
 \end{table}
 
-Table \ref{table:sort} shows the performance of index and deep sorting as is. The index sorting will have constant timing across cases. Their writing access will stay uncoalesced. Moreover shaders down the pipeline will also not benefit from coalescing. The binning in table \ref{table:bin} thus for instance always runs on random ordering. Global atomic binning does not use neighbor data. Thus index sorting is not affecting it.
+Table \ref{table:sort} shows the performance of reordering with index and deep sorting as is. The index sorting will have constant timing across cases. Their writing access will stay uncoalesced. Moreover shaders down the pipeline will also not benefit from coalescing. The binning in table \ref{table:bin} thus for instance always runs on random ordering. Index sorting is not affecting it.
 
 Again differences similarly to the binning can be seen when already working with a sorted state. Coalescing highly increases VRAM throughput. So much that a deep sort on eight \texttt{vec4}s is almost on equal footing with a random index sort. The speedup from an uncoalesced to a fully coalesced state is 5.68x. The full sort suffers for each (particle) variable from an uncoalesced access. However if sorting is not done the MPM-Transfers will then suffer from those.
 
@@ -1759,10 +1774,10 @@ Again differences similarly to the binning can be seen when already working with
 \caption{Order dependency of reordering of $1024\times1024$ randomly positioned particles in a $128\times128\times128$ grid. Best case is already sorted, worst case is unsorted and still fully random.}\label{table:sort}
 \end{table}
 
-Binning as well as reordering will rarely run fully sorted as mentioned in \ref{sec:sort}. Sorting works on the last sorted state. The CFL-condition encourages limited reach. Solids and fluids will mostly move uniformly. These two properties in general will guarantee higher coalescing as well as L2-cache hit rates. It is however up to the dynamics of the problem how much time is spend sorting.
+Binning as well as reordering will rarely run fully sorted as mentioned in \ref{sec:sort}. Sorting works on the last sorted state. The CFL-condition encourages limited reach. Most physical processes will move uniformly. These two properties in general will guarantee higher coalescing as well as L2-cache hit rates. It is however up to the dynamics of the problem how much time is spend sorting.
 \\
 
-The following metrics are gathered for PIC-Transfers of momentum as they form a reduced problem to build off with only one \texttt{vec4} transfer. The MPM-Operations are evaluated with two easily reproducible examples.
+The following metrics are gathered for PIC-Transfers of momentum as they form a reduced problem to build off of with only one \texttt{vec4} transfer. The MPM-Operations are evaluated with two easily reproducible examples.
 
 For the \textbf{G2P-Transfers} the different datasets can be seen in table \ref{table:g2p_random} and \ref{table:g2p_uniform4}. The first one uses random particle positions and therefore is overly pessimistic for the Material Point Method as explained earlier. The second one is optimistic as warp branch divergence is minimized.
 
@@ -1798,7 +1813,7 @@ For the sorted G2P-global as well as the G2P-shared method following statements 
 
 As a summary, relying on the comparably fast L2-Cache memory transactions over shared memory is consistent across the reduced examples for the sorted G2P-global method. The main benefit of the global solution is that warps do not suffer from branch divergence in that method. However the G2P-shared method may still give an edge in performance.
 
-The \textbf{P2G-Transfer} is tested on the same data in \ref{table:p2g_random} and \ref{table:p2g_uniform4} respectively. The global atomic approaches suffer from low throughput across all units. Cause are uncoalesced accesses and low cache utilization.
+The \textbf{P2G-Transfer} is tested on the same data in \ref{table:p2g_random} and \ref{table:p2g_uniform4}, respectively. The global atomic approaches suffer from low throughput across all units. Cause are uncoalesced accesses and low cache utilization.
 
 The top stall reason for all global operations is the short scoreboard. This is caused by the high number of atomic writes which are accumulated in L2-Cache. The sorting brings forth this problem more acutely as L2-Caches throughput rises to the top SOL with 44.0\% in the uniform case of table \ref{table:p2g_uniform4}. The random data example in table \ref{table:p2g_random} relies even more heavily on the L2-Cache with 65.8 SOL\% similarly to what has been seen in the G2P-Transfer.
 
@@ -1821,7 +1836,7 @@ Nevertheless this already speeds up the random case by a factor of 11.88x as it 
 
 Using the \textbf{P2G-Pull method} on the random case performs worse than the global method. It can significantly save time however in the uniform case. The P2G-Pull-Transfer is 4.31 times faster than the global P2G-Transfer on the sorted uniform data.
 
-Top SOL\% is now the SM, but it lacks throughput with 39.4\%. Its SM Issue Utilization per active cycle is 40\% which is below the desired threshold of 60\%. The top warp stall reason is instruction based. So as long as the algorithm does not change no increase can be achieved here. As explained in chapter \ref{sec:p2g} the pull method requires high amount of shared memory. The occupancy calculator as well as NVIDIA-Nsight report an occupancy of 16.0. This is $\frac{1}{4}$-th of the maximum occupancy of the GTX970. This is however already optimized for thread group size.
+Top SOL\% is now the SM but it lacks throughput with 39.4\%. Its SM Issue Utilization per active cycle is 40\% which is below the desired threshold of 60\%. The top warp stall reason is instruction based. So as long as the algorithm does not change no increase can be achieved here. As explained in chapter \ref{sec:p2g} the pull method requires high amount of shared memory. The occupancy calculator as well as NVIDIA-Nsight report an occupancy of 16.0. This is $\frac{1}{4}$-th of the maximum occupancy of the GTX970. This is however already optimized for thread group size.
 
 \begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r | r |}    \hline
@@ -1840,9 +1855,9 @@ Top SOL\% is now the SM, but it lacks throughput with 39.4\%. Its SM Issue Utili
 
 A closer look is taken of the P2G-Atomic- and P2G-Sync-Transfers to illustrate the performance improvements of batching and filtering for active blocks in table \ref{table:p2g_optim}.
 
-The \textbf{P2G-Atomic-Transfer} in its initial state uses one atomic transfer per particle on shared memory. Its effects are quite visible on the SM SOL\% with 82.9\% to 90.9\% in the call for active blocks. The top stall reason is short scoreboard which is indicative of the high number of stalls due to atomic writes on shared memory.
+The \textbf{P2G-Atomic-Transfer} in its initial state uses one atomic transfer per particle on shared memory. Its effects are quite visible on the SM SOL\% with 82.9\% to 90.9\% in the call for active blocks. The top stall reason is Short Scoreboard which is indicative of the high number of stalls due to atomic writes on shared memory.
 
-Batching reduces the atomic writes. Particles get handled together. In succession one atomic write is done. This changes the top stall reason to the more favorable instruction fetches as the main stall reason with 20.8\%. Short scoreboard goes down to 11.6\%. As previously the SM was strained too hard throughput goes down to 65.0\%. The greatest time improvement can be seen when batching and indirect call lead to a combined speedup of 2.2x. This is much higher than the multiplicative speedup of 1.51x one could expect.
+Batching reduces the atomic writes. Particles get handled together. In succession one atomic write is done. This changes the top stall reason to the more favorable instruction fetches as the main stall reason with 20.8\%. Short scoreboard goes down to 11.6\%. As previously the SM was strained, throughput goes down to 65.0\%. The greatest time improvement can be seen when batching and indirect call lead to a combined speedup of 2.2x. This is much higher than the multiplicative speedup of 1.51x one could expect.
 
 The \textbf{P2G-Sync-Transfer} also may use batching and save time. The speedups are much smaller with 1.21x in the uniform case of table \ref{table:p2g_optim}. Batching in this case reduces the amount of thread group barriers needed for synchronization. The warp-stall reason barrier goes down from 10.4\% to 5.8\% in this process. The external synchronization is however much less invasive than atomic writes. The P2G-Sync method without batching has roughly the same timing as the P2G-Atomic-Transfer with batching of four particles.
 \begin{table}[htpb]
@@ -1861,7 +1876,7 @@ The \textbf{P2G-Sync-Transfer} also may use batching and save time. The speedups
 
 Batching is a process that adds register pressure as can be seen by the reduced occupancy of 34.9-35.4. Using batching every new particle variable involved in the transfer takes the batching amount of that variables size more registers.
 
-The P2G-Atomic-Transfer is very reliant on batching where the P2G-Sync-Transfer is not. This is further highlighted in table \ref{table:p2g_area}. With one particle per cell(area 47.6\%) batching does not help at all. The P2G-Sync-Transfer however can still work comparably fast to the high density of four particles per cell losing about 7.2\% speed. This also means that the P2G-Sync-Transfer only scales slightly with the area covered, which is due to the overhead of loading and writing more blocks.
+The P2G-Atomic-Transfer is very reliant on batching where the P2G-Sync-Transfer is not. This is further highlighted in table \ref{table:p2g_area}. With one particle per cell(area 47.6\%) batching does not help at all. The P2G-Sync-Transfer however can still work comparably fast to either the high density of four particles per cell losing about 7.2\% speed or atomic operations because batching is not available. This also means that the P2G-Sync-Transfer only scales slightly with the area covered which is due to the overhead of loading and writing more blocks.
 
 \begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r |}    \hline
@@ -1874,14 +1889,21 @@ The P2G-Atomic-Transfer is very reliant on batching where the P2G-Sync-Transfer 
  \label{table:p2g_area}
 \end{table}
 The P2G-Atomic- and the even more favorable P2G-Sync-Transfer give great speedups over the global atomic methods. Even in a random case (table \ref{table:p2g_random}) they can outdo the global sorted method despite the high branch divergence. They however shine in the uniform case where speedups of 6.5x and 7.8x respectively can be achieved over the global sorted method.
+\clearpage
 \section{Conclusion \& Future Work}\label{sec:conclusion}
 The derivation of the Material-Point-Method for a classic elastic material with an implicit midpoint scheme and the APIC scheme ensures that a wide coverage of the method is shown. Although the MPM-Method consists of many mathematical tasks four operations on the GPU can be identified. Exclusive grid and particle operations are parallelized with a 1:1 correspondence to threads. The optional use of stream compaction reduces applicable particles/nodes where necessary.
 
 The other two operations are particle and grid transfers which are the main focus of this thesis. Different particle and grid transfers utilizing the hierarchical memory structure of the GPU are compared. Presented is a pipeline to efficiently execute these transfers on the GPU. All transfers do not rely on fixed bin sizes in any stages of the pipeline. Since these operations are executed multiple times per frame these operations are augmented with two preprocessing steps. The preprocessing steps need to be done once and are outweighed by the transfers.
 
-Deep sorting particles with counting sort in a double-buffered manner allows coalesced accesses and high cache hit rates on transfers. Although possible this process does not rely on the CFL-condition. While the shared memory architecture can give an edge in performance it produces branch divergence and may perform worse over a simpler algorithm relying on the L2-cache. The P2G-Sync-Transfer is shown to be an easily extendable and even in edge cases well performing operation. Particle-Push-Transfers could be shown to profit from batching as multiple particles are handled in unison. The sorted global G2P-Transfer's consistency of utilizing the L2-Cache is a surprise further to be monitored. The second preprocessing step is filtering the active blocks with a stream compaction pipeline where no particles are present. It also supplies the P2G-Pull- and P2G-Sync-Transfer with a maximum per block bin counter.
+Deep sorting particles with counting sort in a double-buffered manner allows coalesced accesses and high cache hit rates on transfers. Although possible this process does not rely on the CFL-condition. The sorting further guarantees the independence of the ordering of the incoming data and may long-term benefit other operations relying on neighborhood information.
 
-To show the weaknesses and strengths of the transfers tests on an overly pessimistic and an optimistic case are performed and examined. While this strongly furthers understanding it leaves real simulation performance comparisons to be desired. However before this process can be concluded merge and split techniques need to be taken into consideration. They are designed to augment the numerics of the Material-Point-Method but will inherently reduce branch divergence as particle numbers even out between cells in the same warp. As such they will stray from the optimistic example. How much they will stray from it is however dependent on the dynamics of the problem. The sorting further guarantees the independence of the ordering of the incoming data and may long-term benefit other operations relying on neighborhood information.
+The second preprocessing step is filtering the active blocks of grid and particle transfers with a stream compaction pipeline where no particles are present. It also supplies the P2G-Pull- and P2G-Sync-Transfer with a maximum per block bin counter.
+
+While the shared memory architecture can give an edge in performance it produces branch divergence and may perform worse over a simpler algorithm relying on the L2-cache. The P2G-Sync-Transfer is shown to be an easily extendable and even in edge cases well performing operation. Particle-Push-Transfers could be shown to profit from batching as multiple particles are handled in unison. The sorted global G2P-Transfer's consistency of utilizing the L2-Cache is a surprise further to be monitored.
+
+To show the weaknesses and strengths of the transfers tests on an overly pessimistic and an optimistic case are performed and examined. While this strongly furthers understanding it leaves real simulation performance comparisons to be desired.
+
+However, before this process can be concluded merge and split techniques need to be taken into consideration. They are designed to augment the numerics of the Material-Point-Method but will inherently reduce branch divergence as particle numbers even out between cells in the same warp. As such they will stray less from the optimistic example. How much they will stray from it is however dependent on the dynamics of the problem.
 \clearpage
 \begin{appendices}
 \section{$D_p$ for Cubic Splines}\label{app:dp_proof}
@@ -1921,7 +1943,7 @@ def grid_points(x):
   return np.array([-x-1,-x,1-x,2-x])
 
 alphas = grid_points(a)
-betas = grid_points(b)
+betas  = grid_points(b)
 gammas = grid_points(c)
 
 D_temp = np.array([[0,0,0],[0,0,0],[0,0,0]])
@@ -1933,13 +1955,16 @@ for i,ai in enumerate(alphas):
       # xi_xp is the distance from parametrized
       # position to grid node [i,j,k]
       xi_xp = np.array([ai,bj,ck])
-      # each outer product weighted by interpolation functions
+      # each outer product weighted by interpolation
+      # functions
       this_outer = wip(i,ai)*wip(j,bj)*wip(k,ck)*
 		    np.outer(xi_xp,xi_xp)
       # summed up over all grid nodes
       D_temp = np.add(D_temp,this_outer)
 
-D = np.array([[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
+D = np.array([[0.0,0.0,0.0],
+	      [0.0,0.0,0.0],
+	      [0.0,0.0,0.0]])
 
 for i,D_row in enumerate(D_temp):
   for j,D_ij in enumerate(D_row):

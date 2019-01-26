@@ -3017,11 +3017,11 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="32.000005"
-     inkscape:cx="156.92744"
-     inkscape:cy="90.511667"
+     inkscape:zoom="4.0000006"
+     inkscape:cx="157.51718"
+     inkscape:cy="100.68466"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer9"
+     inkscape:current-layer="layer7"
      showgrid="false"
      inkscape:measure-start="0,0"
      inkscape:measure-end="0,0"
@@ -3088,30 +3088,35 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:4.23333311px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       x="69.193695"
-       y="36.305702"
+       x="69.259842"
+       y="23.870277"
        id="text21239"><tspan
          sodipodi:role="line"
          id="tspan21237"
-         x="69.193695"
-         y="36.305702"
+         x="69.259842"
+         y="23.870277"
          style="stroke-width:0.26458332">Grid node</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:4.23333311px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
        x="69.273804"
-       y="45.811798"
+       y="35.228455"
        id="text21239-1"><tspan
          sodipodi:role="line"
          x="69.273804"
-         y="45.811798"
+         y="35.228455"
          style="stroke-width:0.26458332"
-         id="tspan21263">Particle curr.</tspan><tspan
+         id="tspan1745">Particle </tspan><tspan
          sodipodi:role="line"
          x="69.273804"
-         y="51.103466"
+         y="40.520123"
          style="stroke-width:0.26458332"
-         id="tspan77090">acted upon </tspan></text>
+         id="tspan1756">cur. acted </tspan><tspan
+         sodipodi:role="line"
+         x="69.273804"
+         y="45.811787"
+         style="stroke-width:0.26458332"
+         id="tspan1764">upon </tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:4.23333311px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
@@ -3128,7 +3133,17 @@
          y="65.287666"
          style="stroke-width:0.26458332"
          id="tspan15206">pushed on</tspan></text>
-  </g>
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot1747"
+       style="fill:black;fill-opacity:1;stroke:none;font-family:sans-serif;font-style:normal;font-weight:normal;font-size:16px;line-height:1.25;letter-spacing:0px;word-spacing:0px"><flowRegion
+         id="flowRegion1749"><rect
+           id="rect1751"
+           width="101.49998"
+           height="31.749994"
+           x="207.49997"
+           y="48.159763" /></flowRegion><flowPara
+         id="flowPara1753"></flowPara></flowRoot>  </g>
   <g
      inkscape:groupmode="layer"
      id="layer6"
@@ -3242,7 +3257,7 @@
        style="display:inline;opacity:1;fill:#b4a6cf;fill-opacity:0.60334347;fill-rule:nonzero;stroke:#968def;stroke-width:0.229;stroke-miterlimit:4;stroke-dasharray:0.1145, 0.1145;stroke-dashoffset:0;stroke-opacity:1"
        id="path72480-7-6-60-8"
        cx="67.18454"
-       cy="46.861591"
+       cy="39.453251"
        rx="0.9603408"
        ry="0.96034104" />
     <ellipse
@@ -3255,8 +3270,8 @@
     <circle
        style="display:inline;opacity:1;vector-effect:none;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#484848;stroke-width:0.43025491;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        id="path4982-3-0-1-27-6"
-       cx="67.425156"
-       cy="34.737598"
+       cx="67.491302"
+       cy="22.302174"
        r="1.0631524" />
     <circle
        style="display:inline;opacity:1;vector-effect:none;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#8780ff;stroke-width:0.43000001;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
