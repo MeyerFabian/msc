@@ -179,7 +179,7 @@ Die Material Point Method hat sich in der Computergrafik für physikalische basi
 
 \noindent Der Datenaustausch von Partikel und Gitter wird über interpolierende Transfers erreicht. Pro physikalischen Zeitschritt werden diese mehrmals ausgeführt. Vorverarbeitungsschritte können unternommen werden, um diese Transfers performanter zu machen.
 
-\noindent Countingsort für jede Partikel-Variable erhöht Coalescing und L2-Hitraten. Binning teilt das Gitter in Blöcke auf, die Shared-Memory Implementationen ermög\-lich\-en. Die Größen der Bins sind für keine Operation beschränkt. Weiterhin werden nur Blöcke ausgeführt, die Informationen erhalten.
+\noindent Countingsort für jede Partikel-Variable erhöht Coalescing und L2-Cache Hitraten. Binning teilt das Gitter in Blöcke auf, die Shared-Memory Implementationen ermög\-lich\-en. Die Größen der Bins sind für keine Operation beschränkt. Weiterhin werden nur Blöcke ausgeführt, die Informationen erhalten.
 
 \vfill
 \begin{center}
@@ -191,7 +191,7 @@ The Material Point Method is allowing for physically based simulations. It has f
 
 \noindent Core of the Material Point Method are grid and particles transfers that interpolate between the two structures. These transfers are executed multiple times per physical time step. Preprocessing steps might be taken if their computing time is outweighed.
 
-\noindent Deep sorting with counting sort increases coalescing and L2 hit rates. Binning allows to divide the grid into blocks for shared memory filtering techniques. All operations do not rely on fixed bin size. As another preprocessing step only grid blocks are executed which have particles in them.
+\noindent Deep sorting with counting sort increases coalescing and L2 Cache hit rates. Binning allows to divide the grid into blocks for shared memory filtering techniques. All operations do not rely on fixed bin size. As another preprocessing step only grid blocks are executed which have particles in them.
 \vfill
 \clearpage
 \tableofcontents
