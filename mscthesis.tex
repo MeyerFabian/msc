@@ -169,32 +169,29 @@
 \clearpage
 \selectlanguage{english}
 
-
-\selectlanguage{english}
 \vfill
-\begin{center}
-\subsubsection*{Abstract}
-\end{center}
-The Material-Point-Method is allowing for physically based simulations. It has found its way into computer graphics and since then rapidly expanded. The Material Point Method's hybrid use of Lagrangian particles as a persistent storage and a background uniform Eulerian grid enable solving of various partial differential equations with ease.
-
-\noindent The Material-Point-Method suffers from high execution times and is thus only viable for hero shots. The method is however highly parallelizable. Thus this thesis proposes how to accelerate the Material-Point-Method using GPGPU techniques.
-
-\noindent Core of the Material-Point-Method are grid and particles transfers that interpolate between the two structures. These transfers are executed multiple times per physical time step. Preprocessing steps might be taken if their computing time is outweighed.
-
-\noindent Deep sorting with counting sort increases coalescing and L2 hit rates. Binning allows to divide the grid into blocks for shared memory filtering techniques. All operations do not rely on fixed bin size. As another preprocessing step only grid blocks are executed which have particles in them.
-\vfill
-\selectlanguage{german}
 \begin{center}
 \subsubsection*{Zusammenfassung}
 \end{center}
-Die Material-Point-Method hat sich in der Computergrafik für physikalische basier\-te Simulationen etabliert. Sie benutzt ein hybrides Modell aus Lagrange-Partikeln und Euler-Gitter. Während Partikel als konsistenter Speicher fungieren, erlaubt das Gitter anfallende partielle Differentialgleichungen effizient zu lösen.
+Die Material Point Method hat sich in der Computergrafik für physikalische basier\-te Simulationen etabliert. Sie benutzt ein hybrides Modell aus Lagrange-Partikeln und Euler-Gitter. Während Partikel als konsistenter Speicher fungieren, erlaubt das Gitter anfallende partielle Differentialgleichungen effizient zu lösen.
 
-\noindent Die Material-Point-Method unterliegt hohen Berechnungszeiten, die die Methode nur für Hero Shots rentabel macht. Sie ist jedoch hoch-parallelisierbar. Diese Arbeit zeigt, wie die Methode mit GPGPU-Techniken beschleunigt werden kann.
+\noindent Die Material Point Method unterliegt hohen Berechnungszeiten, die die Methode nur für Hero Shots rentabel macht. Sie ist jedoch hoch-parallelisierbar. Diese Arbeit zeigt, wie die Methode mit GPGPU-Techniken beschleunigt werden kann.
 
 \noindent Der Datenaustausch von Partikel und Gitter wird über interpolierende Transfers erreicht. Pro physikalischen Zeitschritt werden diese mehrmals ausgeführt. Vorverarbeitungsschritte können unternommen werden, um diese Transfers performanter zu machen.
 
 \noindent Countingsort für jede Partikel-Variable erhöht Coalescing und L2-Hitraten. Binning teilt das Gitter in Blöcke auf, die Shared-Memory Implementationen ermög\-lich\-en. Die Größen der Bins sind für keine Operation beschränkt. Weiterhin werden nur Blöcke ausgeführt, die Informationen erhalten.
 
+\vfill
+\begin{center}
+\subsubsection*{Abstract}
+\end{center}
+The Material Point Method is allowing for physically based simulations. It has found its way into computer graphics and since then rapidly expanded. The Material Point Method's hybrid use of Lagrangian particles as a persistent storage and a background uniform Eulerian grid enable solving of various partial differential equations with ease.
+
+\noindent The Material Point Method suffers from high execution times and is thus only viable for hero shots. The method is however highly parallelizable. Thus this thesis proposes how to accelerate the Material Point Method using GPGPU techniques.
+
+\noindent Core of the Material Point Method are grid and particles transfers that interpolate between the two structures. These transfers are executed multiple times per physical time step. Preprocessing steps might be taken if their computing time is outweighed.
+
+\noindent Deep sorting with counting sort increases coalescing and L2 hit rates. Binning allows to divide the grid into blocks for shared memory filtering techniques. All operations do not rely on fixed bin size. As another preprocessing step only grid blocks are executed which have particles in them.
 \vfill
 \clearpage
 \tableofcontents
@@ -215,15 +212,15 @@ Programming for the GPU is another hurdle. GPU code is reliant on the generation
 
 Whereas CUDA offers the most libraries and optimized code, it is only available on NVIDIA GPUs. OpenCL's development on NVIDIA GPUs is dragging far behind the standard. Its merge into the Vulkan roadmap could be an incentive to support a more in-depth language universally \cite{OPENCL:ROADMAP}. Direct3D is only available on Windows. Vulkan is the successor of OpenGL and removes work from the driver to the developer. Main benefit over OpenGL is less CPU usage which helps little for the almost full GPU implementation here. This implementation opts for OpenGL as Vulkan is still relatively new. Everything presented could be implemented in one of the other languages as well.
 
-The simulation of the dynamics of materials is still extremely challenging in different applications and fields. Multiphysics interactions between materials are not realized on a big scale and often are not possible or feasible. The Material-Point-Method has already reliable tackled many different models, materials, and even interaction between materials.
+The simulation of the dynamics of materials is still extremely challenging in different applications and fields. Multiphysics interactions between materials are not realized on a big scale and often are not possible or feasible. The Material Point Method has already reliable tackled many different models, materials, and even interaction between materials.
 
-Pure Eulerian methods like the Finite-Element-Method(FEM) have been in use for long in engineering tasks but face problems handling topology changes with numerical stability. Pure Langrangian methods form the end other of the spectrum. Prominent are Smoothed Particle Hydrodynamics(SPH) that are restricted to (viscous) fluids and are of empirical nature. Particle-in-Cell(PIC) techniques like the Material-Point-Method are hybrid Lagrangian/Eulerian methods. They try to benefit from the nature of both. Advection on particles is trivial. Thus the Material-Point-Method utilizes Lagrangian particles as a consistent storage of dynamic properties. The governing equations of the physical problem can be discretized easily to and solved on a uniform Eulerian grid. The grid is unmoving and does not store any information between frames.
+Pure Eulerian methods like the Finite-Element-Method(FEM) have been in use for long in engineering tasks but face problems handling topology changes with numerical stability. Pure Langrangian methods form the end other of the spectrum. Prominent are Smoothed Particle Hydrodynamics(SPH) that are restricted to (viscous) fluids and are of empirical nature. Particle-in-Cell(PIC) techniques like the Material Point Method are hybrid Lagrangian/Eulerian methods. They try to benefit from the nature of both. Advection on particles is trivial. Thus the Material Point Method utilizes Lagrangian particles as a consistent storage of dynamic properties. The governing equations of the physical problem can be discretized easily to and solved on a uniform Eulerian grid. The grid is unmoving and does not store any information between frames.
 
 Transfers between the Lagrangian and Eulerian are of need to bring the two together. These transfers are the focus of the Particle-in-Cell techniques. These transfers are realized due to interpolation. Thus they create (estimable) numerical error and lead to dissipation. Moreover grid nodes are mostly outnumbered by particles leading to more numerical error as modes of the single particles are not realized by the grid.
 
 The $p$ particles to one node relationship of a Particle-to-Grid(P2G)-Transfer or inversely one node to $p$ particles of a Grid-to-Particle(G2P)-Transfer is the main problem when realizing these operations on the GPU. When faced with the static architecture of the GPU, this will inevitably lead to branch divergence of threads within a subgroup as some nodes are assigned more particles than others.
 
-Chapter \ref{sec:rel_work} looks at the relevant literature of PIC-Methods specifically on the GPU as well as Material-Point-Method extensions. In chapter \ref{sec:notation} notations which will be used throughout the thesis are laid out. The Basics of chapter \ref{sec:basics} cover the derivation of an elastic material in the MPM-Method to get an understanding of the prominent operations. Furthermore GPU intrinsics, metrics and optimization opportunities are discussed. Chapter \ref{sec:implementation} tends to the implementation. The evaluation of the implementation follows up in chapter \ref{sec:eval}. As a conclusion chapter \ref{sec:conclusion} gives a summarizing overview and tends to future work.
+Chapter \ref{sec:rel_work} looks at the relevant literature of PIC-Methods specifically on the GPU as well as Material Point Method extensions. In chapter \ref{sec:notation} notations which will be used throughout the thesis are laid out. The Basics of chapter \ref{sec:basics} cover the derivation of an elastic material in the MPM-Method to get an understanding of the prominent operations. Furthermore GPU intrinsics, metrics and optimization opportunities are discussed. Chapter \ref{sec:implementation} tends to the implementation. The evaluation of the implementation follows up in chapter \ref{sec:eval}. As a conclusion chapter \ref{sec:conclusion} gives a summarizing overview and tends to future work.
 
 \clearpage
 \section{Related Work}\label{sec:rel_work}
@@ -352,7 +349,7 @@ A useful relation to the Kronecker-Delta is:
 \cite{MCGINTY:CONTINUUM}
 \clearpage
 \section{Basics}\label{sec:basics}
-The first chapters will derive the Material-Point-Method and necessary extensions for an elastic model. An elastic model is an interesting case displaying much of the needed computations for a typical model. The last chapter \ref{sec:gpgpu} tends to the GPGPU side.
+The first chapters will derive the Material Point Method and necessary extensions for an elastic model. An elastic model is an interesting case displaying much of the needed computations for a typical model. The last chapter \ref{sec:gpgpu} tends to the GPGPU side.
 \subsection{Reference and current configuration}\label{sec:ref_corr_config}
 Particles (or material points) in continuum mechanics are not what classically might be thought of as a particle. Rather the continuum assumption holds: each particle represents a continuous piece of material s.t. a microscopic view does not need to be adopted. A particular body is composed of a set of particles and can adapt different configurations due to changes in shape. These changes are caused by external or internal effects (forces etc.) on it and deform the body over time. \cite{MIT:CONTINUUM_MECHANICS} \cite{MPM:COURSE}
 
@@ -739,7 +736,7 @@ $$
   -\int _ { \Omega ^ { 0 } }  \frac{\partial _0q _ { i }}{\partial _0x_j} ( _0\boldsymbol { x } , t ) P _ {ij}( _0\boldsymbol{x} , t )
   d_0\boldsymbol{x}.
 \end{equation}
-In the Material-Point-Method stress computations are more naturally done in the current configuration or equally in terms of the Cauchy stress as seen in chapter \ref{sec:linear_elasticty}. Pushing the equation forward to Eulerian view with the push forward $_t\boldsymbol{q}:\Omega^t \rightarrow \mathbb{R}^d$ of $_0\boldsymbol{q}$ is only a problem for the last term:
+In the Material Point Method stress computations are more naturally done in the current configuration or equally in terms of the Cauchy stress as seen in chapter \ref{sec:linear_elasticty}. Pushing the equation forward to Eulerian view with the push forward $_t\boldsymbol{q}:\Omega^t \rightarrow \mathbb{R}^d$ of $_0\boldsymbol{q}$ is only a problem for the last term:
 $$
 \int _ { \Omega ^ { 0 } }  \frac{\partial _0q _ { i }}{\partial _0x_j} ( _0\boldsymbol { x } , t ) P _ {ij} d_0\boldsymbol{x}
 \stackrel{\text{\ref{eq:piola}, \ref{eq:volume_integral}}}{=}
@@ -756,7 +753,7 @@ $$
 \end{equation}
 \begin{flushright}\cite{MPM:COURSE}\cite{strang2007computational}\cite{bathe2006finite}\end{flushright}
 \subsection{Material Point Method}\label{sec:mat_point}
-The key idea of the Material-Point-Method is to use (Lagrangian) particles as a consistent storage of material properties. All stress based forces are computed on a Eulerian grid however. This grid does not store any material properties and is therefore often referred to as a scratch pad.
+The key idea of the Material Point Method is to use (Lagrangian) particles as a consistent storage of material properties. All stress based forces are computed on a Eulerian grid however. This grid does not store any material properties and is therefore often referred to as a scratch pad.
 
 As a corollary there needs to be a way to transfer information from a particle to the neighboring grid cells. This also induces switching from Lagrangian to Eulerian view. After stresses are computed there also needs to be a way to get back the relevant information from the grid to the particles. Advection is typically hard to do in Eulerian/FEM-like methods and cause of a lot of problems down the development pipeline. In a Lagrangian view particle advection is trivial.
 
@@ -1452,7 +1449,7 @@ $$\square_p = \square_p \circ \square_p \circ ... \circ \square_p,$$
 $$\square_i = \square_i \circ \square_i \circ ... \circ \square_i.$$
 One thread will just equal one node or particle, respectively. For one variable assignments a map-shader is used that applies a unary operation to any input element. This can be used for instance for the mass divide of momentum on the grid (equation \ref{eq:mass_divide}) or resetting buffers that are target of global atomic operations.
 
-In contrast much harder are transfers between the two structures that are essential to the Material-Point-Method:
+In contrast much harder are transfers between the two structures that are essential to the Material Point Method:
 
 Particle-to-Grid(P2G)-Transfers are the mass (equation \ref{eq:mpm:mass}) and momentum (equation \ref{eq:apic_mom_p2g}) transfers to the grid, as well as the computation of the Hessian of equation \ref{eq:delta_f}. In general these can be summarized as:
 $$\square_i = \sum_p \square_p \circ \square_{ip}.$$
@@ -1461,7 +1458,7 @@ The transfers back to the particles are called Grid-to-Particle(G2P)-Transfers. 
 $$\square_p = \sum_i \square_i \circ \square_{ip}.$$
 This concludes all necessary operations for the MPM-Method as derived.
 
-The number of transfers per frame is much higher than in simple PIC- or SPH-code which are mostly interested in pressure contributions($float$). This motivates making the transfers a very highly optimized operation. The Material-Point-Method requires for an elastic material as derived:
+The number of transfers per frame is much higher than in simple PIC- or SPH-code which are mostly interested in pressure contributions($float$). This motivates making the transfers a very highly optimized operation. The Material Point Method requires for an elastic material as derived:
 \begin{enumerate}
   \item One P2G-Transfer of mass and momentum $m_i, \boldsymbol{v}_i$(combined $float4$).
   \item Per Conjugate Gradient Iteration:
@@ -1554,7 +1551,7 @@ $$
 $$
 the position $\boldsymbol{x}_p$ and the velocity $\boldsymbol{v}_p$ need to be stored in shared memory for every node in the halo. Additionally the count $c_i$ and scan $s_i$ need to be available to load and access particles. For more complex transfers this will get even worse.
 
-By construction the Material-Point-Method tries to avoid matrices on the grid due to storage cost. Conversely, the particles have matrices defined over them, e.g. $\boldsymbol{B}_p$,$\boldsymbol{F}_p$. In conclusion one should motivate approaches where grid nodes correspond to shared memory due to the shared memory size limitation.
+By construction the Material Point Method tries to avoid matrices on the grid due to storage cost. Conversely, the particles have matrices defined over them, e.g. $\boldsymbol{B}_p$,$\boldsymbol{F}_p$. In conclusion one should motivate approaches where grid nodes correspond to shared memory due to the shared memory size limitation.
 
 There is one implementation detail left out for the P2G-Pull-Transfer which is solved in chapter \ref{sec:active_blocks}. That is grid nodes do not know if there are any particles in the neighborhood left processing. \ref{sec:active_blocks} solves this by finding the maximum particle count in the block (with halo). Thus all nodes within the block need to stay active during transfers.
 
@@ -1903,7 +1900,7 @@ The P2G-Atomic-Transfer is very reliant on batching where the P2G-Sync-Transfer 
 The P2G-Atomic- and the even more favorable P2G-Sync-Transfer give great speedups over the global atomic methods. Even in a random case (table \ref{table:p2g_random}) they can outdo the global sorted method despite the high branch divergence. They however shine in the uniform case where speedups of 6.5x and 7.8x respectively can be achieved over the global sorted method.
 \clearpage
 \section{Conclusion \& Future Work}\label{sec:conclusion}
-The derivation of the Material-Point-Method for a classic elastic material with an implicit midpoint scheme and the APIC scheme ensures that a wide coverage of the method is shown. Although the MPM-Method consists of many mathematical tasks four operations on the GPU can be identified. Exclusive grid and particle operations are parallelized with a 1:1 correspondence to threads. The optional use of stream compaction reduces applicable particles/nodes where necessary.
+The derivation of the Material Point Method for a classic elastic material with an implicit midpoint scheme and the APIC scheme ensures that a wide coverage of the method is shown. Although the MPM-Method consists of many mathematical tasks four operations on the GPU can be identified. Exclusive grid and particle operations are parallelized with a 1:1 correspondence to threads. The optional use of stream compaction reduces applicable particles/nodes where necessary.
 
 The other two operations are particle and grid transfers which are the main focus of this thesis. Different particle and grid transfers utilizing the hierarchical memory structure of the GPU are compared. Presented is a pipeline to efficiently execute these transfers on the GPU. All transfers do not rely on fixed bin sizes in any stages of the pipeline. Since these operations are executed multiple times per frame these operations are augmented with two preprocessing steps. The preprocessing steps need to be done once and are outweighed by the transfers.
 
@@ -1915,7 +1912,7 @@ While the shared memory architecture can give an edge in performance it produces
 
 To show the weaknesses and strengths of the transfers tests on an overly pessimistic and an optimistic case are performed and examined. While this strongly furthers understanding it leaves real simulation performance comparisons to be desired.
 
-However, before this process can be concluded merge and split techniques need to be taken into consideration. They are designed to augment the numerics of the Material-Point-Method but will inherently reduce branch divergence as particle numbers even out between cells in the same warp. As such they will stray less from the optimistic example. How much they will stray from it is however dependent on the dynamics of the problem.
+However, before this process can be concluded merge and split techniques need to be taken into consideration. They are designed to augment the numerics of the Material Point Method but will inherently reduce branch divergence as particle numbers even out between cells in the same warp. As such they will stray less from the optimistic example. How much they will stray from it is however dependent on the dynamics of the problem.
 \clearpage
 \begin{appendices}
 \section{$D_p$ for Cubic Splines}\label{app:dp_proof}
