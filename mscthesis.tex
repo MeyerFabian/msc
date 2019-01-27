@@ -220,11 +220,11 @@ Transfers between the Lagrangian and Eulerian are of need to bring the two toget
 
 The $p$ particles to one node relationship of a Particle-to-Grid(P2G)-Transfer or inversely one node to $p$ particles of a Grid-to-Particle(G2P)-Transfer is the main problem when realizing these operations on the GPU. When faced with the static architecture of the GPU, this will inevitably lead to branch divergence of threads within a subgroup as some nodes are assigned more particles than others.
 
-Chapter \ref{sec:rel_work} looks at the relevant literature of PIC-Methods specifically on the GPU as well as Material Point Method extensions. In chapter \ref{sec:notation} notations which will be used throughout the thesis are laid out. The Basics of chapter \ref{sec:basics} cover the derivation of an elastic material in the MPM-Method to get an understanding of the prominent operations. Furthermore GPU intrinsics, metrics and optimization opportunities are discussed. Chapter \ref{sec:implementation} tends to the implementation. The evaluation of the implementation follows up in chapter \ref{sec:eval}. As a conclusion chapter \ref{sec:conclusion} gives a summarizing overview and tends to future work.
+Chapter \ref{sec:rel_work} looks at the relevant literature of PIC-Methods specifically on the GPU as well as Material Point Method extensions. In chapter \ref{sec:notation} notations which will be used throughout the thesis are laid out. The Basics of chapter \ref{sec:basics} cover the derivation of an elastic material in the MPM to get an understanding of the prominent operations. Furthermore GPU intrinsics, metrics and optimization opportunities are discussed. Chapter \ref{sec:implementation} tends to the implementation. The evaluation of the implementation follows up in chapter \ref{sec:eval}. As a conclusion chapter \ref{sec:conclusion} gives a summarizing overview and tends to future work.
 
 \clearpage
 \section{Related Work}\label{sec:rel_work}
-\textbf{Particle-in-Cell} techniques were developed initially for hydrodynamics \cite{evans1957particle}. They are also widely used in plasma simulations to solve Maxwell's equations \cite{PIC:GPU}. Their key steps are identical to the MPM-method:
+\textbf{Particle-in-Cell} techniques were developed initially for hydrodynamics \cite{evans1957particle}. They are also widely used in plasma simulations to solve Maxwell's equations \cite{PIC:GPU}. Their key steps are identical to the MPM:
 \begin{enumerate}
   \item Transfer particle data to a grid.
 \item \label{it:solve_gov_eq}Solve the governing partial differential equations on the grid to move forward in time.
@@ -236,7 +236,7 @@ As a further development the Affine-Particle-in-Cell(APIC) technique was introdu
 
 A step further goes PolyPIC giving the velocity field even more freedom by adding polynomial velocity modes of increasing order to the description. \cite{MPM:POLYPIC}
 
-The \textbf{Material Point Method} is a further development to the PIC methods. It uses analysis and numerics to be derived without the need for empirical assumptions. Originally it was developed by \cite{sulsky1995application} with a focus on the dynamics of solids. \cite{MPM:SNOW} brought the method into computer graphics for their animation film \textit{Frozen}. In rapid succession a variety materials and effects got modeled by the MPM-Method. Since MPM is based on discretizing governing equations and using constitutive models covered by the different literature, its fast rate of expenditure is not a surprise.
+The \textbf{Material Point Method} is a further development to the PIC methods. It uses analysis and numerics to be derived without the need for empirical assumptions. Originally it was developed by \cite{sulsky1995application} with a focus on the dynamics of solids. \cite{MPM:SNOW} brought the method into computer graphics for their animation film \textit{Frozen}. In rapid succession a variety materials and effects got modeled by the MPM. Since MPM is based on discretizing governing equations and using constitutive models covered by the different literature, its fast rate of expenditure is not a surprise.
 
 The simulation of (hyper-)elastic materials can be done with a number of different strain measures utilizing fixed Linear strain (chapter \ref{sec:cor_hyper}), Green-Lagrangian strain tensor (chapter \ref{sec:svd}), or logarithmic Hencky-strain (\cite{MPM:SHELLS}) for the different requirements of small to large strains. Inserting these into the different energy density $\boldsymbol{\Psi}(\boldsymbol{\epsilon})$ models can already result in a constitutive model. Plasticity in general requires extra modeling in terms of a flow rule, yield-condition, and a hardening rule which are not discussed here \cite{ochsner2014elasto}. To give a short impression of the developments in computer graphics:
 
@@ -260,7 +260,7 @@ This implementation compares index and deep counting sort and uses the latter. A
 \end{enumerate}
 A Grid-to-Particle-Transfer is in general easier since a particle already knows, due to its position, the grid points in its local neighborhood. The grid points in a uniform grid are 'sorted' by nature. This implementation tests one Particle Pull and two Particle Push methods.
 
-Generally these methods are augmented by splitting the grid in 2D/3D blocks making use of the shared memory structure of the GPU \cite{PIC:GPU} \cite{honig2010generic} \cite{MPM:GPU}, often called domain decomposition. Shared memory is however limited per GPU (GTX 970, 48KB per block). The grid nodes reached by the support of the interpolation function on each side also have to be loaded into memory, typically called the halo of a block. Since the number of particles per grid point in the MPM-method is generally between 4-10, only very limited block sizes are available for pull methods that greedily load all particles \cite{MPM:SNOW}.
+Generally these methods are augmented by splitting the grid in 2D/3D blocks making use of the shared memory structure of the GPU \cite{PIC:GPU} \cite{honig2010generic} \cite{MPM:GPU}, often called domain decomposition. Shared memory is however limited per GPU (GTX 970, 48KB per block). The grid nodes reached by the support of the interpolation function on each side also have to be loaded into memory, typically called the halo of a block. Since the number of particles per grid point in the MPM is generally between 4-10, only very limited block sizes are available for pull methods that greedily load all particles \cite{MPM:SNOW}.
 
 Stencil computations and filtering techniques underlie a very similar process to MPM-transfers. Although these techniques employ a one-to-one grid relationship, since no particles are involved, it is worth taking a look at them.
 An interesting prospect for filtering techniques on the GPU is given by NVI\-DIA's new shuffle operations. Shuffle allows to 'share' register memory between threads of a warp \cite{NVIDIA:SHUFFLE}. They are however not supported on other architecture, yet.
@@ -354,7 +354,7 @@ The first chapters will derive the Material Point Method and necessary extension
 Particles (or material points) in continuum mechanics are not what classically might be thought of as a particle. Rather the continuum assumption holds: each particle represents a continuous piece of material s.t. a microscopic view does not need to be adopted. A particular body is composed of a set of particles and can adapt different configurations due to changes in shape. These changes are caused by external or internal effects (forces etc.) on it and deform the body over time. \cite{MIT:CONTINUUM_MECHANICS} \cite{MPM:COURSE}
 
 
-When modelling solids, changes of quantities from an initial reference configuration $_0\boldsymbol{x}$ to another current configuration $_t\boldsymbol{x}$ need to be measured. In the material point method the reference configuration $_0\boldsymbol{x}$ is just the initial configuration of the body (at time $t=0$). This is similar to the total Lagrangian formulation in finite element methods \cite{bathe2006finite}.
+When modelling solids, changes of quantities from an initial reference configuration $_0\boldsymbol{x}$ to another current configuration $_t\boldsymbol{x}$ need to be measured. In the Material Point Method the reference configuration $_0\boldsymbol{x}$ is just the initial configuration of the body (at time $t=0$). This is similar to the total Lagrangian formulation in finite element methods \cite{bathe2006finite}.
 
 Let $\Omega ^ { 0 } , \Omega ^ { t } \subset \mathbb { R } ^ {  { 3 } }$ be the set of (material) points in the reference and current configuration respectively.  Then one may define a function or mapping ${^t_0}\phi ( \cdot , t ) : \Omega ^ { 0 } \rightarrow \Omega ^ { t }$, which relates the reference configuration to the current configuration. If for simplicity $_0\boldsymbol{x}$ and $_t\boldsymbol{{x}}$ describe the position of the particle in their respective configurations, this mapping becomes the deformation of the body from the reference configuration $_0\boldsymbol{x}$:
 \begin{equation}
@@ -582,7 +582,7 @@ Therefore they propose to use the Fixed Corotated Hyperelasticity energy density
 This leads to the primary contour $J=1$ which does not cross the inverted region as only one singular value may be negative.
 \begin{flushright}\cite{MPM:INVERT}\end{flushright}
 \subsection{Governing equations}
-Starting from the governing equations this chapter will lead to the weak formulation core of any finite element and material point method.
+Starting from the governing equations this chapter will lead to the weak formulation core of any finite element and Material Point Method.
 \subsubsection{Conservation of mass}
 Let the Eulerian mass density be $_t\rho(_t\boldsymbol{x},t)$. Similarly, let its (Lagrangian) pull back be $_0\rho(_0\boldsymbol{x},t)$.
 After \ref{eq:volume_integral} they are related as:
@@ -697,7 +697,7 @@ Leaving out the integral and multiplying by ${\varepsilon_{irs}}$ enables equati
 as assumed before. Note that $\boldsymbol{P}$ however is not constrained to be symmetric.
 \begin{flushright}\cite{MPM:COURSE}\cite{MIT:CONTINUUM_MECHANICS}\end{flushright}
 \subsubsection{Weak formulation}\label{sec:weak}
-Before deriving the weak form an explanation of what it achieves is in order. The previous presented governing equations are written in the strong form: a solution to the equation needs to be exact on the whole domain and is as such influenced by the whole domain in general. Such a solution can be found for simplified models analytically. These act as a ground truth to numerical methods like the material point method. Analytical methods of today can't handle complex problems: Numerical solutions try to overcome that hurdle.
+Before deriving the weak form an explanation of what it achieves is in order. The previous presented governing equations are written in the strong form: a solution to the equation needs to be exact on the whole domain and is as such influenced by the whole domain in general. Such a solution can be found for simplified models analytically. These act as a ground truth to numerical methods like the Material Point Method. Analytical methods of today can't handle complex problems: Numerical solutions try to overcome that hurdle.
 
 The complete mathematical description of the weak formulation is beyond this thesis. Numeric books that discuss finite element methods will provide one (\cite{bathe2006finite}, \cite{dahmen2008numerik}). For simplicity: The weak formulation combined with Galerkin discretization restricts the globality of the strong method due to so called 'test functions': $_0\boldsymbol{q}_h$ . A 'test function' generally only has limited support, i.e. $ _0\boldsymbol{q}_h\neq 0$ on a very small subset of the whole domain $\Omega^0$. This is mostly used to gather information on a local neighborhood and not on the whole domain.
 
@@ -964,7 +964,7 @@ Setting in equation \ref{eq:mass_discr} and \ref{eq:stress_discr} into \ref{eq:g
 \end{equation}
 The momentum change of the left side is by construction equal to a (grid node) force.
 
-Given, that the material point method keeps track of the deformation by a deformation gradient, each particle will have one associated with it for the deformation of its local neighborhood $\boldsymbol{F}^n_p$. Based on this one may also gain a volume change measure around the particle as $J^n_p = \text{det}(\boldsymbol{F}^n_p)$. Starting with an initial volume of a particle $V_p^0$ the volume may be tracked in time by:
+Given, that the Material Point Method keeps track of the deformation by a deformation gradient, each particle will have one associated with it for the deformation of its local neighborhood $\boldsymbol{F}^n_p$. Based on this one may also gain a volume change measure around the particle as $J^n_p = \text{det}(\boldsymbol{F}^n_p)$. Starting with an initial volume of a particle $V_p^0$ the volume may be tracked in time by:
 \begin{equation}\label{eq:volume_discr}
   V^n_p \stackrel{\text{\ref{eq:j}}}{\approx} V_p^0J^n_p.
 \end{equation}
@@ -1456,7 +1456,7 @@ $$\square_i = \sum_p \square_p \circ \square_{ip}.$$
 
 The transfers back to the particles are called Grid-to-Particle(G2P)-Transfers. Apart from the APIC-Transfers (equation \ref{eq:apic_mom_g2p}) and the intermediate Matrix $\boldsymbol{A}_p$ for the Hessian (equation \ref{eq:Ap}), the deformation gradient update $\boldsymbol{F}^{n+1}_p$ is also a G2P-transfer (equation \ref{eq:evol_def_grad_disc_x}). In short, all transfers of the form:
 $$\square_p = \sum_i \square_i \circ \square_{ip}.$$
-This concludes all necessary operations for the MPM-Method as derived.
+This concludes all necessary operations for the MPM as derived.
 
 The number of transfers per frame is much higher than in simple PIC- or SPH-code which are mostly interested in pressure contributions($float$). This motivates making the transfers a very highly optimized operation. The Material Point Method requires for an elastic material as derived:
 \begin{enumerate}
@@ -1473,7 +1473,7 @@ In summary, a lot of data is to be transferred between grid and particles which 
 
 The MPM-transfers are different from a typical stencil or filter operation in two main factors:
 \begin{enumerate}
-  \item \textbf{Dynamic weights}: The stencil is not static. In the MPM-Method the weighting function $w_{ip}$ (or $\nabla w_{ip}$ etc.) is dependent on the particle position $w_i(\boldsymbol{x}_p)$. This also means the position needs to be temporarily stored to apply the transfer.
+  \item \textbf{Dynamic weights}: The stencil is not static. In the MPM the weighting function $w_{ip}$ (or $\nabla w_{ip}$ etc.) is dependent on the particle position $w_i(\boldsymbol{x}_p)$. This also means the position needs to be temporarily stored to apply the transfer.
   \item \label{it:part_nodes} \textbf{Participating nodes}: A stencil operation reads from a fixed amount of nodes in its neighborhood given by the support of the stencil. This is a node to node relationship which all threads typically participate in from start to finish for the full range of the support.
 
 In a MPM-Transfer the number of participating nodes can vary. A node may have one, zero or any positive integer of particles associated with it. Thus in a transfer some nodes may not participate at all or have more load than any of the nodes in its neighborhood.
@@ -1900,7 +1900,7 @@ The P2G-Atomic-Transfer is very reliant on batching where the P2G-Sync-Transfer 
 The P2G-Atomic- and the even more favorable P2G-Sync-Transfer give great speedups over the global atomic methods. Even in a random case (table \ref{table:p2g_random}) they can outdo the global sorted method despite the high branch divergence. They however shine in the uniform case where speedups of 6.5x and 7.8x respectively can be achieved over the global sorted method.
 \clearpage
 \section{Conclusion \& Future Work}\label{sec:conclusion}
-The derivation of the Material Point Method for a classic elastic material with an implicit midpoint scheme and the APIC scheme ensures that a wide coverage of the method is shown. Although the MPM-Method consists of many mathematical tasks four operations on the GPU can be identified. Exclusive grid and particle operations are parallelized with a 1:1 correspondence to threads. The optional use of stream compaction reduces applicable particles/nodes where necessary.
+The derivation of the Material Point Method for a classic elastic material with an implicit midpoint scheme and the APIC scheme ensures that a wide coverage of the method is shown. Although the MPM consists of many mathematical tasks four operations on the GPU can be identified. Exclusive grid and particle operations are parallelized with a 1:1 correspondence to threads. The optional use of stream compaction reduces applicable particles/nodes where necessary.
 
 The other two operations are particle and grid transfers which are the main focus of this thesis. Different particle and grid transfers utilizing the hierarchical memory structure of the GPU are compared. Presented is a pipeline to efficiently execute these transfers on the GPU. All transfers do not rely on fixed bin sizes in any stages of the pipeline. Since these operations are executed multiple times per frame these operations are augmented with two preprocessing steps. The preprocessing steps need to be done once and are outweighed by the transfers.
 
