@@ -169,17 +169,32 @@
 \clearpage
 \selectlanguage{english}
 
-\vspace*{\fill}~
+
+\selectlanguage{english}
+\vfill
 \begin{center}
 \subsubsection*{Abstract}
 \end{center}
-The Material-Point-Method is a technique allowing for physically accurate simulations. It has found its way into computer graphics and since then rapidly expanded. The Material Point Method's hybrid use of Lagrangian particles as a persistent storage and a background uniform Eulerian grid enable solving of various partial differential equations with ease. It has found its way into computer graphics and since then rapidly expanded.
+The Material-Point-Method is allowing for physically based simulations. It has found its way into computer graphics and since then rapidly expanded. The Material Point Method's hybrid use of Lagrangian particles as a persistent storage and a background uniform Eulerian grid enable solving of various partial differential equations with ease.
 
-\noindent Core of this process are the grid and particles transfers that interpolate between the two structures.  These transfers are executed multiple times per frame so preprocessing steps might be taken if they are outweighed.
+\noindent The Material-Point-Method suffers from high execution times and is thus only viable for hero shots. The method is however highly parallelizable. Thus this thesis proposes how to accelerate the Material-Point-Method using GPGPU techniques.
 
-\noindent The Method however suffers from high execution times and make the method only viable for hero shots. The Material-Point-Method including the transfers are highly parallelizable. As such this thesis proposes how to accelerate the Material-Point-Method using GPGPU techniques.
+\noindent Core of the Material-Point-Method are grid and particles transfers that interpolate between the two structures. These transfers are executed multiple times per physical time step. Preprocessing steps might be taken if their computing time is outweighed.
 
-\noindent Deep sorting with counting sort increases coalescing and L2 hit rates. Binning allows for shared memory filtering techniques using blocking. As another preprocessing step only grid blocks are executed which have particles in them. All transfers do not rely on fixed size bins.
+\noindent Deep sorting with counting sort increases coalescing and L2 hit rates. Binning allows to divide the grid into blocks for shared memory filtering techniques. All operations do not rely on fixed bin size. As another preprocessing step only grid blocks are executed which have particles in them.
+\vfill
+\selectlanguage{german}
+\begin{center}
+\subsubsection*{Zusammenfassung}
+\end{center}
+Die Material-Point-Method hat sich in der Computergrafik für physikalische basier\-te Simulationen etabliert. Sie benutzt ein hybrides Modell aus Lagrange-Partikeln und Euler-Gitter. Während Partikel als konsistenter Speicher fungieren, erlaubt das Gitter anfallende partielle Differentialgleichungen effizient zu lösen.
+
+\noindent Die Material-Point-Method unterliegt hohen Berechnungszeiten, die die Methode nur für Hero Shots rentabel macht. Sie ist jedoch hoch-parallelisierbar. Diese Arbeit zeigt, wie die Methode mit GPGPU-Techniken beschleunigt werden kann.
+
+\noindent Der Datenaustausch von Partikel und Gitter wird über interpolierende Transfers erreicht. Pro physikalischen Zeitschritt werden diese mehrmals ausgeführt. Vorverarbeitungsschritte können unternommen werden, um diese Transfers performanter zu machen.
+
+\noindent Countingsort für jede Partikel-Variable erhöht Coalescing und L2-Hitraten. Binning teilt das Gitter in Blöcke auf, die Shared-Memory Implementationen ermög\-lich\-en. Die Größen der Bins sind für keine Operation beschränkt. Weiterhin werden nur Blöcke ausgeführt, die Informationen erhalten.
+
 \vfill
 \clearpage
 \tableofcontents
