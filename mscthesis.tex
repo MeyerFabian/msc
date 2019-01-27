@@ -145,13 +145,7 @@
   keywordstyle=[1]\color[rgb]{0,0,0.75},
   keywordstyle=[2]\color[rgb]{0.5,0.0,0.0},
   keywordstyle=[3]\color[rgb]{0.127,0.427,0.514},
-  keywordstyle=[4]\color[rgb]{0.4,0.4,0.4},
-  commentstyle=\color[rgb]{0.133,0.545,0.133},
-  stringstyle=\color[rgb]{0.639,0.082,0.082},
-  numbers=left,
-}
-
-\newenvironment{code}{\captionsetup{type=algorithm}}{}
+  keywordstyle=[4]\color[rgb]{0.4,0.4,0.4}}
 
 \setcounter{biburllcpenalty}{7000}
 \setcounter{biburlucpenalty}{8000}
@@ -214,7 +208,7 @@ Whereas CUDA offers the most libraries and optimized code, it is only available 
 
 The simulation of the dynamics of materials is still extremely challenging in different applications and fields. Multiphysics interactions between materials are not realized on a big scale and often are not possible or feasible. The Material Point Method has already reliable tackled many different models, materials, and even interaction between materials.
 
-Pure Eulerian methods like the Finite-Element-Method(FEM) have been in use for long in engineering tasks but face problems handling topology changes with numerical stability. Pure Langrangian methods form the end other of the spectrum. Prominent are Smoothed Particle Hydrodynamics(SPH) that are restricted to (viscous) fluids and are of empirical nature. Particle-in-Cell(PIC) techniques like the Material Point Method are hybrid Lagrangian/Eulerian methods. They try to benefit from the nature of both. Advection on particles is trivial. Thus the Material Point Method utilizes Lagrangian particles as a consistent storage of dynamic properties. The governing equations of the physical problem can be discretized easily to and solved on a uniform Eulerian grid. The grid is unmoving and does not store any information between frames.
+Pure Eulerian methods like the Finite-Element-Method(FEM) have been in use for long in engineering tasks but face problems handling topology changes with numerical stability. Pure Langrangian methods form the end other of the spectrum. Prominent are Smoothed Particle Hydrodynamics(SPH) that are restricted to (viscous) fluids and are of empirical nature. Particle-in-Cell(PIC) techniques like the Material Point Method are hybrid Lagrangian/Eulerian methods. They try to benefit from the nature of both. Advection on particles is trivial. Thus the Material Point Method utilizes Lagrangian particles as a consistent storage of dynamic properties. The governing equations of the physical problem can be discretized easily to and solved on a uniform Eulerian grid. The grid is unmoving and does not store any information between physical time steps.
 
 Transfers between the Lagrangian and Eulerian are of need to bring the two together. These transfers are the focus of the Particle-in-Cell techniques. These transfers are realized due to interpolation. Thus they create (estimable) numerical error and lead to dissipation. Moreover grid nodes are mostly outnumbered by particles leading to more numerical error as modes of the single particles are not realized by the grid.
 
@@ -230,7 +224,7 @@ Chapter \ref{sec:rel_work} looks at the relevant literature of PIC-Methods speci
 \item \label{it:solve_gov_eq}Solve the governing partial differential equations on the grid to move forward in time.
   \item Transfer grid data back to particles.
 \end{enumerate}
-In general the grid is regarded as a scratch-pad since its only a temporary storage for the means of computing item \ref{it:solve_gov_eq}. I.e. the grid could be deleted each frame. Based on PIC to reduce dampening and momentum conservation Fluid-Implicit-Particle(FLIP) was developed for fluid simulations and is still widely in use for large simulations. Their counterpart being the empirical Smoothed Particle Hydrodynamics \cite{gingold1977smoothed}.
+In general the grid is regarded as a scratch-pad since its only a temporary storage for the means of computing item \ref{it:solve_gov_eq}. I.e. the grid could be deleted each physical times step. Based on PIC to reduce dampening and momentum conservation Fluid-Implicit-Particle(FLIP) was developed for fluid simulations and is still widely in use for large simulations. Their counterpart being the empirical Smoothed Particle Hydrodynamics \cite{gingold1977smoothed}.
 
 As a further development the Affine-Particle-in-Cell(APIC) technique was introduced as an improvement to PIC and FLIP solvers. Due to the definition of a local affine velocity field around each particle (instead of a single vector) APIC conserves angular momentum, reduces damping and improves stability over PIC and FLIP, more in chapter \ref{sec:apic}. \cite{MPM:APIC} \cite{MPM:OLD_APIC}
 
@@ -245,13 +239,13 @@ The simulation of (hyper-)elastic materials can be done with a number of differe
 
 There exist several implementations utilizing the \textbf{GPU for Particle-in-Cell} techniques, which the Material Point Method is a part of:
 
-\textbf{Particle sorting:} \cite{PIC:GPU} studies different particle list sorting methods. Methods like 'Message Passing Sort' \cite{kong2011particle} \cite{decyk2011adaptable}, 'In Place Particle-QuickSort' \cite{stantchev2008fast} and 'Linked List Ordering' \cite{burau2010picongpu} try to utilize the partial sorting and only update particles that need to be moved within the list. These methods often rely on the assumption that only a small number of particles change their grid node, where in contrast MPM can be quite dynamic. Those that do move, move at most to one neighboring grid-node or stay in the same node due to the CFL-condition, chapter \ref{sec:cfl}. These methods often use fixed bin-sizes which can be quite memory intensive and add additional memory management. Fixed size binning make the methods mentioned before easier to implement which don't necessarily map well to the GPU due to their high complexity and uncoalesced accesses. As a result \cite{PIC:GPU} come to the conclusion to fall back to the CUDA library \texttt{thrust}, although they do note that the aforementioned methods can perform faster for particles that move only a limited amount of grid nodes. \texttt{thrust} provides the radix sort method \texttt{thrust::sort\_by\_key()}, where one sorts by grid index as key.
+\textbf{Particle sorting:} \cite{PIC:GPU} studies different particle list sorting methods. Methods like 'Message Passing Sort' \cite{kong2011particle} \cite{decyk2011adaptable}, 'In Place Particle-QuickSort' \cite{stantchev2008fast} and 'Linked List Ordering' \cite{burau2010picongpu} try to utilize the partial sorting and only update particles that need to be moved within the list. These methods often rely on the assumption that only a small number of particles change their grid node, where in contrast MPM can be quite dynamic. Those that do move, move at most to one neighboring grid-node or stay in the same node due to the CFL condition, chapter \ref{sec:cfl}. These methods often use fixed bin-sizes which can be quite memory intensive and add additional memory management. Fixed size binning make the methods mentioned before easier to implement which don't necessarily map well to the GPU due to their high complexity and uncoalesced accesses. As a result \cite{PIC:GPU} come to the conclusion to fall back to the CUDA library \texttt{thrust}, although they do note that the aforementioned methods can perform faster for particles that move only a limited amount of grid nodes. \texttt{thrust} provides the radix sort method \texttt{thrust::sort\_by\_key()}, where one sorts by grid index as key.
 
 In general deep or index sorts can be done. A deep sort reorders every variable of a particle. An index sort gives back an index with an offset to access the particle variable.
 
 \cite{NVIDIA:NNSEARCH} compare radix to counting sort utilizing a uniform grid and use the latter for SPH-fluids.
 
-This implementation compares index and deep counting sort and uses the latter. Although possible, this counting sort stays away from the limited movement implied by the CFL-condition. Fixed size bins is an assumption this implementation although does not want to impose on the method.
+This implementation compares index and deep counting sort and uses the latter. Although possible, this counting sort stays away from the limited movement implied by the CFL condition. Fixed size bins is an assumption this implementation although does not want to impose on the method.
 
 \textbf{Particle-to-Grid-Transfers} are generally done in two manners \cite{stantchev2008fast}:
 \begin{enumerate}
@@ -904,7 +898,7 @@ $$
 \begin{equation}
 \leq \max _ { p } ( \| \boldsymbol { v } _ { p } ^ { n } \|_2 + \frac { \kappa } { k } \Delta x \| \boldsymbol { B } _ { p } ^ { n } \| _ { F } )
 \end{equation}
-\cite{MPM:APIC}
+\begin{flushright}\cite{MPM:APIC}\end{flushright}
 \subsection{Discretization}\label{sec:discretization}
 The weak form of the force-balance in (\ref{eq:lagr_force_bal},\ref{eq:eul_force_bal}) implies the following, for MPM preferable, description:
 \begin{equation} \label{eq:weak_mpm}
@@ -1157,6 +1151,7 @@ The Hessian increment can be computed with a two-stage process:
   - \delta \boldsymbol{f}_i = - \sum_j \frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j} \delta \boldsymbol{u}_j = \sum_p V_p^0 \boldsymbol{A}_p(\boldsymbol{F}^n_p)^T \nabla w_{ip}^n.
 \end{equation}
 \end{enumerate}
+\clearpage
 \subsection{General-purpose computing on graphics processing units}\label{sec:gpgpu}
 This chapter is split into two parts. \ref{sec:optim} tends to the memory hierarchy of the GPU and typical optimizations done in GPGPU work. Furthermore, chapter \ref{sec:metrics} will elaborate metrics to quantify optimizations.
 \subsubsection {GPGPU Optimization opportunities}\label{sec:optim}
@@ -1338,7 +1333,7 @@ Parallel reduction schemes using warp shuffle-operations require interleaved add
 
 Parallel reduction solves, assuming a \texttt{unary\_op(x)} directly after memory load, the following problems in MPM:
 \begin{itemize}
-  \item CFL-condition of chapter \ref{sec:cfl} with operators,
+  \item CFL condition of chapter \ref{sec:cfl} with operators,
   \begin{itemize}
   \item \texttt{unary\_op(x) := length(x)} and
   \item \texttt{binary\_op(x,y) := max(x,y)}.
@@ -1430,7 +1425,7 @@ The one-dimensional indexing of the grid nodes can be chosen as preferred. Possi
 
 Particles could potentially access the same bin at the same time resulting in a race condition. A naive solution to the problem are atomic accesses. As long as the (atomic) writes can be handled coalesced, this process can be done fast by the GPU, chapter \ref{sec:eval}. This is however only the case for a full deep sort. Therefore, binning in the case of a full sort acts upon the last sorted state. Double buffering particles allows to do so. However binning is done after a position update that changes the ordering. Full coalescing will therefore generally not occur.
 
-Alternatively, one could work again with the CFL-condition. Since particles move at most one bin in the 27-neighborhood, one could mimic a Particle-to-Grid-Transfer, chapter \ref{sec:p2g}:
+Alternatively, one could work again with the CFL condition. Since particles move at most one bin in the 27-neighborhood, one could mimic a Particle-to-Grid-Transfer, chapter \ref{sec:p2g}:
 \begin{enumerate}
   \item \textbf{Labeling}: Label the particles by the bin they want to change to.
   \item \textbf{Neighborhood lookup}: A bin then assigns offsets to the particles in the neighborhood and increases its counter.
@@ -1458,7 +1453,7 @@ The transfers back to the particles are called Grid-to-Particle(G2P)-Transfers. 
 $$\square_p = \sum_i \square_i \circ \square_{ip}.$$
 This concludes all necessary operations for the MPM as derived.
 
-The number of transfers per frame is much higher than in simple PIC- or SPH-code which are mostly interested in pressure contributions($float$). This motivates making the transfers a very highly optimized operation. The Material Point Method requires for an elastic material as derived:
+The number of transfers per physical time step is much higher than in simple PIC- or SPH-code which are mostly interested in pressure contributions($float$). This motivates making the transfers a very highly optimized operation. The Material Point Method requires for an elastic material as derived:
 \begin{enumerate}
   \item One P2G-Transfer of mass and momentum $m_i, \boldsymbol{v}_i$(combined $float4$).
   \item Per Conjugate Gradient Iteration:
@@ -1469,7 +1464,7 @@ The number of transfers per frame is much higher than in simple PIC- or SPH-code
   \item Per Newton Iteration: One G2P-Transfer for $\boldsymbol{F}^{n+1}_p$
   \item One G2P-Transfer of the $3 \times 3$ Matrix $\boldsymbol{B}_p^{n+1}$, the position $\boldsymbol{x}_p^{n+1}$ and the velocity $\boldsymbol{v}_p^{n+1}$
 \end{enumerate}
-In summary, a lot of data is to be transferred between grid and particles which will only increase with more complex models. In contrast, any preprocessing like sorting (chapter \ref{sec:sort}) or filtering active blocks(chapter \ref{sec:active_blocks}) need to be executed only once every frame. Each transfer can profit from it. Therefore, the transfers are the main focus of this implementation.
+In summary, a lot of data is to be transferred between grid and particles which will only increase with more complex models. In contrast, any preprocessing like sorting (chapter \ref{sec:sort}) or filtering active blocks(chapter \ref{sec:active_blocks}) need to be executed only once every physical times step. Each transfer can profit from it. Therefore, the transfers are the main focus of this implementation.
 
 The MPM-transfers are different from a typical stencil or filter operation in two main factors:
 \begin{enumerate}
@@ -1659,23 +1654,27 @@ And more specifically for the case of APIC also for angular momentum $\boldsymbo
 \begin{equation}
   \boldsymbol{L}_{p}^{tot}= \sum_p \boldsymbol{x}_p \times m_p \boldsymbol{v}_p =  \sum_i \boldsymbol{x}_i \times m_i \boldsymbol{v}_i = \boldsymbol{L}_{g}^{tot}.
 \end{equation}
-An extreme test case spreads one million particles randomly with random velocities on a $128\times128\times128$ grid, table \ref{tab:roundtrip}. A roundtrip consists of a P2G-Transfer and a G2P-Transfer for relevant variables. In this process the (random) velocities will get filtered. In PIC-Transfers this regionally averages out velocities. Thus table \ref{tab:roundtrip} shows the effects on the total error after 1,000 roundtrips.
-
-As a side note: Random particle positions as well as random velocities are a configuration that in practice will never occur. Even for a fundamental state of matter of gas this is unrealistic.
+The test case spreads one million particles uniformly with random velocities on a $128\times128\times128$ grid, table \ref{tab:roundtrip}. A roundtrip consists of a P2G-Transfer and a G2P-Transfer for relevant variables. In this process the (random) velocities will get filtered. In PIC-Transfers this regionally averages out velocities and dissipates angular momentum $\boldsymbol{L}_p$. APIC-Transfers can conserve the angular momentum better as they define a local velocity field around the particle. Thus table \ref{tab:roundtrip} shows the effects on the total error after 1,000 roundtrips.
 
 The total errors vary little between the methods presented in chapter \ref{sec:transfers}. They are caused by floating-point inaccuracy. The order of execution on the GPU can vary. Thus the floating-point error will vary from execution to execution.
 \begin{table}[t]
 \centering
   \begin{tabular}{|l|r|r|}\hline
     Quantity& Abs. error  & Rel. error \\ \hline
-    $m^{tot}_i$ & 212.438     & 2.12438e-04     \\\hline
-    $\boldsymbol{p}^{tot}_i$ & (0.578,0.787,0.778)&(1.076,1.290,1.204)e-04 \\\hline
+    \multicolumn{3}{|c|}{PIC-Transfer}\\\hline
+    $m^{tot}_i$ & 6.438     & 6.437e-06     \\\hline
+    $\boldsymbol{p}^{tot}_i$  & (0.882,0.977,0.018)&(1.417,1.722,0.003)e-04 \\\hline
+    $\boldsymbol{L}^{tot}_i$  & \textbf{(27.81,43.55,24.35)}&(0.024,0.036,0.273)\\\hline
+    \multicolumn{3}{|c|}{APIC-Transfer}\\\hline
+    $m^{tot}_i$ & 7.188     & 7.188e-06     \\\hline
+    $\boldsymbol{p}^{tot}_i$  & (1.230,0.990,0.855)&(1.975,1.745,1.371)e-04 \\\hline
+    $\boldsymbol{L}^{tot}_i$  & \textbf{(0.081,0.184,5.6e-04)}&(0.7043,1.510,0.063)e-04\\\hline
    \end{tabular}
-   \caption{Error of 1,000 PIC-roundtrips of 1M randomly placed particles with random velocity in a $128\times128\times128$ grid. Used this instance is a P2G-Sync-Transfer and G2P-Transfer with batching = 4 and block size = (4,4,4). Particles are fixed.}
+   \caption{Error of 1,000 PIC/APIC-roundtrips of 1M uniformly placed particles with random velocity in a $128\times128\times128$ grid. Used this instance is a P2G-Sync-Transfer and G2P-Transfer with batching = 4 and block size = (4,4,4). Particles are fixed.}
   \label{tab:roundtrip}
 \end{table}
-
-\subsection{Performance}\ref{sec:perf}
+\clearpage
+\subsection{Performance}\label{sec:perf}
 The given metrics in \ref{sec:metrics} lead to valuable insight into how well the GPU can utilize a given shader or program. The GPU was a black box for a long time in this regard. The metrics provided by NVIDIA are a first step to open up the GPUs inner workings. Theory about optimization for the architecture such as \cite{NVIDIA:BEST:PRACTICE} can be more readily applied. However for abstraction purposes theory as well as descriptions about the architecture might be deliberately vague. These metrics give the programmer more power of identifying the right optimizations for a given code.
 
 All metrics in the following are gathered from a NVIDIA GTX970. All timings are averaged over at least 1000 runs with OpenGL Timer Queries \cite{KHRONOS:TIMER_QUERY}. As more runs are done, the GPU stays very consistent on bringing the average runtime closer to the minimum recorded time. This indicates that the first few runs can take comparably longer.
@@ -1783,12 +1782,12 @@ Again differences similarly to the binning can be seen when already working with
 \caption{Order dependency of reordering of $1024\times1024$ randomly positioned particles in a $128\times128\times128$ grid. Best case is already sorted, worst case is unsorted and still fully random.}\label{table:sort}
 \end{table}
 
-Binning as well as reordering will rarely run fully sorted as mentioned in \ref{sec:sort}. Sorting works on the last sorted state. The CFL-condition encourages limited reach. Most physical processes will move uniformly. These two properties in general will guarantee higher coalescing as well as L2-cache hit rates. It is however up to the dynamics of the problem how much time is spend sorting.
+Binning as well as reordering will rarely run fully sorted as mentioned in \ref{sec:sort}. Sorting works on the last sorted state. The CFL condition encourages limited reach. Most physical processes will move uniformly. These two properties in general will guarantee higher coalescing as well as L2-cache hit rates. It is however up to the dynamics of the problem how much time is spend sorting.
 \\
 
 The following metrics are gathered for PIC-Transfers of momentum as they form a reduced problem to build off of with only one \texttt{vec4} transfer. The MPM-Operations are evaluated with two easily reproducible examples.
 
-For the \textbf{G2P-Transfers} the different datasets can be seen in table \ref{table:g2p_random} and \ref{table:g2p_uniform4}. The first one uses random particle positions and therefore is overly pessimistic for the Material Point Method as explained earlier. The second one is optimistic as warp branch divergence is minimized.
+For the \textbf{G2P-Transfers} the different datasets can be seen in table \ref{table:g2p_random} and \ref{table:g2p_uniform4}. The first one uses random particle positions and therefore is overly pessimistic for the Material Point Method. Random particle positions as well as random velocities are a configuration that in practice will never occur. Even for a fundamental state of matter of gas this is unrealistic. The second one is optimistic as warp branch divergence is minimized.
 
 The global G2P-Transfers does not reach desirable throughput in any of the GPU subunits. The top warp-stall reason is Long Scoreboard: Nearly all information needs to be reloaded uncoalesced from global memory. The data in \ref{table:g2p_uniform4} has an ordering that encourages data reuse. But is not aligned with the grid. However the SM already runs on three times its throughput compared to the random data.
 
@@ -1897,14 +1896,27 @@ The P2G-Atomic-Transfer is very reliant on batching where the P2G-Sync-Transfer 
  \caption{P2G-Sync-Transfer of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with one/two/four particles per cell corresponding to the area of the grid that is covered with 47.6\%/23.8\%/11.9\%. Block size is (4,4,4).}
  \label{table:p2g_area}
 \end{table}
+To underline the extensibility of all shaders table \ref{table:apic} implements the APIC-Transfers of chapter \ref{sec:apic}. The G2P-shared algorithm continues to lose ground on the global sorted G2P method as its execution time now only measures $300\mu s$ instead of the $400\mu s$ in table \ref{table:g2p_uniform4}. Its SM throughput also overtakes the global method with 81.8\%.
+\begin{table}[htpb]
+  \begin{tabular}{ | l | r | r | r | r |}    \hline
+    Method                 &  $\Delta t_c(\mu s)$ &SM    & Top Stall Reas.  & Occup.\\\hline
+    G2P(sorted)		   &    3,647             &74.9\%&No Instr.(14.2\%)& 57.7\\\hline
+    G2P-shared             &    3,384             &\textbf{81.8}\%&No Instr.(18.7\%) & 43.3\\\hline
+    \hline
+    P2G-Sync               &    3,843             &68.9\%&No Instr.(24.9\%) & 43.3\\\hline
+    batching=2             &    3,634             &67.3\%&No Instr.(26.5\%) & 31.6\\\hline
+ \end{tabular}
+ \caption{APIC-Transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4). Shown are the effects of filtering active blocks(indirect) and batching.}\label{table:apic}
+\end{table}
+
 The P2G-Atomic- and the even more favorable P2G-Sync-Transfer give great speedups over the global atomic methods. Even in a random case (table \ref{table:p2g_random}) they can outdo the global sorted method despite the high branch divergence. They however shine in the uniform case where speedups of 6.5x and 7.8x respectively can be achieved over the global sorted method.
 \clearpage
 \section{Conclusion \& Future Work}\label{sec:conclusion}
 The derivation of the Material Point Method for a classic elastic material with an implicit midpoint scheme and the APIC scheme ensures that a wide coverage of the method is shown. Although the MPM consists of many mathematical tasks four operations on the GPU can be identified. Exclusive grid and particle operations are parallelized with a 1:1 correspondence to threads. The optional use of stream compaction reduces applicable particles/nodes where necessary.
 
-The other two operations are particle and grid transfers which are the main focus of this thesis. Different particle and grid transfers utilizing the hierarchical memory structure of the GPU are compared. Presented is a pipeline to efficiently execute these transfers on the GPU. All transfers do not rely on fixed bin sizes in any stages of the pipeline. Since these operations are executed multiple times per frame these operations are augmented with two preprocessing steps. The preprocessing steps need to be done once and are outweighed by the transfers.
+The other two operations are particle and grid transfers which are the main focus of this thesis. Different particle and grid transfers utilizing the hierarchical memory structure of the GPU are compared. Presented is a pipeline to efficiently execute these transfers on the GPU. All transfers do not rely on fixed bin sizes in any stages of the pipeline. Since these operations are executed multiple times per physical time step these operations are augmented with two preprocessing steps. The preprocessing steps need to be done once and are outweighed by the transfers.
 
-Deep sorting particles with counting sort in a double-buffered manner allows coalesced accesses and high cache hit rates on transfers. Although possible this process does not rely on the CFL-condition. The sorting further guarantees the independence of the ordering of the incoming data and may long-term benefit other operations relying on neighborhood information.
+Deep sorting particles with counting sort in a double-buffered manner allows coalesced accesses and high cache hit rates on transfers. Although possible this process does not rely on the CFL condition. The sorting further guarantees the independence of the ordering of the incoming data and may long-term benefit other operations relying on neighborhood information.
 
 The second preprocessing step is filtering the active blocks of grid and particle transfers with a stream compaction pipeline where no particles are present. It also supplies the P2G-Pull- and P2G-Sync-Transfer with a maximum per block bin counter.
 
