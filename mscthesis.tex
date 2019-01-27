@@ -196,11 +196,10 @@ The Material Point Method is allowing for physically based simulations. It has f
 % \clearpage
 \pagenumbering{arabic}
 
-
 \section{Introduction} \label{intro}
-General Purpose Computation on Graphics Processing Unit(GPGPU) has elevated Graphics Processing Units(GPUs) to any computational field utilizing massively parallelizable algorithms. As such is the nature of discretizations in physics. GPU's performance still follows Moore's Law. In unison with efficient algorithms they still have much potential to offer.
+General Purpose Computation on Graphics Processing Unit(GPGPU) has elevated Graphics Processing Units(GPUs) to any computational field utilizing massively parallelizable algorithms. As such is the nature of discretizations in physics.
 
-The higher parallelization acceleration of GPUs is a blessing for those applications that can profit from it. Conversely algorithms which are not parallelizable perform much worse and should be avoided. Dividing up these tasks between CPU and GPU is not recommendable. Transferring data over the PCI-Bus between the two is slow for big amounts of data and requires synchronization. Tasks in such a pipeline should thus stay on the GPU although they might perform worse.
+The higher parallelization acceleration of GPUs is a blessing for those applications that can profit from it. In unison with efficient algorithms they still have much potential to offer. Conversely, algorithms which are not parallelizable perform much worse and should be avoided. Dividing up these tasks between CPU and GPU is not recommendable. Transferring data over the PCI-Bus between the two is slow for big amounts of data and requires synchronization. Tasks in such a pipeline should thus stay on the GPU although they might perform worse.
 
 Programming for the GPU is another hurdle. GPU code is reliant on the generation and hardware vendor of the GPU to use relevant extensions. Backwards compatibility therefore is mostly ignored and written towards a certain GPU generation. This is amplified due to the GPU code often being reliant on architecture limits for maximum performance. The major languages to target the GPU are CUDA, OpenCL, Direct 3D, OpenGL, and Vulkan. They build on top of a C/C++-language subset.
 
