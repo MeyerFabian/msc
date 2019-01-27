@@ -337,7 +337,7 @@ A useful relation to the Kronecker-Delta is:
 \cite{MCGINTY:CONTINUUM}
 \clearpage
 \section{Basics}\label{sec:basics}
-fill with nonsense
+The first chapters will derive the Material-Point-Method and necessary extensions for an elastic model. An elastic model is an interesting case displaying much of the needed computations for a typical model. The last chapter \ref{sec:gpgpu} tends to the GPGPU side.
 \subsection{Reference and current configuration}\label{sec:ref_corr_config}
 Particles (or material points) in continuum mechanics are not what classically might be thought of as a particle. Rather the continuum assumption holds: each particle represents a continuous piece of material s.t. a microscopic view does not need to be adopted. A particular body is composed of a set of particles and can adapt different configurations due to changes in shape. These changes are caused by external or internal effects (forces etc.) on it and deform the body over time. \cite{MIT:CONTINUUM_MECHANICS} \cite{MPM:COURSE}
 
@@ -570,8 +570,7 @@ Therefore they propose to use the Fixed Corotated Hyperelasticity energy density
 This leads to the primary contour $J=1$ which does not cross the inverted region as only one singular value may be negative.
 \begin{flushright}\cite{MPM:INVERT}\end{flushright}
 \subsection{Governing equations}
-fill with nonsense
-deriving the weak form
+Starting from the governing equations this chapter will lead to the weak formulation core of any finite element and material point method.
 \subsubsection{Conservation of mass}
 Let the Eulerian mass density be $_t\rho(_t\boldsymbol{x},t)$. Similarly, let its (Lagrangian) pull back be $_0\rho(_0\boldsymbol{x},t)$.
 After \ref{eq:volume_integral} they are related as:
@@ -740,9 +739,7 @@ $$
 \begin{equation}\label{eq:eul_force_bal}
   = \int _ { \partial \Omega ^ { t } } _tq _ { i } ( _t\boldsymbol { x } , t ) \sigma _ {ij} d_tA_j(_t\boldsymbol{x}) -  \int _ { \Omega ^ { t } } \frac{\partial _tq _ { i }}{\partial _tx_k} ( _t\boldsymbol { x } , t )\sigma _ {ik} d_t\boldsymbol{x}.
 \end{equation}
-\cite{MPM:COURSE}
-\cite{strang2007computational}
-\cite{bathe2006finite}
+\begin{flushright}\cite{MPM:COURSE}\cite{strang2007computational}\cite{bathe2006finite}\end{flushright}
 \subsection{Material Point Method}\label{sec:mat_point}
 The key idea of the Material-Point-Method is to use (Lagrangian) particles as a consistent storage of material properties. All stress based forces are computed on a Eulerian grid however. This grid does not store any material properties and is therefore often referred to as a scratch pad.
 
@@ -802,7 +799,7 @@ $\sum_i m_i =\sum_p m_p$ is a complete prove this fulfills the conservation of m
   \stackrel{\text{\ref{eq:partition_unity}}}{=}
   \sum_p m_p
 \end{equation}
-\cite{MPM:APIC}\cite{MPM:COURSE}
+\begin{flushright}\cite{MPM:APIC}\cite{MPM:COURSE}\end{flushright}
 \subsubsection{APIC transfers}\label{sec:apic}
 The momentum transfer round trip could be defined as:
 \begin{enumerate}
@@ -1148,8 +1145,8 @@ The Hessian increment can be computed with a two-stage process:
   - \delta \boldsymbol{f}_i = - \sum_j \frac{\partial \boldsymbol{f}_i}{\partial \boldsymbol{x}_j} \delta \boldsymbol{u}_j = \sum_p V_p^0 \boldsymbol{A}_p(\boldsymbol{F}^n_p)^T \nabla w_{ip}^n.
 \end{equation}
 \end{enumerate}
-\subsection{General-purpose computing on graphics processing units}
-fill with nonsense
+\subsection{General-purpose computing on graphics processing units}\label{sec:gpgpu}
+This chapter is split into two parts. \ref{sec:optim} tends to the memory hierarchy of the GPU and typical optimizations done in GPGPU work. Furthermore, chapter \ref{sec:metrics} will elaborate metrics to quantify optimizations.
 \subsubsection {GPGPU Optimization opportunities}\label{sec:optim}
 The speed of these memory types is given in the following starting with the fastest:
 Register > Shared Memory > Local, Global.
@@ -1617,8 +1614,8 @@ Starting a dispatch for every block only the active blocks will now write their 
 
 \clearpage
 \section{Evaluation}\label{sec:eval}
-fill with nonsense
-\subsection{Verifying Results}
+An important part of any operation is to verify them. Chapter \ref{sec:verify} does that. Following up, chapter \ref{sec:perf} will use the metrics out of chapter \ref{sec:metrics} to evaluate the performance of the implementation.
+\subsection{Verifying Results}\label{sec:verify}
 \textbf{Parallel reduction}, \textbf{map}, and \textbf{scan} verify against \texttt{std::transform\_reduce} as it supplies the same functionality as a fully reduced parallel reduction. It is standard since C++17. These shaders are exact on integers. Floating point precision can be seen in table \ref{tab:parallel_red}.
 \begin{table}[!b]
   \begin{tabular}{|l|r|r|r|}\hline
@@ -1666,7 +1663,7 @@ The total errors vary little between the methods presented in chapter \ref{sec:t
   \label{tab:roundtrip}
 \end{table}
 
-\subsection{Performance}
+\subsection{Performance}\ref{sec:perf}
 The given metrics in \ref{sec:metrics} lead to valuable insight into how well the GPU can utilize a given shader or program. The GPU was a black box for a long time in this regard. The metrics provided by NVIDIA are a first step to open up the GPUs inner workings. Theory about optimization for the architecture such as \cite{NVIDIA:BEST:PRACTICE} can be more readily applied. However for abstraction purposes theory as well as descriptions about the architecture might be deliberately vague. These metrics give the programmer more power of identifying the right optimizations for a given code.
 
 All metrics in the following are gathered from a NVIDIA GTX970. All timings are averaged over at least 1000 runs with OpenGL Timer Queries \cite{KHRONOS:TIMER_QUERY}. As more runs are done, the GPU stays very consistent on bringing the average runtime closer to the minimum recorded time. This indicates that the first few runs can take comparably longer.
