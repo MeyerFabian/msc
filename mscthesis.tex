@@ -162,7 +162,6 @@
 
 \clearpage
 \selectlanguage{english}
-
 \vfill
 \begin{center}
 \subsubsection*{Zusammenfassung}
@@ -1497,7 +1496,7 @@ The bigger the block the less halo nodes need to be loaded in total. Given an in
  $$m(4,4,4): 11,239,424\text{ Elements, }m(8,4,4):  8,830,976\text{ Elements}$$
 Note however, that in practice there is a good chance, that a majority of the additional elements results in L2-cache hits.
 
-Next up is the transfer: Each thread corresponds to one particle within the blue nodes in Figure \ref{fig:g2p_transfer}. The threads will in unison run over their relative neighbors within the support and collect the weighted contribution to this particle. In this process the particle's position needs to be loaded to the weighted corresponding contribution. The transfer needs to be repeated for each particle in the bin. Since the number of particles is variable, this loop is dynamic and will lead to branch divergence within a warp. One should rely on external mechanics like particle resampling to reduce branching.
+Next up is the transfer: Each thread corresponds to one particle within the blue nodes in Figure \ref{fig:g2p_transfer}. The threads run in unison over their relative neighbors within the support and collect the weighted contribution to this particle. In this process the particle's position needs to be loaded to the weighted corresponding contribution. The transfer needs to be repeated for each particle in the bin. Since the number of particles is variable, this loop is dynamic and will lead to branch divergence within a warp. One should rely on external mechanics like particle resampling to reduce branching.
 
 \algblockdefx{FORALLP}{ENDFAP}[1]%
   {\textbf{for all }#1 \textbf{do in parallel}}%
@@ -1690,7 +1689,7 @@ All metrics in the following are gathered from a NVIDIA GTX970. All timings are 
 \label{tab:map_1}
 \end{table}
 
-Immediately apparent becomes that the SoA-Layout is 2.26 times as fast. However, both memory subunits(VRAM,L2) have the same utilization as in an AoS-Layout. Though the big difference is in the memory access, the wrong access may be conversely spotted in the non-memory subunits. Since an AoS-Layout loads twice as many \texttt{vec4}, every non-memory related metric shrinks by half. An AoS-Layout however issues the same instructions. The SM should do equal work and be active for the same amount of cycles which is not the case.
+Immediately apparent becomes that the SoA-Layout is 2.26 times faster. However, both memory subunits(VRAM,L2) have the same utilization as in an AoS-Layout. Though the big difference is in the memory access, the wrong access may be conversely spotted in the non-memory subunits. Since an AoS-Layout loads twice as many \texttt{vec4}, every non-memory related metric shrinks by half. An AoS-Layout however issues the same instructions. The SM should do equal work and be active for the same amount of cycles which is not the case.
 \begin{table}[htpb]
   \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
     Layout &  $\Delta t_c (\mu s)$ & Speedup       &VRAM             & L2              & L2-Hit & Read Active \\\hline
