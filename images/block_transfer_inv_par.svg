@@ -203,10 +203,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.4142138"
-     inkscape:cx="49.486609"
-     inkscape:cy="171.54334"
+     inkscape:cx="183.83687"
+     inkscape:cy="177.20019"
      inkscape:document-units="mm"
-     inkscape:current-layer="g21135"
+     inkscape:current-layer="layer7"
      showgrid="false"
      inkscape:measure-start="0,0"
      inkscape:measure-end="0,0"
@@ -228,7 +228,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -364,7 +364,7 @@
          x="152.11035"
          y="42.127468"
          style="stroke-width:0.26458332"
-         id="tspan47132">in Transfer</tspan></text>
+         id="tspan47132">in transfer</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:4.23333311px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
