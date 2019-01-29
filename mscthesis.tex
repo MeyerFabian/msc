@@ -366,7 +366,7 @@ and similarly the acceleration is defined
 \end{equation}
 It is helpful to abstract away from the reference configuration and think of it as being defined in a different fixed material space. Physically this has the impact of moving with the particle in world space. Commonly known as the Lagrangian form. It is often easier in continuum mechanics to start with a Lagrangian description and switch to a Eulerian one if needed. The Eulerian description is static: Variables of particles moving by are measured while staying in a fixed position.
 
-These descriptions are different but they will yield the same measurements when related correctly. I.e. both configurations refer variables defined on them to the deformed state but the position, where the 'lookup' of that value happens, is different. In the reference confguration lookup is done at the initial position of the particle. In the current configuration lookup happens at the particle's world position. These relations for some particle quantity $f$ are called the (Lagrangian) pull back
+These descriptions are different but they will yield the same measurements when related correctly. I.e. both configurations refer variables defined on them to the deformed state but the position, where the 'lookup' of that value happens, is different. In the reference configuration lookup is done at the initial position of the particle. In the current configuration lookup happens at the particle's world position. These relations for some particle quantity $f$ are called the (Lagrangian) pull back
 \begin{equation}
   _0f(_0\boldsymbol{x},t)= {_tf}({^t_0}\phi(_0\boldsymbol{x},t),t)
 \end{equation}
@@ -1325,7 +1325,7 @@ This OpenGL parallel reduction implementation uses \cite{NVIDIA:PARALLEL_REDUCTI
 \label{fig:sequential}
 \end{figure}
 
-Parallel reduction schemes using warp shuffle-operations require interleaved addressing due to memory locality restrictions, Figure \ref{fig:interleaved}. \cite{NVIDIA:SHUFFLE}
+Parallel reduction schemes using warp shuffle-operations may use sequential or interleaved addressing. Their stride is limited by the memory restrictions imposed due to a warp, Figure \ref{fig:interleaved}. \cite{NVIDIA:SHUFFLE}
 
 \cite{NVIDIA:PARALLEL_REDUCTION} also make use of combining parallel and sequential work. Every thread adds a multiple of two sequential adds into shared memory. After this the thread does its parallel work. Therefore, the reduction factor one invocation does is multiple times higher and allows higher input data sizes without losing any performance, refer to chapter \ref{sec:eval}.
 
@@ -1598,7 +1598,7 @@ In summary all transfers have the same optimal shared-memory access patterns as 
   \label{fig:active_block}
 \end{figure}
 
-\subsubsection{Active Blocks \& Maximum Block Count:}\label{sec:active_blocks}
+\subsubsection{Active blocks \& maximum block count:}\label{sec:active_blocks}
 The P2G-pull- and P2G-sync-transfer of chapter \ref{sec:transfers} required the maximum count of particles within a region. The active particle region is the region that needs to get reduced. Therefore, it is sufficient for the P2G-sync-transfer to reduce the counter within the block, left side of Figure \ref{fig:p2g_transfer}. The P2G-pull-transfer however also need to take the halo into account, right side of Figure \ref{fig:p2g_transfer}. Both are achievable with a single level of parallel reduction (in contrast to a pyramid). This is the \textit{per block bin count} from now on that uses as the functional input for the parallel reduction:
 \begin{enumerate}
   \item \texttt{unary\_op(count) = count} .
@@ -1640,7 +1640,7 @@ An important part of any operation is to verify them. Chapter \ref{sec:verify} d
 
 The Eigen-library \cite{EIGEN:LIBRARY} is a well regarded linear algebra library. The \textbf{Singular value decomposition} is tested against \texttt{Eigen::JacobiSVD}. As a test one million random matrices are created by Eigen. Tests account for the 'Polar SVD'. There is not a single sign error. The average error between the singular values of Eigen and the implementation of chapter \ref{sec:svd} is 4.91782e-07. $det(\boldsymbol{U})$ and $det(\boldsymbol{V})$ should be as close as possible to 1. The errors are 3.55707e-07 and 3.26429e-07, respectively.
 
-The \textbf{MPM-Transfers} need to be mass and momentum conserving. The total mass on the grid $m_g^{tot}$ and the particles $m_p^{tot}$ has to be the same after any transfer:
+The \textbf{MPM-transfers} need to be mass and momentum conserving. The total mass on the grid $m_g^{tot}$ and the particles $m_p^{tot}$ has to be the same after any transfer:
 \begin{equation}
   m_{p}^{tot}= \sum_p m_p =  \sum_i m_i = m_{g}^{tot}.
 \end{equation}
@@ -1652,7 +1652,7 @@ and also for angular momentum $\boldsymbol{L}^{tot}$ (out of convention upper-ca
 \begin{equation}
   \boldsymbol{L}_{p}^{tot}= \sum_p \boldsymbol{x}_p \times m_p \boldsymbol{v}_p =  \sum_i \boldsymbol{x}_i \times m_i \boldsymbol{v}_i = \boldsymbol{L}_{g}^{tot}.
 \end{equation}
-The test case spreads one million particles uniformly with random velocities on a $128\times128\times128$ grid, table \ref{tab:roundtrip}. A roundtrip consists of a P2G-transfer and a G2P-transfer for relevant variables. In this process the (random) velocities will get filtered. In PIC-Transfers this regionally averages out velocities and dissipates angular momentum $\boldsymbol{L}_p$. APIC-Transfers can conserve the angular momentum better as they define a local velocity field around the particle. Thus table \ref{tab:roundtrip} shows the effects on the total error after 1,000 roundtrips.
+The test case spreads one million particles uniformly with random velocities on a $128\times128\times128$ grid, table \ref{tab:roundtrip}. A roundtrip consists of a P2G-transfer and a G2P-transfer for relevant variables. In this process the (random) velocities will get filtered. In PIC-transfers this regionally averages out velocities and dissipates angular momentum $\boldsymbol{L}_p$. APIC-transfers can conserve the angular momentum better as they define a local velocity field around the particle. Thus table \ref{tab:roundtrip} shows the effects on the total error after 1,000 roundtrips.
 
 The total errors vary little between the methods presented in chapter \ref{sec:transfers}. They are caused by floating-point inaccuracy. The order of execution on the GPU can vary. Thus the floating-point error will vary from execution to execution.
 \begin{table}[t]
@@ -1671,7 +1671,6 @@ The total errors vary little between the methods presented in chapter \ref{sec:t
    \caption{Error of 1,000 PIC/APIC-roundtrips of 1M uniformly placed particles with random velocity in a $128\times128\times128$ grid. Used this instance is a P2G-sync-transfer and G2P-transfer with batching = 4 and block size = (4,4,4). Particles are fixed.}
   \label{tab:roundtrip}
 \end{table}
-\clearpage
 \subsection{Performance}\label{sec:perf}
 The given metrics in \ref{sec:metrics} give valuable insight into how well the GPU can utilize a given shader or program. The GPU was a black box for a long time in this regard. The metrics provided by NVIDIA are a first step to open up the GPUs inner workings. Theory about optimization for the architecture such as \cite{NVIDIA:BEST:PRACTICE} can be more readily applied. However for abstraction purposes theory as well as descriptions about the architecture might be deliberately vague. These metrics give the programmer more power of identifying the right optimizations for a given code.
 
@@ -1697,8 +1696,7 @@ Immediately apparent becomes that the SoA-Layout is 2.26 times faster. However, 
     SoA         & 240                   & 1.16x    &75.4\%  & 29.4\%          & 20.0\% & 62.3\% \\
     \hline
   \end{tabular}
-\caption{Metrics between different buffer layouts. Map operation with two instructions \texttt{float x = length(vel)}, \texttt{float y = length}\texttt{(pos)} on 1024 $\times$ 1024 \texttt{vec4} buffer storing position(\texttt{pos}) and velocity (\texttt{vel}).}
-\label{tab:map_2}
+\caption{Metrics between different buffer layouts. Map operation with two instructions \texttt{float x = length(vel)}, \texttt{float y = length} \texttt{(pos)} on 1024 $\times$ 1024 \texttt{vec4} buffer storing position(\texttt{pos}) and velocity (\texttt{vel}).}\label{tab:map_2}
 \end{table}
 
 The case of using both attributes is also visualized in Figure \ref{fig:soa} and \ref{fig:aos}. One map instruction for each attribute is done within the same shader. Table \ref{tab:map_2} shows the results. Now AoS and SoA load the same amount of elements from VRAM. The SoA-Layout is still faster by 35 $\mu s$.
@@ -1865,7 +1863,6 @@ The \textbf{P2G-atomic-Transfer} in its initial state uses one atomic transfer p
 
 Batching reduces the atomic writes. Particles get handled together. In succession one atomic write is done. This changes the top stall reason to the more favorable instruction fetches as the main stall reason with 20.8\%. Short scoreboard goes down to 11.6\%. As previously the SM was strained, throughput goes down to 65.0\%. The greatest time improvement can be seen when batching and indirect call lead to a combined speedup of 2.2x. This is much higher than the multiplicative speedup of 1.51x one could expect.
 
-The \textbf{P2G-sync-transfer} also may use batching and save time. The speedups are much smaller with 1.21x in the uniform case of table \ref{table:p2g_optim}. Batching in this case reduces the amount of thread group barriers needed for synchronization. The warp-stall reason barrier goes down from 10.4\% to 5.8\% in this process. The external synchronization is however much less invasive than atomic writes. The P2G-sync method without batching has roughly the same timing as the P2G-atomic-Transfer with batching of four particles.
 \begin{table}[htpb]
   \begin{tabular}{ | l | r | r | r | r | r |}    \hline
     Method                 &  $\Delta t_c(\mu s)$ & Speedup &SM    & Top Stall Reas.  & Occup.\\\hline
@@ -1879,6 +1876,8 @@ The \textbf{P2G-sync-transfer} also may use batching and save time. The speedups
  \end{tabular}
  \caption{P2G-transfers of one million uniformly positioned particles with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. They form a rotated (unsorted) cube with four particles per cell. Block size is (8,4,4). Shown are the effects of filtering active blocks(indirect) and batching.}\label{table:p2g_optim}
 \end{table}
+
+The \textbf{P2G-sync-transfer} also may use batching and save time. The speedups are much smaller with 1.21x in the uniform case of table \ref{table:p2g_optim}. Batching in this case reduces the amount of thread group barriers needed for synchronization. The warp-stall reason barrier goes down from 10.4\% to 5.8\% in this process. The external synchronization is however much less invasive than atomic writes. The P2G-sync method without batching has roughly the same timing as the P2G-atomic-Transfer with batching of four particles.
 
 Batching is a process that adds register pressure as can be seen by the reduced occupancy of 34.9-35.4. Using batching every new particle variable involved in the transfer takes the batching amount of that variables size more registers.
 
@@ -1922,7 +1921,24 @@ While the shared memory architecture can give an edge in performance it produces
 
 To show the weaknesses and strengths of the transfers tests on an overly pessimistic and an optimistic case are performed and examined. While this strongly furthers understanding it leaves real simulation performance comparisons to be desired.
 
-However, before this process can be concluded merge and split techniques need to be taken into consideration. They are designed to augment the numerics of the material point method but will inherently reduce branch divergence as particle numbers even out between cells in the same warp. As such they will stray less from the optimistic example. The extent to which they will stray from it dependends however on the dynamics of the problem.
+However, before this process can be concluded merge and split techniques need to be taken into consideration. They are designed to augment the numerics of the material point method but will inherently reduce branch divergence as particle numbers even out between cells in the same warp. As such they will stray less from the optimistic example. The extent to which they will stray from it depends however on the dynamics of the problem.
+
+At the end of this thesis awareness was raised to the following publication \cite{Gao:2018} which was simultaneously being worked on. Their decision making is very much alike:
+
+Counting/Histogram sort is also their sorting algorithm of choice in the fashion of \cite{NVIDIA:NNSEARCH}. Instead of reordering any variable, they choose per variable if an index or deep sort is required. Their binning also floors in the same fashion.
+
+The domain decomposition consists of $4\times4\times4$ blocks, also one of the best options employed here. Instead of filtering the active blocks in the pipeline, they motivate this process earlier by employing a sparse grid structure with fast neighbor queries altogether.
+
+Implemented is a quadratic interpolation instead of a cubic one. The domain shift thus becomes $\frac{h}{2}$ instead of $h$. Accounting for the larger cubic weighting support, uniform distribution works as fast as the one shown here.
+
+Their main difference in computation is the use of the aforementioned NVIDIA exclusive shuffle operations in the fashion of \cite{NVIDIA:SHUFFLE}. These operations largely solve two of the main problems the transfers have.
+
+Instead of needing to rely on shared memory for inter-thread communication, the shuffle operation may be used. Each particle is assigned to a single thread. If for instance the particle size within the $4\times4\times4$ block exceeds the thread group size, another virtual block may be assigned to the same geometric block.
+
+Each particle in a particle-to-grid-transfer then scatters their contribution to the neighboring grid nodes in a particle push fashion. The transfers are then solved due to segmented parallel reduction where the segments are the variable particle bin sizes. In shared memory this would cause numerous bank conflicts in both the scattering as well as the segmented parallel reduction as elucidated with the block scan of chapter \ref{sec:red_scan}. The scatter write would also need to be atomic.
+
+This implementation tried to avoid these steps and schedule over grid nodes. This however is the cause of thread divergence which slows down computation for varying bin sizes. Therefore, \cite{Gao:2018} will achieve more throughput and better performance in these cases in exchange for a (at the moment) hardware vendor exclusive operation.
+
 \clearpage
 \begin{appendices}
 \section{$D_p$ for Cubic Splines}\label{app:dp_proof}
@@ -2004,7 +2020,7 @@ for i,D_row in enumerate(D_temp):
   $$
 \section{Block Scan}\label{sec:block_scan}
 
-\textbf{A Block Scan:} Assume a global scan is already computed on a n-dimensional uniform grid and now want to compute the local scan of an n-dimensional tile/block in that grid. This again forms a uniform grid. For simplicity assume two dimensions:
+\textbf{Block Scan:} Assume a global scan is already computed on a n-dimensional uniform grid. A local scan of an n-dimensional tile/block in that grid can be computed based on this global scan. This again forms a uniform grid. For simplicity assume two dimensions:
 
 \noindent Given the initial two-dimensional pre-scan array:
 \begin{equation}
