@@ -36,6 +36,10 @@
 *.txt
 *.fls
 *.fdb_latexmk
+*.snm
+*.nav
+*.synctex
+*.synctex(busy)
 logos/
 _minted-mscthesis
 mscthesis.loa

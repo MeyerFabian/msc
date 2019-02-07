@@ -1152,7 +1152,7 @@ The Hessian increment can be computed with a two-stage process:
 \clearpage
 \subsection{General-purpose computing on graphics processing units}\label{sec:gpgpu}
 This chapter is split into two parts. \ref{sec:optim} tends to the memory hierarchy of the GPU and typical optimizations done in GPGPU work. Furthermore, chapter \ref{sec:metrics} will elaborate metrics to quantify optimizations.
-\subsubsection {GPGPU Optimization opportunities}\label{sec:optim}
+\subsubsection{GPGPU Optimization opportunities}\label{sec:optim}
 The speed of these memory types is given in the following starting with the fastest:
 Register > Shared Memory > Local, Global. Table \ref{table:gpu_mem} gives an overview over their capabilities which is referred to in the following.
 
@@ -1190,7 +1190,7 @@ There is no exact way to find out the exact number of registers for any OpenGL s
 \textbf{Loop unrolling:} Foremost, loop unrolling reduces instructions and can thus speed up compute-bound work. Moreover, loop unrolling might help the compiler reorder instructions and thus execute instructions faster. Instructions benefiting greatly from this are global loads. \cite{NVIDIA:PEAK_PERFORMANCE} shows at the example of motion blur and ray-marching that this greatly can increase throughput. Whereas the motion blur example uses a fixed amount of samples and therefore is easily unrollable, ray-marching is a dynamic process. Dynamic loops can however be partially unrolled. In the case of ray-marching this would for instance fetch two samples at once although it might process only one. In short, this merges two consecutive loop iterations. The latency of the second instruction might be partly hidden by the first one and thus speed up the work load. Mind however, that loop unrolling can increase register pressure. More registers need to be stored and process the relevant code where a dynamic loop reuses the same registers for any iteration.
 
 \begin{flushright}\cite{AMD:GPU_OPEN}\cite{NVIDIA:BEST:PRACTICE}\cite{NVIDIA:PEAK_PERFORMANCE}\end{flushright}
-\subsubsection{GPU Metrics}\label{sec:metrics}
+\subsubsection{GPU metrics}\label{sec:metrics}
 The GPU metric topping all others is the raw computing time spend on a shader: $\Delta t_c$. The following factors matter to set $\Delta t_c$ into perspective:
 \begin{enumerate}
   \item For the GPU most interesting is the scalability with increasing input data sizes. All algorithms here however scale linear with the input size.
@@ -1223,19 +1223,19 @@ The GPU metric topping all others is the raw computing time spend on a shader: $
     Long Scoreboard\% & 100                   & VRAM latency (mostly reads)\\\hline
     Short Scoreboard\%& 100                   & L2/Shared Mem. latency\\\hline
     Barrier\%         & 100                   & block synchronization \\\hline
-    No Instruction\%  & 100                   & instruction fetching or\\
+    No Instruction\%  & 100                   & instruction fetching or \\
 		      &                       & waiting on instruction cache miss\\\hline
   \end{tabular}
-\caption{GPU Performance Metrics}\label{table:metric}
+\caption{GPU performance metrics}\label{table:metric}
 \end{table}
 The other GPU metrics in table \ref{table:metric} are acquired using NVIDIA Nsight with OpenGL Performance Markers \cite{NVIDIA:METRICS}.
 
-None of these metrics necessarily have a correlation to computing time. They are however good indicators on which operations/hardware units the GPU spends its time on. The top speed of light(SOL)\% metric measures fraction of the throughput to the bandwidth of that hardware unit. NVIDIA aims to get the top SOL\% metric between 60\% and 80\%. Occupancy was discussed in \ref{sec:optim}. \cite{NVIDIA:PEAK_PERFORMANCE}
+None of these metrics necessarily have a correlation to computing time. They are however good indicators on which operations/hardware units the GPU spends its time on. The top speed of light(SOL)\% metric measures fraction of the throughput to the bandwidth of that hardware unit. NVIDIA aims to get the top SOL\% metric between 60\% and 80\%. Occupancy was discussed in \ref{sec:optim}.
 
 Aiming to get shaders memory-bandwidth limited, and minimizing the amount of needed accesses for any given workload, is the top priority for simple tasks. Achieving memory-bandwidth limit is equal to bringing the VRAM SOL\% between 60\% and 80\%. The metrics Read Active\%, Write Active\% and Long Scoreboard\% will simultaneously increase by following that aim.
 
 The metric SM Issue Utilization (per active cycle) is important for compute-bound work, as memory-bandwidth limited work will spend most of its time outside of the SM fetching or writing data. This metric tells if the SM can issue instructions fast. NVIDIA also aims between 60\% to 80\% for this metric if the shader is compute-bound. Furthermore, for compute-bound work often the top warp stall reason is waiting on instruction fetches.
-
+\begin{flushright}\cite{NVIDIA:PEAK_PERFORMANCE}\end{flushright}
 \clearpage
 \section{Implementation}\label{sec:implementation}
 The computing time $\Delta t_c$ of shaders is gained by OpenGL timer queries \cite{KHRONOS:TIMER_QUERY}. A small benchmarker takes care of queuing timer queries and resolving them a frame later. This is done to not stall the GPU pipeline waiting on those queries. At the end of testing data is gathered and statistical quantities are written into a log file.
@@ -1310,10 +1310,10 @@ To name a few more cases that macros handle for us:
 \end{enumerate}
 For debugging purposes the shader is written to the hard drive with all processed includes. The gcc-pre\-pro\-ces\-sor(\cite{GCC:PREP}) can preprocess the shader with options: \texttt{gcc -E -x c -P}. Except for the omission of the glsl version or extension macros no problems were encountered in this process.
 
-\subsection{Parallel Reduction \& Scan} \label{sec:red_scan}
+\subsection{Parallel reduction \& scan} \label{sec:red_scan}
 The schemes presented in the following are a result of the optimization opportunities discussed in \ref{sec:optim}.
 
-\textbf{Parallel Reduction}: Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ and an array of values $\left[a_0,a_1, ... ,a_n\right]$ reduction computes:
+\textbf{Parallel reduction}: Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ and an array of values $\left[a_0,a_1, ... ,a_n\right]$ reduction computes:
 \begin{equation}
   r = a_0 \circ a_1 \circ ... \circ a_n.
 \end{equation}
@@ -1748,7 +1748,7 @@ Doing sequential work in parallel reduction adds almost no strain. Thus high amo
 
 For the scan this is a little bit harder as elements need to be stored in registers. The effects can be seen in table \ref{tab:scan}. The segment each scan can handle is by far not as extensive as in parallel reduction. But the speedup achieved from a partially conflict free to an implementation with sequential work, is in contrast much higher. Since each thread requires the nearest by elements, L2-cache hits increase rapidly as does the L2 utilization. Thus the scoreboard stall reasons rise again. Unrolling the static loop which loads the sequential elements additionally hides memory latency.
 
-\textbf{Counting Sort:} The aim of sorting is coalescing as well as increased caching behavior for all following shaders. As a motivation the binning's similarity to the MPM-Operations might already be highlighted. Table \ref{table:bin} shows how a sorted particle position increases coalescing and L2-Cache hits. The VRAM-throughput increases to 75.3\% due to coalescing. Nearby particles hit the same bins and thus L2 rises up to 35.0\%. The 6.95x speed up shows how important the sorting as a preprocess is.
+\textbf{Counting sort:} The aim of sorting is coalescing as well as increased caching behavior for all following shaders. As a motivation the binning's similarity to the MPM-Operations might already be highlighted. Table \ref{table:bin} shows how a sorted particle position increases coalescing and L2-Cache hits. The VRAM-throughput increases to 75.3\% due to coalescing. Nearby particles hit the same bins and thus L2 rises up to 35.0\%. The 6.95x speed up shows how important the sorting as a preprocess is.
 \begin{table}[htbp]
   \begin{tabular}{ | l | r | r | r | r | r | r |}    \hline
     Ordering            &  $\Delta t_c (\mu s)$ & Speedup &VRAM              & SM      & L2     & L2-Hit \\\hline
@@ -1859,7 +1859,7 @@ Top SOL\% is now the SM but it lacks throughput with 39.4\%. Its SM Issue Utiliz
 
 A closer look is taken of the P2G-atomic- and P2G-sync-transfers to illustrate the performance improvements of batching and filtering for active blocks in table \ref{table:p2g_optim}.
 
-The \textbf{P2G-atomic-Transfer} in its initial state uses one atomic transfer per particle on shared memory. Its effects are quite visible on the SM SOL\% with 82.9\% to 90.9\% in the call for active blocks. The top stall reason is Short Scoreboard which is indicative of the high number of stalls due to atomic writes on shared memory.
+The \textbf{P2G-atomic-transfer} in its initial state uses one atomic transfer per particle on shared memory. Its effects are quite visible on the SM SOL\% with 82.9\% to 90.9\% in the call for active blocks. The top stall reason is Short Scoreboard which is indicative of the high number of stalls due to atomic writes on shared memory.
 
 Batching reduces the atomic writes. Particles get handled together. In succession one atomic write is done. This changes the top stall reason to the more favorable instruction fetches as the main stall reason with 20.8\%. Short scoreboard goes down to 11.6\%. As previously the SM was strained, throughput goes down to 65.0\%. The greatest time improvement can be seen when batching and indirect call lead to a combined speedup of 2.2x. This is much higher than the multiplicative speedup of 1.51x one could expect.
 
@@ -1923,7 +1923,7 @@ To show the weaknesses and strengths of the transfers tests on an overly pessimi
 
 However, before this process can be concluded merge and split techniques need to be taken into consideration. They are designed to augment the numerics of the material point method but will inherently reduce branch divergence as particle numbers even out between cells in the same warp. As such they will stray less from the optimistic example. The extent to which they will stray from it depends however on the dynamics of the problem.
 
-At the end of this thesis awareness was raised to the following publication \cite{Gao:2018} which was simultaneously being worked on. Their decision making is very much alike:
+At the end of this thesis awareness was raised to \cite{Gao:2018} which was simultaneously being worked on. Their decision making is very much alike:
 
 Counting/Histogram sort is also their sorting algorithm of choice in the fashion of \cite{NVIDIA:NNSEARCH}. Instead of reordering any variable, they choose per variable if an index or deep sort is required. Their binning also floors in the same fashion.
 
@@ -1931,11 +1931,11 @@ The domain decomposition consists of $4\times4\times4$ blocks, also one of the b
 
 Implemented is a quadratic interpolation instead of a cubic one. The domain shift thus becomes $\frac{h}{2}$ instead of $h$. Accounting for the larger cubic weighting support, uniform distribution works as fast as the one shown here.
 
-Their main difference in computation is the use of the aforementioned NVIDIA exclusive shuffle operations in the fashion of \cite{NVIDIA:SHUFFLE}. These operations largely solve two of the main problems the transfers have.
+Their main difference in computation is the use of the aforementioned NVIDIA exclusive shuffle operations in the fashion of \cite{NVIDIA:SHUFFLE}. These operations solve two of the main problems the transfers have.
 
-Instead of needing to rely on shared memory for inter-thread communication, the shuffle operation may be used. Each particle is assigned to a single thread. If for instance the particle size within the $4\times4\times4$ block exceeds the thread group size, another virtual block may be assigned to the same geometric block.
+Instead of needing to rely on shared memory for inter-thread communication, the shuffle (and ballot) operation may be used. Each particle is assigned to a single thread. If the particle size within the $4\times4\times4$ block exceeds the thread group size, another virtual block may be assigned to the same geometric block.
 
-Each particle in a particle-to-grid-transfer then scatters their contribution to the neighboring grid nodes in a particle push fashion. The transfers are then solved due to segmented parallel reduction where the segments are the variable particle bin sizes. In shared memory this would cause numerous bank conflicts in both the scattering as well as the segmented parallel reduction as elucidated with the block scan of chapter \ref{sec:red_scan}. The scatter write would also need to be atomic.
+Each particle in a particle-to-grid-transfer then scatters their contribution to the neighboring grid nodes in a particle push fashion. The transfers are then solved due to segmented parallel reduction where the segments are the variable particle bin sizes. In shared memory this would cause numerous bank conflicts in both the scattering as well as the segmented parallel reduction as elucidated with the block scan of chapter \ref{sec:red_scan}. The scattered write would also need to be atomic.
 
 This implementation tried to avoid these steps and schedule over grid nodes. This however is the cause of thread divergence which slows down computation for varying bin sizes. Therefore, \cite{Gao:2018} will achieve more throughput and better performance in these cases in exchange for a (at the moment) hardware vendor exclusive operation.
 
@@ -1943,7 +1943,6 @@ This implementation tried to avoid these steps and schedule over grid nodes. Thi
 \begin{appendices}
 \section{$D_p$ for Cubic Splines}\label{app:dp_proof}
   \begin{code}
-\caption{$\boldsymbol{D}_p$ proof}
   \begin{minted}{python}
 import numpy as np
 from sympy import *
@@ -2008,6 +2007,7 @@ for i,D_row in enumerate(D_temp):
     D[i][j] = round_expr(simplify(D_ij),14)
     print(D)
 \end{minted}
+\caption{$\boldsymbol{D}_p$ proof}
 \end{code}
   Prints out:
   $$
@@ -2018,9 +2018,9 @@ for i,D_row in enumerate(D_temp):
       0.         &0.         &0.33333333\\
   \end{array}\right]= \frac{\boldsymbol{D}_p}{h^2}
   $$
-\section{Block Scan}\label{sec:block_scan}
+\section{Block scan}\label{sec:block_scan}
 
-\textbf{Block Scan:} Assume a global scan is already computed on a n-dimensional uniform grid. A local scan of an n-dimensional tile/block in that grid can be computed based on this global scan. This again forms a uniform grid. For simplicity assume two dimensions:
+\textbf{Block scan:} Assume a global scan is already computed on a n-dimensional uniform grid. A local scan of an n-dimensional tile/block in that grid can be computed based on this global scan. This again forms a uniform grid. For simplicity assume two dimensions:
 
 \noindent Given the initial two-dimensional pre-scan array:
 \begin{equation}
