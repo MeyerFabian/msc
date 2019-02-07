@@ -1,4 +1,7 @@
 \documentclass{beamer}
+\usetheme{Malmoe}
+\usecolortheme{seahorse}
+\usepackage{csquotes}
 \usepackage{listings}
 \usepackage{xurl}
 \urlstyle{sf}
@@ -18,6 +21,22 @@
 \usepackage{blindtext}
 \usepackage{svg}
 \usepackage{xcolor,colortbl}
+\usepackage{media9}
+\usepackage[font=Times,
+timeinterval=30,
+timeduration=20,
+timewarningfirst=75,
+timewarningsecond=90,
+colorwarningfirst=blue,
+colorwarningsecond=red]{tdclock}
+\setbeamertemplate{footline}{%
+    \hspace*{2ex}%
+    \scriptsize{%
+        \cronominutes~-~\tdhours\hspace{0.1ex}:\hspace*{0.5ex}\tdminutes%
+    }%
+    \hfill\insertframenumber/\inserttotalframenumber
+    \hspace*{2ex}%
+}
 
 \addbibresource{../mscthesis.bib}
 \captionsetup{justification=raggedright,singlelinecheck=false}
@@ -144,12 +163,73 @@
 \setcounter{biburllcpenalty}{7000}
 \setcounter{biburlucpenalty}{8000}
 
+%Information to be included in the title page:
+
+
+\title{GPU Acceleration of the Material Point Method}
+
+\author % (optional, for multiple authors)
+{Fabian Meyer}
+
+\institute % (optional)
+{University of Koblenz}
+
+\date{Kolloquium Computergrafik, 14 February 2019}
+
 \begin{document}
 \begin{frame}
+\titlepage
+\end{frame}
+
+\section{Motivation on a GPU MPM Approach}
+
+\subsection{a}
+\begin{minipage}{.4\pdfpagewidth}
+\begin{frame}
+\includemedia[
+  width=160,
+  height=90,
+  activate=pageopen,
+  addresource=snowh264.mp4,
+  flashvars={source=snowh264.mp4&autoPlay=true&loop=true&repeat=always}
+  ]{\includegraphics{snow.jpg}}{VPlayer.swf}
+Videoi
+\end{minipage}
+\end{frame}
+
+\section{A Gentle Introduction to the MPM}
+
+\subsection{b}
+
+\begin{frame}
+\frametitle{hi}
   \begin{enumerate}
     \item \cite{MPM:COURSE}
   \end{enumerate}
 \end{frame}
+
+\section{A MPM Guide on GPGPU Pitfalls and Optimizations}
+
+\subsection{c}
+
+\begin{frame}
+\frametitle{hi}
+  \begin{enumerate}
+    \item \cite{MPM:COURSE}
+  \end{enumerate}
+\end{frame}
+
+\section{Delving Deeper: Further Opportunities}
+
+\subsection{d}
+
+\begin{frame}
+\frametitle{hi}
+  \begin{enumerate}
+    \item \cite{MPM:COURSE}
+  \end{enumerate}
+\end{frame}
+
 \selectlanguage{english}
 \printbibliography
 \end{document}
