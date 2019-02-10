@@ -1,6 +1,8 @@
 \documentclass{beamer}
 \usetheme{Malmoe}
 \usecolortheme{seahorse}
+
+\usepackage{textpos}
 \usepackage{csquotes}
 \usepackage{listings}
 \usepackage{xurl}
@@ -22,23 +24,13 @@
 \usepackage{svg}
 \usepackage{xcolor,colortbl}
 \usepackage{media9}
-\usepackage[font=Times,
-timeinterval=30,
-timeduration=20,
-timewarningfirst=75,
-timewarningsecond=90,
-colorwarningfirst=blue,
-colorwarningsecond=red]{tdclock}
-\setbeamertemplate{footline}{%
-    \hspace*{2ex}%
-    \scriptsize{%
-        \cronominutes~-~\tdhours\hspace{0.1ex}:\hspace*{0.5ex}\tdminutes%
-    }%
-    \hfill\insertframenumber/\inserttotalframenumber
-    \hspace*{2ex}%
-}
 
+\let\oldcite=\cite
+\renewcommand{\cite}[1]{\textcolor[rgb]{.55,.55,.89}{\oldcite{#1}}}
+
+\setbeamerfont{frametitle}{size=\small}
 \addbibresource{../mscthesis.bib}
+\addbibresource{pres.bib}
 \captionsetup{justification=raggedright,singlelinecheck=false}
 \DeclareMathOperator*{\argmin}{arg min}
 \makeatletter
@@ -183,32 +175,122 @@ colorwarningsecond=red]{tdclock}
 
 \section{Motivation on a GPU MPM Approach}
 
-\subsection{a}
-\begin{minipage}{.4\pdfpagewidth}
+\subsection{A Brief MPM Overview: Do You Want to Build a Snowman?}
+
 \begin{frame}
+
+\frametitle{A Brief MPM Overview: Do You Want to Build a Snowman?}
+A short historical summary of MPM:
+\vfill
+\begin{minipage}{0.43\paperwidth}
+  \begin{itemize}
+    \item Belongs to family of particle-in-cell(PIC) techniques \cite{evans1957particle}.
+    \item Initial application to solids \cite{sulsky1995application} $\rightarrow$ MPM
+    \item From research to production in \textit{Disney's} animation film \textit{Frozen} \cite{MPM:SNOW}.
+    \item Avalanche research \cite{MPM:AVALANCHE}
+  \end{itemize}
+\end{minipage}
+\begin{minipage}{0.35\paperwidth}
 \includemedia[
-  width=160,
-  height=90,
+  width=144,
+  height=81,
   activate=pageopen,
-  addresource=snowh264.mp4,
-  flashvars={source=snowh264.mp4&autoPlay=true&loop=true&repeat=always}
-  ]{\includegraphics{snow.jpg}}{VPlayer.swf}
-Videoi
+  addresource=media/snowh264.mp4,
+  flashvars={source=media/snowh264.mp4&autoPlay=true&loop=true&repeat=always}
+  ]{\includegraphics{media/snow.jpg}}{VPlayer.swf}
+  \tiny{Video result of my bachelor thesis on the simulation of snow \cite{Meyer2015}.}
 \end{minipage}
 \end{frame}
 
-\section{A Gentle Introduction to the MPM}
-
-\subsection{b}
 
 \begin{frame}
-\frametitle{hi}
-  \begin{enumerate}
-    \item \cite{MPM:COURSE}
-  \end{enumerate}
+PIC ideas:
+\vfill
+\begin{minipage}{0.45\paperwidth}
+\begin{itemize}
+    \item Combine Lagrangian particles \& Eulerian grid    \item Particles store all information
+\end{itemize}
+\vfill
+Typical PIC/MPM roundtrip:
+\vfill
+\begin{enumerate}
+  \item Particle-to-grid(P2G) transfer to an unmoving grid
+    \item Solve discretized governing equations on grid
+    \item Grid-to-particle(G2P) transfer back to particles \& move them
+    \item[$\Rightarrow$] \textbf{meshfree, non-empirical}
+\end{enumerate}
+\end{minipage}
+\begin{minipage}{0.35\paperwidth}
+	\includesvg[width=0.35\paperwidth]{media/pic.svg}
+	\tiny{Transfers: Interpolation functions are defined over grid nodes.}
+\end{minipage}
+\end{frame}
+\subsection{GPGPU for performance enthusiasts}
+\begin{frame}
+  \frametitle{GPGPU for performance enthusiasts}
+  Why would('nt) you?
+  \vfill
+  \begin{columns}[T]
+    \begin{column}{0.45\textwidth}
+      \textbf{Drawbacks:}
+    \begin{itemize}
+      \item Interactivity much easier on CPU, but slow PCI-Bus communication
+      \item Code is mostly written against GPU architecture
+      \item A lot of strain on the programmer
+    \end{itemize}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \textbf{Benefits:}
+    \begin{itemize}
+      \item Data is already on the GPU for rendering
+      \item \textbf{Higher parallelization acceleration}
+    \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+\section{A Gentle Introduction to the MPM}
+
+
+\subsection{Governing Equations: Conservation of Mass \& Momentum}
+
+\begin{frame}
+  \frametitle{Governing Equations: Conservation of Mass \& Momentum}
+  \textbf{Conservation of mass}, continuum assumption holds.\\
+  Lagrangian (moving with a particle ${}_0\boldsymbol{x}$):
+  \begin{equation}
+    {^t_0J}\rho(_0\boldsymbol{x},t) = {}\rho(_0\boldsymbol{x},0).
+  \end{equation}
+Eulerian (outside observer ${}_t\boldsymbol{x}$):
+\begin{equation}
+  \frac{\partial}{\partial t}\rho(_t\boldsymbol{x},t) = -  \vec{\nabla} \cdot (\rho(_t\boldsymbol{x},t) \boldsymbol{v}(_t\boldsymbol{x},t)).
+\end{equation}
+Lagrangian and Eulerian view measure differently but give same results. Equations are given in the strong form! \cite{MPM:COURSE}\cite{MIT:CONTINUUM_MECHANICS}
 \end{frame}
 
+\begin{frame}
+  \textbf{Conservation of momentum}:\\
+  Lagrangian (moving with a particle ${}_0\boldsymbol{x}$):
+  \begin{equation}
+  \rho(_0\boldsymbol{x},0)\boldsymbol{a}(_0\boldsymbol{x},t)
+= \vec{\nabla} \cdot \boldsymbol{P}(_0\boldsymbol{x},t) + {\boldsymbol{f}} ^ {\text{body}}(_0\boldsymbol{x},t) {^t_0J}.
+  \end{equation}
+Eulerian (outside observer ${}_t\boldsymbol{x}$):
+\begin{equation}
+  \rho(_t\boldsymbol{x},t) \boldsymbol{a}(_t\boldsymbol{x},t) = \vec{\nabla} \cdot \boldsymbol{\sigma}(_t\boldsymbol{x},t) + \boldsymbol{f} ^ {\text{body}}(_t\boldsymbol{x},t)
+\end{equation}
+Solving this equation will tell us how the velocity fields $\boldsymbol{v}(_t\boldsymbol{x}),\boldsymbol{v}(_0\boldsymbol{x})$ change on the whole domain due to acceleration $\boldsymbol{a}$. This is important to advect particles accounting for all forces. \cite{MPM:COURSE}\cite{MIT:CONTINUUM_MECHANICS}
+\end{frame}
+
+\subsection{The Pretty Strong but Mathematically Weak Formulation}
+\begin{frame}
+\frametitle{The Pretty Strong but Mathematically Weak Formulation}
+\begin{align}
+  \int _ { \Omega ^ { 0 } } _0\boldsymbol{q} \cdot  \Bigl[(_0\rho_0)(_0\boldsymbol{a}) - & {}_t\boldsymbol{f}^{\text{body}}\Bigr] d _0\boldsymbol{x}= \nonumber \\
+										     &  \int _ { \partial \Omega ^ { t^n } } _t\boldsymbol{q} \cdot \boldsymbol{\sigma} d_t\boldsymbol{A} - \int _ { \Omega ^ { t^n} } \nabla {}_t\boldsymbol{q} : \boldsymbol{\sigma}  d_t\boldsymbol{x}
+\end{align}
+\end{frame}
 \section{A MPM Guide on GPGPU Pitfalls and Optimizations}
+
 
 \subsection{c}
 
