@@ -1,6 +1,10 @@
 \documentclass{beamer}
 \usetheme{Malmoe}
 \usecolortheme{seahorse}
+\usepackage{pgfplots}
+\usepackage{tikz}
+\usetikzlibrary{datavisualization}
+\usetikzlibrary{datavisualization.formats.functions}
 
 \usepackage{textpos}
 \usepackage{csquotes}
@@ -284,15 +288,117 @@ Solving this equation will tell us how the velocity fields $\boldsymbol{v}(_t\bo
 \subsection{The Pretty Strong but Mathematically Weak Formulation}
 \begin{frame}
 \frametitle{The Pretty Strong but Mathematically Weak Formulation}
+
+\textbf{Weak Formulation} (or Principle of Virtual Work):\\
+Dot product equations with arbitrarily 'test functions' $\boldsymbol{q}$ and apply divergence theorem:
 \begin{align}
-  \int _ { \Omega ^ { 0 } } _0\boldsymbol{q} \cdot  \Bigl[(_0\rho_0)(_0\boldsymbol{a}) - & {}_t\boldsymbol{f}^{\text{body}}\Bigr] d _0\boldsymbol{x}= \nonumber \\
-										     &  \int _ { \partial \Omega ^ { t^n } } _t\boldsymbol{q} \cdot \boldsymbol{\sigma} d_t\boldsymbol{A} - \int _ { \Omega ^ { t^n} } \nabla {}_t\boldsymbol{q} : \boldsymbol{\sigma}  d_t\boldsymbol{x}
+\int _ { \Omega ^ { 0 } } _0\boldsymbol{q} \cdot  \Bigl[(_0\rho_0)(_0\boldsymbol{a}) - & {}_0\boldsymbol{f}^{\text{body}}{}_0^tJ\Bigr] d _0\boldsymbol{x}= \nonumber \\
+										     &  \int _ { \partial \Omega ^ { t^n } } _t\boldsymbol{q} \cdot \boldsymbol{\sigma} d_t\boldsymbol{A} - \int _ { \Omega ^ { t^n} } \nabla {}_t\boldsymbol{q} : \boldsymbol{\sigma}  d_t\boldsymbol{x}.
 \end{align}
+A strong solution is also a solution to the weak formulation. Leave out body forces(like gravity) and boundary condition (e.g. collisions) for now:
+\begin{equation}
+  \int _ { \Omega ^ { 0 } } _0\boldsymbol{q} \cdot (_0\rho_0)(_0\boldsymbol{a}) d _0\boldsymbol{x}= \int _ { \Omega ^ { t^n} } \nabla {}_t\boldsymbol{q} : \boldsymbol{\sigma}  d_t\boldsymbol{x}.
+\end{equation}
+\end{frame}
+\begin{frame}[fragile]
+\textbf{Weak Derivative}:
+\vfill
+\begin{minipage}{0.49\textwidth}
+  $y=|t|$ has weak derivative:
+  \\\\
+$ v = \left\{ \begin{array} { l l }
+{ - 1 , } & { \text { if } t < 0 } \\
+{ c , } & { \text { if } t = 0 } \\
+{ 1 , } & { \text { if } t > 0 }
+\end{array} \right.$
+\\
+
+\end{minipage}
+\begin{minipage}{0.4\textwidth}
+\begin{tikzpicture}
+\datavisualization [school book axes,
+		    visualize as line/.list={fx},
+		    fx={style={color=blue}}
+]
+
+data [set=fx,format=function] {
+      var x : interval [-1.5:1.5] samples 5;
+      func y = abs(\value x);
+      };
+\end{tikzpicture}
+\end{minipage}
+
+\vfill
+\begin{minipage}{0.49\textwidth}
+  Heaviside step function has no weak derivate: \\\\
+  $y= \left\{ \begin{array} { l l } { 0 , } & { \text { if } t < 0 } \\ { 1 , } & { \text { if } t \geq 0 } \end{array} \right.$
+\end{minipage}
+\begin{minipage}{0.4\textwidth}
+
+
+\begin{tikzpicture}
+
+  \datavisualization [school book axes,
+		      visualize as line/.list={fx},
+		      fx={style={color=blue}}]
+data[set=fx] {
+  x, y
+  -1.5, 0
+  0, 0
+  0, 1
+  1.5, 1
+};
+\end{tikzpicture}
+\end{minipage}
+\vfill
+Allows for point loads, material discontinuities and more. \cite{bathe2006finite}
+\end{frame}
+\subsection{Discretization of Space and Time}
+\begin{frame}
+\frametitle{Discretization of Space and Time}
+\textbf{Time discretization} with implicit midpoint scheme:
+  \begin{equation}
+    \frac { y ^ { n + 1 } - y ^ { n } } { \Delta t } = f ^ { n + \frac{1}{2} } = f \left( t ^ { n } + \frac{\Delta t}{2}, \frac{1}{2} y ^ { n } + \frac{1}{2} y ^ { n + 1 } \right)
+  \end{equation}
+\begin{itemize}
+  \item \textbf{implicit} requires linear system solve $\Rightarrow$ more stable, larger time steps
+  \item \textbf{midpoint} as it conserves gov. equations
+\end{itemize}
+
+  \begin{equation}
+    \Rightarrow \int _ { \Omega ^ { t } } _t\boldsymbol{q} \cdot {}_t\rho(_t\boldsymbol{v}^{n+1}-{}_t\boldsymbol{v}^{n}) d _t\boldsymbol{x}= \int _ { \Omega ^ { t^n} } \nabla {}_t\boldsymbol{q} : \boldsymbol{\sigma}^{n+\frac{1}{2}}  d_t\boldsymbol{x}.
+  \end{equation}
+\end{frame}
+
+\begin{frame}[fragile]
+\textbf{Space Discretization} is done in a Galerkin/FEM fashion with grid based interpolants $w_i$ with limited support. Here dyadic products
+\begin{equation}
+  w_i(\boldsymbol{x}) =w(\boldsymbol{x}-\boldsymbol{x}_i) = w(\frac{1}{h}(x-x_i))w(\frac{1}{h}(y-y_i)w(\frac{1}{h}(z-z_i))
+\end{equation}
+of cubic b-splines suffice:
+\begin{equation}
+w ( x ) = \left\{ \begin{array} { l l } { \frac { 1 } { 2 } | x | ^ { 3 } - | x | ^ { 2 } + \frac { 2 } { 3 } } & { 0 \leqslant | x | < 1 } \\ { \frac { 1 } { 6 } ( 2 - | x | ) ^ { 3 } } & { 1 \leqslant | x | < 2 } \\ { 0 } & { 2 \leqslant | x | } \end{array}. \right
+\end{equation}
+\end{frame}
+\begin{frame}
+
+\begin{tikzpicture}[domain=0:1]
+\begin{axis}
+\addplot {x*x};
+\end{axis}
+\end{tikzpicture}
+
+\end{frame}
+\begin{frame}
+Thus set in:
+$$
+{}_t\boldsymbol{q}(\boldsymbol{x},t^n) = \sum_i \boldsymbol{e}_iw_i(\boldsymbol{x}),
+{}_t\boldsymbol{v}^{n(+1)}(\boldsymbol{x}) = \sum_j \boldsymbol{v}^{n(+1)}_jw_j(\boldsymbol{x}).
+$$
+Combine it with Numerical Integration where the particles function as quadrature points:
 \end{frame}
 \section{A MPM Guide on GPGPU Pitfalls and Optimizations}
-
-
-\subsection{c}
+\subsection{d}
 
 \begin{frame}
 \frametitle{hi}
