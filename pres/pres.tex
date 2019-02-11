@@ -19,7 +19,7 @@
 \usepackage{color}
 \usepackage{subfigure}
 \usepackage{wrapfig}
-\usepackage[english,ngerman]{babel}
+\usepackage[english]{babel}
 \usepackage[backend=biber,style=alphabetic]{biblatex}
 \usepackage{mathtools}
 \usepackage{subdepth}
@@ -36,10 +36,8 @@
 \addbibresource{../mscthesis.bib}
 \addbibresource{pres.bib}
 \captionsetup{justification=raggedright,singlelinecheck=false}
-\DeclareMathOperator*{\argmin}{arg min}
+
 \makeatletter
-\def\ext@algorithm{lol}% algorithm captions will be written to the .lol file
-% share the list making commands and redefine the heading
 \AtBeginDocument{%
   \let\l@algorithm\l@lstlisting
   \let\c@algorithm\c@lstlisting
@@ -47,6 +45,7 @@
   \renewcommand{\lstlistlistingname}{Algorithms and source code}%
 }
 \makeatother
+
 \lstdefinelanguage{GLSL}
 {
   sensitive=true,
@@ -160,7 +159,6 @@
 \setcounter{biburlucpenalty}{8000}
 
 %Information to be included in the title page:
-
 
 \title{GPU Acceleration of the Material Point Method}
 
@@ -316,7 +314,9 @@ $ v = \left\{ \begin{array} { l l }
 \end{minipage}
 \begin{minipage}{0.4\textwidth}
 \begin{tikzpicture}
+  \small
 \datavisualization [school book axes,
+		    y axis = {attribute = y, label},
 		    visualize as line/.list={fx},
 		    fx={style={color=blue}}
 ]
@@ -331,23 +331,15 @@ data [set=fx,format=function] {
 \vfill
 \begin{minipage}{0.49\textwidth}
   Heaviside step function has no weak derivate: \\\\
-  $y= \left\{ \begin{array} { l l } { 0 , } & { \text { if } t < 0 } \\ { 1 , } & { \text { if } t \geq 0 } \end{array} \right.$
+  $s= \left\{ \begin{array} { l l } { 0 , } & { \text { if } t < 0 } \\ { 1 , } & { \text { if } t \geq 0 } \end{array} \right.$
 \end{minipage}
 \begin{minipage}{0.4\textwidth}
-
-
 \begin{tikzpicture}
-
-  \datavisualization [school book axes,
-		      visualize as line/.list={fx},
-		      fx={style={color=blue}}]
-data[set=fx] {
-  x, y
-  -1.5, 0
-  0, 0
-  0, 1
-  1.5, 1
-};
+  \small
+  \begin{axis}[axis lines = middle, width=5.1cm,height=3.5cm,xtick={-1,0,1},ytick={0,1},ymin=-0.3,ymax=1.25,xmin=-1.8,xmax=1.8,ylabel=$s$]
+                \addplot[blue,mark=*,mark options={fill=white},samples at={-2.1,0}] {0};
+                \addplot[blue,mark=*,samples at={0,2.1}] {1.0};
+            \end{axis}
 \end{tikzpicture}
 \end{minipage}
 \vfill
@@ -379,15 +371,24 @@ of cubic b-splines suffice:
 \begin{equation}
 w ( x ) = \left\{ \begin{array} { l l } { \frac { 1 } { 2 } | x | ^ { 3 } - | x | ^ { 2 } + \frac { 2 } { 3 } } & { 0 \leqslant | x | < 1 } \\ { \frac { 1 } { 6 } ( 2 - | x | ) ^ { 3 } } & { 1 \leqslant | x | < 2 } \\ { 0 } & { 2 \leqslant | x | } \end{array}. \right
 \end{equation}
-\end{frame}
-\begin{frame}
+\begin{tikzpicture}[
+  declare function={
+    func(\x)= and(abs(\x) >= 0 , abs(\x)<1) * (pow(abs(\x),3)/2 - pow(abs(\x),2) +2/3)  +
+	      and(abs(\x) >= 1 , abs(\x)<2) * (1/6* pow((2-abs(\x)),3))
+   ;
+  }
+]
+\begin{axis}[
+  width=10cm,height=4cm,
+  axis x line=middle, axis y line=middle,
+  ymin=-0.1, ymax=1, ytick={0,1}, ylabel=$w$,
+  xmin=-2.5, xmax=2.5, xtick={-2,...,2}, xlabel=$x$,
+  domain=-2.5:2.5,samples=101, % added
+]
 
-\begin{tikzpicture}[domain=0:1]
-\begin{axis}
-\addplot {x*x};
+\addplot [blue,thick] {func(x)};
 \end{axis}
 \end{tikzpicture}
-
 \end{frame}
 \begin{frame}
 Thus set in:
@@ -395,18 +396,127 @@ $$
 {}_t\boldsymbol{q}(\boldsymbol{x},t^n) = \sum_i \boldsymbol{e}_iw_i(\boldsymbol{x}),
 {}_t\boldsymbol{v}^{n(+1)}(\boldsymbol{x}) = \sum_j \boldsymbol{v}^{n(+1)}_jw_j(\boldsymbol{x}).
 $$
-Combine it with Numerical Integration where the particles function as quadrature points:
+Combine it with numerical integration where the particles function as quadrature points \cite{Steffen}:
+
+\begin{minipage}{0.6\textwidth}
+
+$$
+g _ { i } = \int _ { \Omega } g ( \boldsymbol{x} ) w _ { i } ( \boldsymbol{x} ) d \boldsymbol{x}
+$$
+\begin{equation}
+  \approx \sum _ { p } g _ { p }  w_i(\boldsymbol{x}_p) V _ { p }.
+\end{equation}
+due to integration by midpoint rule:
+\begin{equation}
+\int _ { \Omega } f ( x ) d x \approx \sum _ { i = 1 } ^ { N } f \left( x _ { i } \right) h _ { i }.
+\end{equation}
+
+\end{minipage}
+\begin{minipage}{0.3\textwidth}
+  \begin{tikzpicture}[/pgf/declare function={f=-.1*(x)*(x-8);}]
+\pgfplotsset{
+    integral segments/.code={\pgfmathsetmacro\integralsegments{#1}},
+    integral segments=3,
+    integral/.style args={#1:#2}{
+        ybar interval,
+        domain=#1+((#2-#1)/\integralsegments)/2:#2+((#2-#1)/\integralsegments)/2,
+        samples=\integralsegments+1,
+        x filter/.code=\pgfmathparse{\pgfmathresult-((#2-#1)/\integralsegments)/2}
+    }
+}
+\begin{axis}[
+    ylabel=$f$,
+    width =5cm,height=5cm,
+    domain=0:6,
+    samples=100,
+    axis lines=middle
+]
+\addplot [thick] {f};
+\addplot [
+    red,
+    integral=0:6
+] {f};
+\end{axis}
+\end{tikzpicture}
+\end{minipage}
+\end{frame}
+  \subsection{Velocity Fields: APIC-Transfers}
+\begin{frame}
+  \frametitle{Velocity Fields: APIC-Transfers}
+  \begin{minipage}{0.64\textwidth}
+  PIC-transfer
+  \begin{enumerate}
+    \item $(m\boldsymbol{v})_i^n = \sum_p w_{ip}^nm_p\boldsymbol{v}^n_p$
+    \item $\boldsymbol{v}_i^n = \frac{(m\boldsymbol{v})_i^n}{m_i^n}$
+    \item $\boldsymbol{v}_{p,{PIC}}^{n+1} = \sum_i w^n_{ip}\boldsymbol{v}_i^{n+1}$
+  \end{enumerate}
+\vspace*{15}
+APIC-transfers add a local velocity field $\boldsymbol{C}^n_p$ around $\boldsymbol{v}^n_p$:
+\\\vspace*{-10}\\
+$ ( m \boldsymbol{v} ) _ { i } ^ { n } = \sum _ { p } w _ { i p } ^ { n } m _ { p } \left( \boldsymbol{v} _ { p } ^ { n } + \boldsymbol{C} _ { p } ^ { n } ( \boldsymbol{x} _ { i } ^ { n } - \boldsymbol{x} _ { p } ^ { n }))$
+\end{minipage}
+\begin{minipage}{0.30\textwidth}
+\begin{minipage}{1.0\textwidth}
+  \small
+  \includesvg[width=1.0\textwidth]{media/pic.svg}
+  P2G-transfer $\sum_p$
+\\
+\end{minipage}
+\begin{minipage}{1.0\textwidth}
+  \small
+  \includesvg[width=1.0\textwidth]{media/g2p.svg}
+  G2P-transfer $\sum_i$
+\end{minipage}
+\end{minipage}
 \end{frame}
 \section{A MPM Guide on GPGPU Pitfalls and Optimizations}
-\subsection{d}
+\subsection{Layout of the data: SoA vs. AoS}
+\begin{frame}[fragile]
+\frametitle{Layout of the data: SoA vs. AoS}
 
-\begin{frame}
-\frametitle{hi}
-  \begin{enumerate}
-    \item \cite{MPM:COURSE}
-  \end{enumerate}
+\begin{minipage}{0.31\textwidth}
+  \tiny
+\begin{minipage}{0.95\textwidth}
+  SoA-Layout
+\begin{lstlisting}[language={GLSL},style={GL},basicstyle=\tiny]
+struct Container{
+  vec4 positions[n];
+  vec4 velocities[n];
+} Particles;
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.95\textwidth}
+  AoS-Layout
+\begin{lstlisting}[language={GLSL},style={GL},basicstyle=\tiny]
+struct Particle {
+  vec4 position;
+  vec4 velocity;
+} Particles[n];
+\end{lstlisting}
+\end{minipage}
+
+\end{minipage}
+\begin{minipage}{0.64\textwidth}
+  \tiny
+  \includesvg[svgpath =../images/,width=\textwidth]{soa}
+  Structures of arrays(SoA)
+  \\
+  \includesvg[svgpath =../images/,width=\textwidth]{aos}
+  Arrays of structures(AoS)
+
+\end{minipage}
 \end{frame}
+\begin{frame}
+\begin{table}[htbp]
+  \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
+    Layout &  $\Delta t_c (\mu s)$	& Speedup &VRAM     & SM     & L2     & SM Issue Util. \\\hline
+    AoS         & 243                   & -       &77.7\%   & 7.3\%  & 30.3\% & 6.8\% \\\hline
+    SoA         & \textbf{120}                   & 2.26x   &75.4\%   & \textbf{14.3}\% & 29.4\% & \textbf{14.0\%} \\
+    \hline
+\end{tabular}
+\end{table}
 
+  \end{frame}
 \section{Delving Deeper: Further Opportunities}
 
 \subsection{d}
