@@ -526,14 +526,16 @@ Nvidia Nsight\cite{NVIDIA:METRICS} now offers metrics to identify bottlenecks:
 \end{table}
 \\
 \vspace{5}
-A simple map or copy shader with one instruction shows SoA vs. AoS differences:
+A simple map(\texttt{y=length(x)}) shader on 1024$\times$1024 Elements SoA vs. AoS differences:
 \vspace{-15}
 \begin{table}
   \footnotesize
   \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
     Layout &  $\Delta t_c (\mu s)$	& Speedup &VRAM     & SM     & L2     & SM Issue Util. \\\hline
-    AoS         & 243                   & -       &77.7\%   & 7.3\%  & 30.3\% & 6.8\% \\\hline
-    SoA         & \textbf{120}                   & 2.26x   &75.4\%   & \textbf{14.3}\% & 29.4\% & \textbf{14.0\%} \\
+    AoS(1 instr.)         & 243                   & -       &77.7\%   & 7.3\%  & 30.3\% & 6.8\% \\\hline
+    SoA(1 instr.)         & \textbf{120}                   & 2.26x   &75.4\%   & \textbf{14.3}\% & 29.4\% & \textbf{14.0\%} \\\hline
+    AoS(2 instr.)         & 275                   & -        &61.3\%           & \textbf{41.8}\% & \textbf{53.8}\% & 48.9\% \\\hline
+    SoA(2 instr.)         & 240                   & 1.16x    &75.4\%  & 29.4\%          & 20.0\% & 62.3\% \\
     \hline
 \end{tabular}
 \end{table}
@@ -541,7 +543,39 @@ $\Rightarrow$ SoA increases coalescing for non-random access.
 \end{frame}
 \subsection{Parallel Reduction \& Scan}
 \begin{frame}
-  \frametitle{Parallel Reduction \& Scan}
+\frametitle{Parallel Reduction \& Scan}
+Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ , a neutral element $e$ of the \texttt{binary\_op}, and an array of values $\left[a_0,a_1, ... ,a_n\right]$.\\\vspace{10}
+\begin{itemize}
+  \item \textbf{Parallel reduction} computes the scalar:
+\begin{equation}
+  r = a_0 \circ a_1 \circ ... \circ a_n.
+\end{equation}
+\item (Exclusive) \textbf{scan} computes the array:
+\begin{equation}
+  \left[e , a_0 , \left(a_0 \circ a_1\right), \left(a_0 \circ a_1 \circ a_2\right), \ ... \ ,\left(a_0\circ a_1 \circ a_2 \circ ...\circ a_{n-1}\right)\right].
+\end{equation}
+\end{itemize}
+\\\vspace{5}
+Here, only shared memory approaches without (NVIDIA exclusive) warp shuffle operations.
+\end{frame}
+\begin{frame}
+\textbf{Shared Memory Bank Conflicts}:
+\\\vspace{5}
+\begin{minipage}{0.94\textwidth}
+\begin{minipage}{0.5\textwidth}
+  \tiny
+  \includesvg[svgpath =../images/,width=1.0\textwidth]{sequential}
+  Sequential Addressing
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+  \tiny
+  \includesvg[svgpath =../images/,width=1.0\textwidth]{interleaved}
+  Interleaved Addressing
+\end{minipage}
+\end{minipage}
+\\\vspace{10}
+Interleaved Addressing causes bank conflicts $\Rightarrow$ padding needed.
+\textbf{Sequential work}:
 \end{frame}
 \section{Delving Deeper: Further Opportunities}
 
