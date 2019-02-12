@@ -475,7 +475,11 @@ $ ( m \boldsymbol{v} ) _ { i } ^ { n } = \sum _ { p } w _ { i p } ^ { n } m _ { 
 \frametitle{Layout of the data: SoA vs. AoS}
 
 \begin{minipage}{0.31\textwidth}
-  \tiny
+\begin{minipage}{0.95\textwidth}
+Coalescing:
+\vspace*{23}
+\end{minipage}
+\tiny
 \begin{minipage}{0.95\textwidth}
   SoA-Layout
 \begin{lstlisting}[language={GLSL},style={GL},basicstyle=\tiny]
@@ -484,6 +488,7 @@ struct Container{
   vec4 velocities[n];
 } Particles;
 \end{lstlisting}
+\vspace*{29}
 \end{minipage}
 \begin{minipage}{0.95\textwidth}
   AoS-Layout
@@ -494,20 +499,37 @@ struct Particle {
 } Particles[n];
 \end{lstlisting}
 \end{minipage}
-
 \end{minipage}
 \begin{minipage}{0.64\textwidth}
   \tiny
   \includesvg[svgpath =../images/,width=\textwidth]{soa}
   Structures of arrays(SoA)
-  \\
+\\
   \includesvg[svgpath =../images/,width=\textwidth]{aos}
   Arrays of structures(AoS)
 
 \end{minipage}
 \end{frame}
 \begin{frame}
-\begin{table}[htbp]
+Nvidia Nsight\cite{NVIDIA:METRICS} now offers metrics to identify bottlenecks:
+\vspace{-5}
+\begin{table}
+  \footnotesize
+  \begin{tabular}{ | l | l |}    \hline
+    \textbf{Metric}   & \textbf{Description} \\ \hline
+    VRAM SOL\%        & memory througput w.r.t. to hardware limit\\\hline
+    SM SOL\%          & instruction throughput\\\hline
+    L2 SOL\%          & L2-cache throughput\\\hline
+    Tex SOL\%         & L1-cache throughput\\\hline
+    SM Issue Util.\%  & amount of cycles an instr. was issued\\\hline
+  \end{tabular}
+\end{table}
+\\
+\vspace{5}
+A simple map or copy shader with one instruction shows SoA vs. AoS differences:
+\vspace{-15}
+\begin{table}
+  \footnotesize
   \begin{tabular}{ | l | l | l | l | l | l | l |}    \hline
     Layout &  $\Delta t_c (\mu s)$	& Speedup &VRAM     & SM     & L2     & SM Issue Util. \\\hline
     AoS         & 243                   & -       &77.7\%   & 7.3\%  & 30.3\% & 6.8\% \\\hline
@@ -515,8 +537,12 @@ struct Particle {
     \hline
 \end{tabular}
 \end{table}
-
-  \end{frame}
+$\Rightarrow$ SoA increases coalescing for non-random access.
+\end{frame}
+\subsection{Parallel Reduction \& Scan}
+\begin{frame}
+  \frametitle{Parallel Reduction \& Scan}
+\end{frame}
 \section{Delving Deeper: Further Opportunities}
 
 \subsection{d}
