@@ -711,10 +711,10 @@ Typical setup of transfers:
 \end{frame}
 \begin{frame}
 \begin{itemize}
-  \item Block and its halo are always target of shared memory operations $\Rightarrow$ P2G-Pull low occupancy.
-  \item Batching multiple particles can increase performance due to hiding synchronization, unroll!
+  \item Block and halo are always target of shared memory operations $\Rightarrow$ P2G-pull low occupancy.
+  \item \textbf{Batching} multiple particles can increase performance due to hiding synchronization, unroll!
   \item Transfers respect shared memory bank conflicts fully.
-  \item Warp divergence for varying cell counts.
+  \item \textbf{Warp divergence} for varying cell counts.
 \end{itemize}
 
 {\footnotesize
@@ -735,20 +735,32 @@ P2G-transfers of one uniformly million particles with 4 particles per cell with 
 \begin{frame}
   \frametitle{A comparison to \cite{Gao:2018}}
 
-Largely same decision making:\\
+Simultaneously being worked on. Largely same decision making:\\
 \begin{table}
-  \begin{tabular}{|l|c|c|}
+\begin{tabular}{|c|c|c|}
     \hline
-           & Me              & \cite{Gao:2018} \\\hline
-    Sort   & Count/Histogram & Count/Histogram \\
+	   & \textbf{Me}              & \textbf{\cite{Gao:2018}} \\\hline
+  \textbf{Sort}   & Count/Histogram & Count/Histogram \\
 	   & for each var.   & sel. variables  \\\hline
-    Filtering domain& Filter-op.& Sparse Grid structure \\\hline
-    Transfers        & Shared mem. only & Warp-shuffle op.\\\hline
+  \textbf{Filtering domain}& Filter-op.& Sparse Grid structure \\\hline
+  \textbf{Transfers}        & Shared mem. only & Warp-shuffle op.\\\hline
   \end{tabular}
 \end{table}
-Warp shuffle allows for fast parallel segmented reduction of cells of varying counts.\\
-$\Rightarrow$ Solves warp divergence and shared memory issues mostly, thread groups now correspond to particles. Faster in these instances but NVIDIA only.
-
+\textbf{Warp shuffle} allows for fast parallel segmented reduction of cells of varying counts.\\
+$\Rightarrow$ Solves warp divergence and shared memory issues mostly, thread groups now correspond to particles. Faster for varying counts but \textbf{NVIDIA only}.
+\end{frame}
+\begin{frame}
+  \centering{\textbf{Thank you for your attention!}}
+  \vfill
+\begin{itemize}
+  \item \textbf{Bachelor thesis}: \url{https://github.com/MeyerFabian/snow}
+  \item \textbf{Master thesis}: \url{https://github.com/MeyerFabian/msc}
+  \item \textbf{Presentation}: \url{https://github.com/MeyerFabian/msc/pres}
+      \item \textbf{Code} (right now): \url{https://github.com/mpm-msc/snow}
+\end{itemize}
+\vfill
+\centering
+\textbf{Questions?}
 \end{frame}
 
 \selectlanguage{english}
