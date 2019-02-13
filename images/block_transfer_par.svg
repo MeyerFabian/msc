@@ -2988,10 +2988,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.4142138"
-     inkscape:cx="354.47908"
-     inkscape:cy="257.35758"
+     inkscape:cx="354.48918"
+     inkscape:cy="200.6564"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer7"
+     inkscape:current-layer="layer3"
      showgrid="false"
      inkscape:measure-start="0,0"
      inkscape:measure-end="0,0"
@@ -3013,7 +3013,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -4069,7 +4069,7 @@
        inkscape:connector-curvature="0" />
     <path
        style="display:inline;fill:#c21807;fill-opacity:1;stroke:#8780ff;stroke-width:0.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker1895-0-5-6-3)"
-       d="m 49.603304,-2.7376278 15.925012,0.132829"
+       d="m 49.416215,1.7524995 15.925012,0.132829"
        id="path1630-9-9-1-2"
        inkscape:connector-curvature="0" />
     <text
@@ -4085,7 +4085,7 @@
          id="tspan47112">Push-operation</tspan></text>
     <path
        style="display:inline;fill:#8780ff;fill-opacity:1;stroke:#c21807;stroke-width:0.25099999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker1895-0-5-6-3-1)"
-       d="m 134.60646,-2.7993001 -19.44169,-0.013374"
+       d="M 135.72899,-2.6122115 116.2873,-2.6255855"
        id="path1630-9-9-1-2-0"
        inkscape:connector-curvature="0" />
     <text

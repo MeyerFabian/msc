@@ -238,7 +238,7 @@
      inkscape:cx="261.25595"
      inkscape:cy="123.11233"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="layer2"
      showgrid="false"
      inkscape:measure-start="0,0"
      inkscape:measure-end="0,0"
@@ -1122,19 +1122,19 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:4.23333311px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       x="128.58751"
-       y="32.642296"
+       x="140.22917"
+       y="71.800629"
        id="text8256"><tspan
          sodipodi:role="line"
-         x="128.58751"
-         y="32.642296"
+         x="140.22917"
+         y="71.800629"
          style="stroke-width:0.26458332"
-         id="tspan8270">(*) active?:</tspan><tspan
+         id="tspan8270">(*) active</tspan><tspan
          sodipodi:role="line"
-         x="128.58751"
-         y="37.933964"
+         x="140.22917"
+         y="77.092293"
          style="stroke-width:0.26458332"
-         id="tspan8274">(count&gt;0)?1:0</tspan></text>
+         id="tspan8274" /></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        d="M 35.454166,47.326669 64.029163,42.828753"

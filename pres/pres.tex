@@ -28,6 +28,7 @@
 \usepackage{svg}
 \usepackage{xcolor,colortbl}
 \usepackage{media9}
+\usepackage{setspace}
 
 \let\oldcite=\cite
 \renewcommand{\cite}[1]{\textcolor[rgb]{.55,.55,.89}{\oldcite{#1}}}
@@ -659,22 +660,95 @@ All MPM operations belong to one of those parallelization schemes:
 \begin{itemize}
  \item 1 thread : 1 particle: $\square_p = \square_p \circ \square_p \circ ... \circ \square_p$.
  \item 1 thread : 1 node: $\square_p = \square_p \circ \square_p \circ ... \circ \square_p$.
- \item P2G-transfer: $\square_i = \sum_p \square_p \circ \square_{ip}.$
  \item G2P-transfer: $\square_p = \sum_i \square_i \circ \square_{ip}.$
+ \item P2G-transfer: $\square_i = \sum_p \square_p \circ \square_{ip}.$
 \end{itemize}
 \vfill
 MPM-Transfers are executed \textbf{multiple times per physical frame} with varying numbers of variables and mathematical operations.\\\vspace{5}
 $\Rightarrow$ Preprocessing steps only need to be done \textbf{once per physical frame}. Sorting already introduced as one of these.
 \end{frame}
-\section{Delving Deeper: Further Opportunities}
-
-\subsection{d}
-
 \begin{frame}
-\frametitle{hi}
-  \begin{enumerate}
-    \item \cite{MPM:COURSE}
-  \end{enumerate}
+\begin{minipage}{\textwidth}
+  G2P-Transfer: $\square_p = \sum_i \square_i \circ \square_{ip}.$\\
+  \includesvg[svgpath =../images/,width=\textwidth]{block_transfer_inv_par}
+  Pull-Operations read!
+\end{minipage}
+\end{frame}
+\begin{frame}
+Similar to filter or stencil operations on the GPU:
+\begin{itemize}
+  \item 1 node : 1 thread, split grid into blocks corr. to thread groups.
+  \item Interpolation function however dependent on particle position.
+  \item Needs to be rerun for every particle in the cell.
+\end{itemize}
+\vfill
+Typical setup of transfers:
+\begin{enumerate}
+  \item Initialize shared memory (pull: with nodes from global memory).
+  \item Perform transfers.
+  \item Write back to global memory (push: global atomics since writes on halo).
+\end{enumerate}
+\end{frame}
+\begin{frame}
+\begin{minipage}{\textwidth}
+  P2G-transfer: $\square_i = \sum_p \square_p \circ \square_{ip}.$\\
+  \includesvg[svgpath =../images/,width=\textwidth]{block_transfer_par}
+  Pull-Operations read, Push-operations write!\\
+  $\Rightarrow$ Race conditions.
+\end{minipage}
+\end{frame}
+\begin{frame}
+  Typically simulation domain(grid) much bigger than simulation model. Filtering inactive blocks as a preprocess improves performance.
+\begin{itemize}
+  \item Block is active if any cell counter is active.
+  \item Cell counter is active if it has at least one particle.
+\end{itemize}
+\vfill
+\begin{minipage}{0.9\textwidth}
+  \footnotesize
+  \includesvg[svgpath =../images/,width=\textwidth]{indirect_dispatch}
+\end{minipage}
+\end{frame}
+\begin{frame}
+\begin{itemize}
+  \item Block and its halo are always target of shared memory operations $\Rightarrow$ P2G-Pull low occupancy.
+  \item Batching multiple particles can increase performance due to hiding synchronization, unroll!
+  \item Transfers respect shared memory bank conflicts fully.
+  \item Warp divergence for varying cell counts.
+\end{itemize}
+
+{\footnotesize
+\begin{table}
+  \begin{tabular}{ | l | r | r | r | r | r |}    \hline
+    Method                 &  $\Delta t_c(\mu s)$ &Speedup         &VRAM  & L2   &SM     \\\hline
+    global                 &   44,442             &-               &4.6 \%&34.4\%&7.7\%  \\\hline
+    global sorted          &   20,484		  &2.21x           &7.0 \%&\textbf{44.0}\%&16.1\% \\\hline
+    P2G-sync              &    \textbf{2,595}    &17.47x          &5.9\%&7.6\%  &\textbf{67.0}\%\\\hline
+ \end{tabular}
+\end{table}
+P2G-transfers of one uniformly million particles with 4 particles per cell with random velocities between $v_x,v_y,v_z \in [-1.0;1.0]$ in a $128\times 128\times128$ grid. Block size is (8,4,4).
+}
+
+\end{frame}
+\section{Delving Deeper: Further Opportunities}
+\subsection{A comparison to \cite{Gao:2018}}
+\begin{frame}
+  \frametitle{A comparison to \cite{Gao:2018}}
+
+Largely same decision making:\\
+\begin{table}
+  \begin{tabular}{|l|c|c|}
+    \hline
+           & Me              & \cite{Gao:2018} \\\hline
+    Sort   & Count/Histogram & Count/Histogram \\
+	   & for each var.   & sel. variables  \\\hline
+    Filtering domain& Filter-op.& Sparse Grid structure \\\hline
+    Transfers        & Shared mem. only & Warp-shuffle op.\\\hline
+  \end{tabular}
+\end{table}
+Warp shuffle allows for fast parallel segmented reduction of cells of varying counts.\\
+$\Rightarrow$ Solves warp divergence and shared memory issues mostly, thread groups now correspond to particles. Faster in these instances but NVIDIA only.
+
 \end{frame}
 
 \selectlanguage{english}
