@@ -546,7 +546,7 @@ $\Rightarrow$ SoA increases coalescing for non-random access.
 \frametitle{Parallel Reduction \& Scan}
 Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ , a neutral element $e$ of the \texttt{binary\_op}, and an array of values $\left[a_0,a_1, ... ,a_n\right]$.\\\vspace{10}
 \begin{itemize}
-  \item \textbf{Parallel reduction} computes the scalar:
+  \item \textbf{Parallel reduction} computes the value:
 \begin{equation}
   r = a_0 \circ a_1 \circ ... \circ a_n.
 \end{equation}
@@ -560,7 +560,7 @@ Here, only shared memory approaches without (NVIDIA exclusive) warp shuffle oper
 \end{frame}
 \begin{frame}
 \textbf{Shared Memory Bank Conflicts}:
-\\\vspace{5}
+\\\vspace{10}
 \begin{minipage}{0.94\textwidth}
 \begin{minipage}{0.5\textwidth}
   \tiny
@@ -574,8 +574,97 @@ Here, only shared memory approaches without (NVIDIA exclusive) warp shuffle oper
 \end{minipage}
 \end{minipage}
 \\\vspace{10}
-Interleaved Addressing causes bank conflicts $\Rightarrow$ padding needed.
-\textbf{Sequential work}:
+\\
+Interleaved addressing causes bank conflicts (Short Scoreboard activity) $\Rightarrow$ padding needed.
+\vspace{-12}
+\begin{table}
+    \footnotesize
+  \begin{tabular}{ | l | r | r | r | r | r | r | r |}    \hline
+    Method         &  $\Delta t_c$ & Speedup &VRAM              & SM              & Sel. Warp-Stall Reas.\\\hline
+    Interl. no padd.    & 305                   & -       &23.0\%          & \textbf{60.9}\%  & S. Scoreb.(17.2\%)\\\hline
+    Sequential     & 141                   & 2.16x   &\textbf{49.8}\%   & 37.1\%         & \textbf{S. Scoreb.(2.0\%)} \\\hline
+  \end{tabular}
+    \caption{\footnotesize Parallel reduction on $1024\times1024$ vectors with \texttt{y=length(x)} as input.}
+\end{table}
+\vspace{-10}
+More elements than thread group size require pyramid schemes.
+\end{frame}
+
+\begin{frame}
+
+\textbf{Sequential work}: multiple elements per thread.\begin{itemize}
+  \item Memory latency hiding (Long Scoreboard up)
+  \item Higher reduction factor each dispatch $\Rightarrow$ Less global memory indirections
+  \item Unrolling loops can help but adds register pressure.
+\end{itemize}
+\begin{table}
+  \footnotesize
+  \begin{tabular}{ | l | r | r | r | r | r | r | r |}    \hline
+    Method         &  $\Delta t_c$ & Speedup &VRAM              & SM              & Sel. Warp-Stall Reas.\\\hline
+    Sequential     & 141                   & 2.16x   &49.8\%   & 37.1\%         & S. Scoreb.(2.0\%) \\\hline\hline
+    Seq. (2x)      & 100                   & 3.05x   &69.5\%            & 26.2\%         & L. Scoreb.(80.1\%)\\\hline
+    Seq. (128x)    & 98                    & 3.1x    &\textbf{72.9}\%   & 16.9\%         & \textbf{L. Scoreb.(84.4\%)}\\\hline
+    Seq. (256x)    & 101                   & 3.0x    &66.4\%            & 14.6\%         & L. Scoreb.(76.9\%)\\
+    \hline
+  \end{tabular}
+  \caption{\footnotesize Parallel reduction on $1024\times1024$ vectors with \texttt{y=length(x)} as input. Methods have 504, 8, 4 thread groups, respectively. A GTX970 has 13 SMs.}
+\end{table}
+\vspace{-10}
+Scan is similar but cannot profit as much from sequential work having to keep multiple elements in register memory.
+\end{frame}
+\subsection{Binning \& Counting Sort: Where Are You?}
+\begin{frame}
+\frametitle{Binning \& Counting Sort: Where Are You?}
+
+Grid node does not know its neighboring particles $\Rightarrow$ Binning.
+\\\vspace{10}
+Binning combines nicely with \textbf{Counting Sort:}\\
+\begin{minipage}{0.55\textwidth}
+\begin{enumerate}
+  \item \textbf{Binning}: Per node counting.
+  \item \textbf{Scan}: Computes new memory offset for particles.
+  \item \textbf{Reordering}: Give back indexing list or do deep copy.
+\end{enumerate}
+\end{minipage}
+\begin{minipage}{0.40\textwidth}
+  \footnotesize
+ \includesvg[svgpath =../images/,width=\textwidth]{binning}
+ \caption{\footnotesize Binning: Particle adds one
+to counter after storing it as offset.}
+ \end{minipage}
+\end{frame}
+
+\begin{frame}
+Sorting can dramatically increase workload performance of subsequent steps for neighboring queries:
+\begin{enumerate}
+  \item Deep sorted accesses are now \textbf{coalesced}. \label{it:sort_1}
+  \item \textbf{Data reuse} due to L2-Cache and/or shared memory. \label{it:sort_2}
+\end{enumerate}
+\textbf{Double buffer particles} to use last sorted state as input for new sorting to profit from item 1 and 2!
+\begin{table}
+  \footnotesize
+  \begin{tabular}{ | l | r | r | r | r| r |r|}    \hline
+    Ordering            &  $\Delta t_c (\mu s)$ & Speedup &VRAM              & SM      & L2     & L2-Hit \\\hline
+    Random              &  1,516                & -       &25.0\%            & 3.4\%   & 9.1\%  & 10.8\% \\\hline
+    Deep sorted           &    218                & 6.95x   &\textbf{75.3\%}   & 24.4\%  & \textbf{35.0\%} & \textbf{37.8\%} \\
+    \hline
+ \end{tabular}
+\caption{\footnotesize Order dependency of binning of $1024\times1024$ randomly positioned particles in a $128\times128\times128$ grid.}\label{table:bin}
+\end{table}
+\end{frame}
+\subsection{The MPM Specific Transfers}
+\begin{frame}
+\frametitle{The MPM Specific Transfers}
+All MPM operations belong to one of those parallelization schemes:
+\begin{itemize}
+ \item 1 thread : 1 particle: $\square_p = \square_p \circ \square_p \circ ... \circ \square_p$.
+ \item 1 thread : 1 node: $\square_p = \square_p \circ \square_p \circ ... \circ \square_p$.
+ \item P2G-transfer: $\square_i = \sum_p \square_p \circ \square_{ip}.$
+ \item G2P-transfer: $\square_p = \sum_i \square_i \circ \square_{ip}.$
+\end{itemize}
+\vfill
+MPM-Transfers are executed \textbf{multiple times per physical frame} with varying numbers of variables and mathematical operations.\\\vspace{5}
+$\Rightarrow$ Preprocessing steps only need to be done \textbf{once per physical frame}. Sorting already introduced as one of these.
 \end{frame}
 \section{Delving Deeper: Further Opportunities}
 
