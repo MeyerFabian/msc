@@ -1,3 +1,5 @@
+Presentation can be found at: https://github.com/MeyerFabian/msc/blob/master/pres/pres.pdf.
+
 Abstract
 ====
 The material point method is allowing for physically based simulations. It has found its way into computer graphics and since then rapidly expanded. The material point method’s hybrid use of Lagrangian particles as a persistent storage and a background uniform Eulerian grid enables solving of various partial differential equations with ease.
