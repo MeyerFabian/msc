@@ -1,3 +1,5 @@
+Further Development of https://github.com/MeyerFabian/snow focusing on performance.
+
 Presentation can be found at: https://github.com/MeyerFabian/msc/blob/master/pres/pres.pdf.
 
 Abstract
