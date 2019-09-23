@@ -177,6 +177,29 @@
 \end{frame}
 
 \section{Motivation on a GPU MPM Approach}
+\subsection{GPGPU for performance enthusiasts}
+\begin{frame}
+\frametitle{GPGPU for performance enthusiasts}
+  Why would('nt) you?
+  \vfill
+  \begin{columns}[T]
+    \begin{column}{0.45\textwidth}
+      \textbf{Drawbacks:}
+    \begin{itemize}
+      \item Interactivity much easier on CPU, but slow PCI-Bus communication
+      \item Code is mostly written against GPU architecture
+      \item A lot of strain on the programmer
+    \end{itemize}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \textbf{Benefits:}
+    \begin{itemize}
+      \item Data is already on the GPU for rendering
+      \item \textbf{Higher parallelization acceleration}
+    \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
 
 \subsection{A Brief MPM Overview: Do You Want to Build a Snowman?}
 
@@ -207,49 +230,34 @@ A short historical summary of MPM:
 
 
 \begin{frame}
-PIC ideas:
-\vfill
 \begin{minipage}{0.45\paperwidth}
+PIC ideas:
 \begin{itemize}
-    \item Combine Lagrangian particles \& Eulerian grid    \item Particles store all information
+    \item Particles store all information
+    \item Eulerian grid as a non-deformable scratchpad
+    \item[$\Rightarrow$] \textbf{meshfree}
 \end{itemize}
 \vfill
 Typical PIC/MPM roundtrip:
-\vfill
 \begin{enumerate}
-  \item Particle-to-grid(P2G) transfer to an unmoving grid
-    \item Solve discretized governing equations on grid
-    \item Grid-to-particle(G2P) transfer back to particles \& move them
-    \item[$\Rightarrow$] \textbf{meshfree, non-empirical}
+  \item Transfer particle quantities to the grid (\textit{P2G})
+  \item Solve discretized governing equations on grid
+  \item Transfer back (\textit{G2P})
 \end{enumerate}
 \end{minipage}
-\begin{minipage}{0.35\paperwidth}
-	\includesvg[width=0.35\paperwidth]{media/pic.svg}
-	\tiny{Transfers: Interpolation functions are defined over grid nodes.}
+\begin{minipage}{0.30\paperwidth}
+\begin{minipage}{1.0\textwidth}
+  \small
+  \includesvg[width=1.0\textwidth]{media/pic.svg}
+  P2G-transfer $\sum_p$
+\\
 \end{minipage}
-\end{frame}
-\subsection{GPGPU for performance enthusiasts}
-\begin{frame}
-  \frametitle{GPGPU for performance enthusiasts}
-  Why would('nt) you?
-  \vfill
-  \begin{columns}[T]
-    \begin{column}{0.45\textwidth}
-      \textbf{Drawbacks:}
-    \begin{itemize}
-      \item Interactivity much easier on CPU, but slow PCI-Bus communication
-      \item Code is mostly written against GPU architecture
-      \item A lot of strain on the programmer
-    \end{itemize}
-    \end{column}
-    \begin{column}{0.45\textwidth}
-      \textbf{Benefits:}
-    \begin{itemize}
-      \item Data is already on the GPU for rendering
-      \item \textbf{Higher parallelization acceleration}
-    \end{itemize}
-    \end{column}
-  \end{columns}
+\begin{minipage}{1.0\textwidth}
+  \small
+  \includesvg[width=1.0\textwidth]{media/g2p.svg}
+  G2P-transfer $\sum_i$
+\end{minipage}
+\end{minipage}
 \end{frame}
 \section{A Gentle Introduction to the MPM}
 
@@ -284,95 +292,20 @@ Eulerian (outside observer ${}_t\boldsymbol{x}$):
 Solving this equation will tell us how the velocity fields $\boldsymbol{v}(_t\boldsymbol{x}),\boldsymbol{v}(_0\boldsymbol{x})$ change on the whole domain due to acceleration $\boldsymbol{a}$. This is important to advect particles accounting for all forces. \cite{MPM:COURSE}\cite{MIT:CONTINUUM_MECHANICS}
 \end{frame}
 
-\subsection{The Pretty Strong but Mathematically Weak Formulation}
-\begin{frame}
-\frametitle{The Pretty Strong but Mathematically Weak Formulation}
-
-\textbf{Weak Formulation} (or Principle of Virtual Work):\\
-Dot product equations with arbitrarily 'test functions' $\boldsymbol{q}$ and apply divergence theorem:
-\begin{align}
-\int _ { \Omega ^ { 0 } } _0\boldsymbol{q} \cdot  \Bigl[(_0\rho_0)(_0\boldsymbol{a}) - & {}_0\boldsymbol{f}^{\text{body}}{}_0^tJ\Bigr] d _0\boldsymbol{x}= \nonumber \\
-										     &  \int _ { \partial \Omega ^ { t^n } } _t\boldsymbol{q} \cdot \boldsymbol{\sigma} d_t\boldsymbol{A} - \int _ { \Omega ^ { t^n} } \nabla {}_t\boldsymbol{q} : \boldsymbol{\sigma}  d_t\boldsymbol{x}.
-\end{align}
-A strong solution is also a solution to the weak formulation. Leave out body forces(like gravity) and boundary condition (e.g. collisions) for now:
-\begin{equation}
-  \int _ { \Omega ^ { 0 } } _0\boldsymbol{q} \cdot (_0\rho_0)(_0\boldsymbol{a}) d _0\boldsymbol{x}= \int _ { \Omega ^ { t^n} } \nabla {}_t\boldsymbol{q} : \boldsymbol{\sigma}  d_t\boldsymbol{x}.
-\end{equation}
-\end{frame}
-\begin{frame}[fragile]
-\textbf{Weak Derivative}:
-\vfill
-\begin{minipage}{0.49\textwidth}
-  $y=|t|$ has weak derivative:
-  \\\\
-$ v = \left\{ \begin{array} { l l }
-{ - 1 , } & { \text { if } t < 0 } \\
-{ c , } & { \text { if } t = 0 } \\
-{ 1 , } & { \text { if } t > 0 }
-\end{array} \right.$
-\\
-
-\end{minipage}
-\begin{minipage}{0.4\textwidth}
-\begin{tikzpicture}
-  \small
-\datavisualization [school book axes,
-		    y axis = {attribute = y, label},
-		    visualize as line/.list={fx},
-		    fx={style={color=blue}}
-]
-
-data [set=fx,format=function] {
-      var x : interval [-1.5:1.5] samples 5;
-      func y = abs(\value x);
-      };
-\end{tikzpicture}
-\end{minipage}
-
-\vfill
-\begin{minipage}{0.49\textwidth}
-  Heaviside step function has no weak derivate: \\\\
-  $s= \left\{ \begin{array} { l l } { 0 , } & { \text { if } t < 0 } \\ { 1 , } & { \text { if } t \geq 0 } \end{array} \right.$
-\end{minipage}
-\begin{minipage}{0.4\textwidth}
-\begin{tikzpicture}
-  \small
-  \begin{axis}[axis lines = middle, width=5.1cm,height=3.5cm,xtick={-1,0,1},ytick={0,1},ymin=-0.3,ymax=1.25,xmin=-1.8,xmax=1.8,ylabel=$s$]
-                \addplot[blue,mark=*,mark options={fill=white},samples at={-2.1,0}] {0};
-                \addplot[blue,mark=*,samples at={0,2.1}] {1.0};
-            \end{axis}
-\end{tikzpicture}
-\end{minipage}
-\vfill
-Allows for point loads, material discontinuities and more. \cite{bathe2006finite}
-\end{frame}
 \subsection{Discretization of Space and Time}
+
 \begin{frame}
 \frametitle{Discretization of Space and Time}
-\textbf{Time discretization} with implicit midpoint scheme:
-  \begin{equation}
-    \frac { y ^ { n + 1 } - y ^ { n } } { \Delta t } = f ^ { n + \frac{1}{2} } = f \left( t ^ { n } + \frac{\Delta t}{2}, \frac{1}{2} y ^ { n } + \frac{1}{2} y ^ { n + 1 } \right)
-  \end{equation}
+\textbf{Space Discretization} is done in a Galerkin/FEM fashion with grid based interpolants $w_i$. Here dyadic products of cubic b-splines suffice. $w_i$ should satisfy at least \cite{gao2017adaptive}:
 \begin{itemize}
-  \item \textbf{implicit} requires linear system solve $\Rightarrow$ more stable, larger time steps
-  \item \textbf{midpoint} as it conserves gov. equations
+  \item Partition of unity: $\sum_i w (\boldsymbol{x}-\boldsymbol{x}^n_i)=1$
+  \item Identity relation: $\sum_i \boldsymbol{x}_i w (\boldsymbol{x}-\boldsymbol{x}^n_i)=\boldsymbol{x}$ $(\boldsymbol{x}=\boldsymbol{x}_p)$
+  \item Non-negativity: $w \geq 0$.
+  \item Limited support.
+  \item $C^1$-continuity.
 \end{itemize}
-
-  \begin{equation}
-    \Rightarrow \int _ { \Omega ^ { t } } _t\boldsymbol{q} \cdot {}_t\rho(_t\boldsymbol{v}^{n+1}-{}_t\boldsymbol{v}^{n}) d _t\boldsymbol{x}= \int _ { \Omega ^ { t^n} } \nabla {}_t\boldsymbol{q} : \boldsymbol{\sigma}^{n+\frac{1}{2}}  d_t\boldsymbol{x}.
-  \end{equation}
-\end{frame}
-
-\begin{frame}[fragile]
-\textbf{Space Discretization} is done in a Galerkin/FEM fashion with grid based interpolants $w_i$ with limited support. Here dyadic products
-\begin{equation}
-  w_i(\boldsymbol{x}) =w(\boldsymbol{x}-\boldsymbol{x}_i) = w(\frac{1}{h}(x-x_i))w(\frac{1}{h}(y-y_i)w(\frac{1}{h}(z-z_i))
-\end{equation}
-of cubic b-splines suffice:
-\begin{equation}
-w ( x ) = \left\{ \begin{array} { l l } { \frac { 1 } { 2 } | x | ^ { 3 } - | x | ^ { 2 } + \frac { 2 } { 3 } } & { 0 \leqslant | x | < 1 } \\ { \frac { 1 } { 6 } ( 2 - | x | ) ^ { 3 } } & { 1 \leqslant | x | < 2 } \\ { 0 } & { 2 \leqslant | x | } \end{array}. \right
-\end{equation}
-\begin{tikzpicture}[
+Shortening $w^n_{ip} = w(\boldsymbol{x}_p^n - \boldsymbol{x}_i^n).
+\begin{tikzpicture}[remember picture,overlay,
   declare function={
     func(\x)= and(abs(\x) >= 0 , abs(\x)<1) * (pow(abs(\x),3)/2 - pow(abs(\x),2) +2/3)  +
 	      and(abs(\x) >= 1 , abs(\x)<2) * (1/6* pow((2-abs(\x)),3))
@@ -380,7 +313,7 @@ w ( x ) = \left\{ \begin{array} { l l } { \frac { 1 } { 2 } | x | ^ { 3 } - | x 
   }
 ]
 \begin{axis}[
-  width=10cm,height=4cm,
+  width=7.5cm,height=3.5cm,
   axis x line=middle, axis y line=middle,
   ymin=-0.1, ymax=1, ytick={0,1}, ylabel=$w$,
   xmin=-2.5, xmax=2.5, xtick={-2,...,2}, xlabel=$x$,
@@ -391,84 +324,50 @@ w ( x ) = \left\{ \begin{array} { l l } { \frac { 1 } { 2 } | x | ^ { 3 } - | x 
 \end{axis}
 \end{tikzpicture}
 \end{frame}
+
 \begin{frame}
-Thus set in:
-$$
-{}_t\boldsymbol{q}(\boldsymbol{x},t^n) = \sum_i \boldsymbol{e}_iw_i(\boldsymbol{x}),
-{}_t\boldsymbol{v}^{n(+1)}(\boldsymbol{x}) = \sum_j \boldsymbol{v}^{n(+1)}_jw_j(\boldsymbol{x}).
-$$
-Combine it with numerical integration where the particles function as quadrature points \cite{Steffen}:
+Transfer quantities from particles to grid. Numerical integration where the particles function as quadrature points \cite{Steffen}:
 
-\begin{minipage}{0.6\textwidth}
-
-$$
-g _ { i } = \int _ { \Omega } g ( \boldsymbol{x} ) w _ { i } ( \boldsymbol{x} ) d \boldsymbol{x}
-$$
-\begin{equation}
-  \approx \sum _ { p } g _ { p }  w_i(\boldsymbol{x}_p) V _ { p }.
-\end{equation}
-due to integration by midpoint rule:
-\begin{equation}
-\int _ { \Omega } f ( x ) d x \approx \sum _ { i = 1 } ^ { N } f \left( x _ { i } \right) h _ { i }.
-\end{equation}
-
-\end{minipage}
-\begin{minipage}{0.3\textwidth}
-  \begin{tikzpicture}[/pgf/declare function={f=-.1*(x)*(x-8);}]
-\pgfplotsset{
-    integral segments/.code={\pgfmathsetmacro\integralsegments{#1}},
-    integral segments=3,
-    integral/.style args={#1:#2}{
-        ybar interval,
-        domain=#1+((#2-#1)/\integralsegments)/2:#2+((#2-#1)/\integralsegments)/2,
-        samples=\integralsegments+1,
-        x filter/.code=\pgfmathparse{\pgfmathresult-((#2-#1)/\integralsegments)/2}
-    }
-}
-\begin{axis}[
-    ylabel=$f$,
-    width =5cm,height=5cm,
-    domain=0:6,
-    samples=100,
-    axis lines=middle
-]
-\addplot [thick] {f};
-\addplot [
-    red,
-    integral=0:6
-] {f};
-\end{axis}
-\end{tikzpicture}
-\end{minipage}
-\end{frame}
-  \subsection{Velocity Fields: APIC-Transfers}
-\begin{frame}
-  \frametitle{Velocity Fields: APIC-Transfers}
-  \begin{minipage}{0.64\textwidth}
-  PIC-transfer
-  \begin{enumerate}
-    \item $(m\boldsymbol{v})_i^n = \sum_p w_{ip}^nm_p\boldsymbol{v}^n_p$
-    \item $\boldsymbol{v}_i^n = \frac{(m\boldsymbol{v})_i^n}{m_i^n}$
-    \item $\boldsymbol{v}_{p,{PIC}}^{n+1} = \sum_i w^n_{ip}\boldsymbol{v}_i^{n+1}$
-  \end{enumerate}
-\vspace*{15}
-APIC-transfers add a local velocity field $\boldsymbol{C}^n_p$ around $\boldsymbol{v}^n_p$:
+$$m_i = \int_\Omega \rho(\boldsymbol{x})w_i(\boldsymbol{x}) d\Omega \approx \sum_p \rho_p w_{ip} V_p \approx \sum_p m_p w_{ip}$$
+$$A _ { i } = \int _ { \Omega }  A ( \boldsymbol{x} ) w _ { i } ( \boldsymbol{x} ) d \Omega \approx \sum _ { p } A _ { p }  w_{ip} V _ { p }.$$ \\
+\begin{minipage}{0.62\textwidth}
+APIC-transfers add a local velocity field $\boldsymbol{C}_p$ around $\boldsymbol{v}_p$:
 \\\vspace*{-10}\\
-$ ( m \boldsymbol{v} ) _ { i } ^ { n } = \sum _ { p } w _ { i p } ^ { n } m _ { p } \left( \boldsymbol{v} _ { p } ^ { n } + \boldsymbol{C} _ { p } ^ { n } ( \boldsymbol{x} _ { i } ^ { n } - \boldsymbol{x} _ { p } ^ { n }))$
+$ ( m \boldsymbol{v} ) _ { i } = \sum _ { p } w _ { i p } m _ { p } \left( \boldsymbol{v} _ { p } + \boldsymbol{C} _ { p } ( \boldsymbol{x} _ { i } - \boldsymbol{x} _ { p } ))$
 \end{minipage}
-\begin{minipage}{0.30\textwidth}
+\begin{minipage}{0.33\textwidth}
 \begin{minipage}{1.0\textwidth}
   \small
   \includesvg[width=1.0\textwidth]{media/pic.svg}
   P2G-transfer $\sum_p$
 \\
 \end{minipage}
+
+\end{minipage}
+\end{frame}
+
+\begin{frame}
+\begin{minipage}{0.64\textwidth}
+The MPM can be described in the weak formulation (FEM: virtual quantities). This allows us to 'shift' the derivative:\begin{itemize}
+\item $\boldsymbol{A}_p = \sum_i \boldsymbol{A}_i w_{ip} $
+\item $\nabla \boldsymbol{A}_p = \sum_i \boldsymbol{A}_i \nabla w_{ip}^T $
+\item$\nabla \cdot \boldsymbol{A}_p = \sum_i \boldsymbol{A}^T_i \nabla w_{ip} $
+\end{itemize}
+\end{minipage}
+\begin{minipage}{0.30\textwidth}
 \begin{minipage}{1.0\textwidth}
   \small
   \includesvg[width=1.0\textwidth]{media/g2p.svg}
   G2P-transfer $\sum_i$
 \end{minipage}
 \end{minipage}
+\vfill
+\textbf{Time discretization} with implicit midpoint scheme:\\
+$v_i ^ { n + 1 } - v_i ^ { n } = \frac{\Delta t}{m_i^n}f_i ^ { n + \frac{1}{2} } =\frac{\Delta t}{m_i^n} f \left( t ^ { n } + \frac{\Delta t}{2}, \frac{1}{2} y ^ { n } + \frac{1}{2} y ^ { n + 1 } \right)$
+\begin{itemize}
+  \item \textbf{implicit} requires linear system solve $\Rightarrow$ more stable, larger time steps
+  \item \textbf{midpoint} as it conserves angular momentum
+\end{itemize}
 \end{frame}
 \section{A MPM Guide on GPGPU Pitfalls and Optimizations}
 \subsection{Layout of the data: SoA vs. AoS}
@@ -659,7 +558,7 @@ Sorting can dramatically increase workload performance of subsequent steps for n
 All MPM operations belong to one of those parallelization schemes:
 \begin{itemize}
  \item 1 thread : 1 particle: $\square_p = \square_p \circ \square_p \circ ... \circ \square_p$.
- \item 1 thread : 1 node: $\square_p = \square_p \circ \square_p \circ ... \circ \square_p$.
+ \item 1 thread : 1 node: $\square_i = \square_i \circ \square_i \circ ... \circ \square_i$.
  \item G2P-transfer: $\square_p = \sum_i \square_i \circ \square_{ip}.$
  \item P2G-transfer: $\square_i = \sum_p \square_p \circ \square_{ip}.$
 \end{itemize}
@@ -765,4 +664,96 @@ $\Rightarrow$ Solves warp divergence and shared memory issues mostly, thread gro
 
 \selectlanguage{english}
 \printbibliography
+
+\begin{frame}
+\frametitle{The Pretty Strong but Mathematically Weak Formulation}
+
+\textbf{Weak Formulation} (or Principle of Virtual Work):\\
+Dot product equations with arbitrarily 'test functions' $\boldsymbol{q}$ and apply divergence theorem:
+\begin{align}
+\int _ { \Omega ^ { 0 } } _0\boldsymbol{q} \cdot  \Bigl[(_0\rho_0)(_0\boldsymbol{a}) - & {}_0\boldsymbol{f}^{\text{body}}{}_0^tJ\Bigr] d _0\boldsymbol{x}= \nonumber \\
+										     &  \int _ { \partial \Omega ^ { t^n } } _t\boldsymbol{q} \cdot \boldsymbol{\sigma} d_t\boldsymbol{A} - \int _ { \Omega ^ { t^n} } \nabla {}_t\boldsymbol{q} : \boldsymbol{\sigma}  d_t\boldsymbol{x}.
+\end{align}
+A strong solution is also a solution to the weak formulation. Leave out body forces(like gravity) and boundary condition (e.g. collisions) for now:
+\begin{equation}
+  \int _ { \Omega ^ { 0 } } _0\boldsymbol{q} \cdot (_0\rho_0)(_0\boldsymbol{a}) d _0\boldsymbol{x}= \int _ { \Omega ^ { t^n} } \nabla {}_t\boldsymbol{q} : \boldsymbol{\sigma}  d_t\boldsymbol{x}.
+\end{equation}
+\end{frame}
+\begin{frame}[fragile]
+\textbf{Weak Derivative}:
+\vfill
+\begin{minipage}{0.49\textwidth}
+  $y=|t|$ has weak derivative:
+  \\\\
+$ v = \left\{ \begin{array} { l l }
+{ - 1 , } & { \text { if } t < 0 } \\
+{ c , } & { \text { if } t = 0 } \\
+{ 1 , } & { \text { if } t > 0 }
+\end{array} \right.$
+\\
+
+\end{minipage}
+\begin{minipage}{0.4\textwidth}
+\begin{tikzpicture}
+  \small
+\datavisualization [school book axes,
+		    y axis = {attribute = y, label},
+		    visualize as line/.list={fx},
+		    fx={style={color=blue}}
+]
+
+data [set=fx,format=function] {
+      var x : interval [-1.5:1.5] samples 5;
+      func y = abs(\value x);
+      };
+\end{tikzpicture}
+\end{minipage}
+
+\vfill
+\begin{minipage}{0.49\textwidth}
+  Heaviside step function has no weak derivate: \\\\
+  $s= \left\{ \begin{array} { l l } { 0 , } & { \text { if } t < 0 } \\ { 1 , } & { \text { if } t \geq 0 } \end{array} \right.$
+\end{minipage}
+\begin{minipage}{0.4\textwidth}
+\begin{tikzpicture}
+  \small
+  \begin{axis}[axis lines = middle, width=5.1cm,height=3.5cm,xtick={-1,0,1},ytick={0,1},ymin=-0.3,ymax=1.25,xmin=-1.8,xmax=1.8,ylabel=$s$]
+                \addplot[blue,mark=*,mark options={fill=white},samples at={-2.1,0}] {0};
+                \addplot[blue,mark=*,samples at={0,2.1}] {1.0};
+            \end{axis}
+\end{tikzpicture}
+\end{minipage}
+\vfill
+Allows for point loads, material discontinuities and more. \cite{bathe2006finite}
+\end{frame}
+
+\begin{frame}[fragile]
+\textbf{Space Discretization} is done in a Galerkin/FEM fashion with grid based interpolants $w_i$ with limited support. Here dyadic products
+\begin{equation}
+  w_i(\boldsymbol{x}) =w(\boldsymbol{x}-\boldsymbol{x}_i) = w(\frac{1}{h}(x-x_i))w(\frac{1}{h}(y-y_i)w(\frac{1}{h}(z-z_i))
+\end{equation}
+of cubic b-splines suffice:
+\begin{equation}
+w ( x ) = \left\{ \begin{array} { l l } { \frac { 1 } { 2 } | x | ^ { 3 } - | x | ^ { 2 } + \frac { 2 } { 3 } } & { 0 \leqslant | x | < 1 } \\ { \frac { 1 } { 6 } ( 2 - | x | ) ^ { 3 } } & { 1 \leqslant | x | < 2 } \\ { 0 } & { 2 \leqslant | x | } \end{array}. \right
+\end{equation}
+\begin{tikzpicture}[
+  declare function={
+    func(\x)= and(abs(\x) >= 0 , abs(\x)<1) * (pow(abs(\x),3)/2 - pow(abs(\x),2) +2/3)  +
+	      and(abs(\x) >= 1 , abs(\x)<2) * (1/6* pow((2-abs(\x)),3))
+   ;
+  }
+]
+\begin{axis}[
+  width=10cm,height=4cm,
+  axis x line=middle, axis y line=middle,
+  ymin=-0.1, ymax=1, ytick={0,1}, ylabel=$w$,
+  xmin=-2.5, xmax=2.5, xtick={-2,...,2}, xlabel=$x$,
+  domain=-2.5:2.5,samples=101, % added
+]
+
+\addplot [blue,thick] {func(x)};
+\end{axis}
+\end{tikzpicture}
+\end{frame}
+\section*{Rest}
 \end{document}
