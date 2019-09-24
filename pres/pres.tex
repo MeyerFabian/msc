@@ -166,10 +166,8 @@
 \author % (optional, for multiple authors)
 {Fabian Meyer}
 
-\institute % (optional)
-{University of Koblenz}
 
-\date{Kolloquium Computergrafik, 14 February 2019}
+\date{FIFTY2 Technology GmbH, 25 September 2019}
 
 \begin{document}
 \begin{frame}
@@ -456,7 +454,7 @@ Assuming an associative \texttt{binary\_op(x,y)}:= $x \circ y$ , a neutral eleme
 \end{equation}
 \end{itemize}
 \\\vspace{5}
-Here, only shared memory approaches without (NVIDIA exclusive) warp shuffle operations.
+Here, only shared memory approaches without warp shuffle operations.
 \end{frame}
 \begin{frame}
 \textbf{Shared Memory Bank Conflicts}:
@@ -646,7 +644,7 @@ Simultaneously being worked on. Largely same decision making:\\
   \end{tabular}
 \end{table}
 \textbf{Warp shuffle} allows for fast parallel segmented reduction of cells of varying counts.\\
-$\Rightarrow$ Solves warp divergence and shared memory issues mostly, thread groups now correspond to particles. Faster for varying counts but \textbf{NVIDIA only}.
+$\Rightarrow$ Solves warp divergence and shared memory issues mostly, thread groups now correspond to particles. Faster for varying counts.
 \end{frame}
 \begin{frame}
   \centering{\textbf{Thank you for your attention!}}
